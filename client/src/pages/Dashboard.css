@@ -1,0 +1,36 @@
+.dashboard-stat-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.dashboard-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dashboard-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-stat-info .value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dashboard-stat-info .title {
+  font-size: 13px;
+  color: #6c757d;
+}

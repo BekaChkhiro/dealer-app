@@ -1,0 +1,195 @@
+.dt-wrapper {
+  width: 100%;
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dt-table-container {
+  overflow-x: auto;
+}
+
+.dt-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+/* ── Header ── */
+
+.dt-th {
+  background: var(--table-header-bg, #F6F9FB);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--body-text, #212529);
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-color, #DEE2E6);
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.dt-sortable {
+  cursor: pointer;
+}
+
+.dt-sortable:hover {
+  color: var(--primary, #0D6EFD);
+}
+
+.dt-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dt-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.6;
+}
+
+.dt-sortable:hover .dt-sort-icon {
+  opacity: 1;
+}
+
+.dt-th-actions {
+  width: 40px;
+  min-width: 40px;
+}
+
+/* ── Body rows ── */
+
+.dt-row {
+  transition: background-color 0.1s ease;
+}
+
+.dt-row:hover {
+  background-color: #f8f9fa;
+}
+
+.dt-td {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--body-text, #212529);
+  padding: 8px;
+  border-bottom: 1px solid var(--border-color, #DEE2E6);
+  vertical-align: middle;
+}
+
+.dt-align-right {
+  text-align: right;
+}
+
+/* ── Image thumbnail ── */
+
+.dt-thumbnail {
+  width: 60px;
+  height: 45px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+
+.dt-thumbnail-empty {
+  width: 60px;
+  height: 45px;
+  background: #eee;
+  border-radius: 4px;
+}
+
+/* ── Action menu ── */
+
+.dt-td-actions {
+  position: relative;
+  text-align: center;
+  width: 40px;
+  min-width: 40px;
+}
+
+.dt-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: #6c757d;
+  cursor: pointer;
+}
+
+.dt-menu-btn:hover {
+  background: #f0f0f0;
+  color: #212529;
+}
+
+.dt-menu-dropdown {
+  position: absolute;
+  right: 8px;
+  top: 100%;
+  z-index: 100;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid var(--border-color, #DEE2E6);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 4px 0;
+}
+
+.dt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #212529;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dt-menu-item:hover {
+  background: #f0f0f0;
+}
+
+.dt-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #6c757d;
+}
+
+/* ── Loading & empty ── */
+
+.dt-loading {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.dt-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #dee2e6;
+  border-top-color: var(--primary, #0D6EFD);
+  border-radius: 50%;
+  animation: dt-spin 0.7s linear infinite;
+}
+
+@keyframes dt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dt-empty {
+  text-align: center;
+  padding: 48px 0;
+  color: #6c757d;
+  font-size: 14px;
+}

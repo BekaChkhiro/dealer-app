@@ -1,0 +1,35 @@
+.ticket-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.ticket-placeholder-icon {
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.ticket-placeholder-title {
+  color: var(--body-text);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ticket-placeholder-text {
+  color: #6C757D;
+  font-size: 14px;
+  max-width: 400px;
+  margin-bottom: 16px;
+}
+
+.ticket-placeholder-user {
+  color: #ADB5BD;
+  font-size: 13px;
+  margin-bottom: 0;
+}

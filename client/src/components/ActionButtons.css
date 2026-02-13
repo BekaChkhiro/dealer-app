@@ -1,0 +1,122 @@
+.ab-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  gap: 12px;
+}
+
+/* ── Left section (buttons) ── */
+
+.ab-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* ── Right section (search) ── */
+
+.ab-right {
+  display: flex;
+  align-items: center;
+}
+
+.ab-search {
+  position: relative;
+}
+
+.ab-search-input {
+  width: 220px;
+  height: 38px;
+  padding: 0 36px 0 12px;
+  border: 1px solid var(--border-color, #DEE2E6);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--body-text, #212529);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ab-search-input::placeholder {
+  color: #adb5bd;
+}
+
+.ab-search-input:focus {
+  border-color: var(--primary, #0D6EFD);
+}
+
+.ab-search-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #adb5bd;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Export spinner ── */
+
+.ab-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ab-spin 0.6s linear infinite;
+}
+
+@keyframes ab-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Filter badge ── */
+
+.ab-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--primary, #0D6EFD);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ── Mobile ── */
+
+@media (max-width: 767.98px) {
+  .ab-bar {
+    flex-wrap: wrap;
+  }
+
+  .ab-left {
+    width: 100%;
+  }
+
+  .ab-right {
+    width: 100%;
+  }
+
+  .ab-search-input {
+    width: 100%;
+  }
+}
