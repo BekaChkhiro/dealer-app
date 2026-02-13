@@ -168,9 +168,9 @@ export default function Sidebar({ isCollapsed, onToggle, isMobile, isOpen, onClo
         <Link to="/" className="sidebar-logo">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
             <rect width="28" height="28" rx="6" fill="#727CF5" />
-            <text x="14" y="19" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="bold">R</text>
+            <text x="14" y="19" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="bold">D</text>
           </svg>
-          <span className="sidebar-logo-text">Royal Motors</span>
+          <span className="sidebar-logo-text">Dealer App</span>
         </Link>
 
         {/* Nav items */}
