@@ -1,6 +1,5 @@
-const fs = require('fs');
-const path = require('path');
 const pool = require('../config/db');
+const { uploadToR2, deleteFromR2 } = require('../config/r2');
 
 const ALLOWED_SORT_COLUMNS = [
   'id', 'buyer', 'mark', 'model', 'year', 'vin', 'lot_number', 'auction',
@@ -9,6 +8,15 @@ const ALLOWED_SORT_COLUMNS = [
   'receiver_fullname', 'container_number', 'dealer_fee',
 ];
 const ALLOWED_ORDER = ['asc', 'desc'];
+
+function extractR2Key(url) {
+  if (!url) return null;
+  const publicUrl = process.env.R2_PUBLIC_URL;
+  if (publicUrl && url.startsWith(publicUrl)) {
+    return url.slice(publicUrl.length + 1);
+  }
+  return null;
+}
 
 async function getVehicles(req, res) {
   try {
@@ -116,7 +124,11 @@ async function createVehicle(req, res) {
       driver_company, late_car_payment,
     } = req.body;
 
-    const profile_image_url = req.file ? `/static/cars/${req.file.filename}` : null;
+    let profile_image_url = null;
+    if (req.file) {
+      const key = `cars/${Date.now()}_${lot_number || 'unknown'}_${req.file.originalname}`;
+      profile_image_url = await uploadToR2(req.file.buffer, key, req.file.mimetype);
+    }
 
     const result = await pool.query(
       `INSERT INTO vehicles (
@@ -187,11 +199,15 @@ async function updateVehicle(req, res) {
     if (req.file) {
       const oldRecord = await pool.query('SELECT profile_image_url FROM vehicles WHERE id = $1', [id]);
       if (oldRecord.rows.length > 0 && oldRecord.rows[0].profile_image_url) {
-        const oldPath = path.join(__dirname, '..', '..', oldRecord.rows[0].profile_image_url.replace(/^\//, ''));
-        fs.unlink(oldPath, () => {});
+        const oldKey = extractR2Key(oldRecord.rows[0].profile_image_url);
+        if (oldKey) {
+          deleteFromR2(oldKey).catch(err => console.error('Failed to delete old image from R2:', err));
+        }
       }
+      const key = `cars/${Date.now()}_${req.body.lot_number || 'unknown'}_${req.file.originalname}`;
+      const imageUrl = await uploadToR2(req.file.buffer, key, req.file.mimetype);
       fields.push(`profile_image_url = $${paramIndex}`);
-      params.push(`/static/cars/${req.file.filename}`);
+      params.push(imageUrl);
       paramIndex++;
     }
 
@@ -304,8 +320,10 @@ async function deleteVehicle(req, res) {
 
     const { profile_image_url } = result.rows[0];
     if (profile_image_url) {
-      const filePath = path.join(__dirname, '..', '..', profile_image_url.replace(/^\//, ''));
-      fs.unlink(filePath, () => {});
+      const key = extractR2Key(profile_image_url);
+      if (key) {
+        deleteFromR2(key).catch(err => console.error('Failed to delete image from R2:', err));
+      }
     }
 
     res.json({ error: 0, success: true, message: 'Vehicle deleted' });
