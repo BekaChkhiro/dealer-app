@@ -22,7 +22,7 @@ async function seedAdmin() {
     await pool.query(
       `INSERT INTO users (name, surname, email, username, password_hash, role)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      ['Admin', 'User', 'admin@royalmotors.com', username, passwordHash, 'admin']
+      ['Admin', 'User', 'admin@dealer.ge', username, passwordHash, 'admin']
     );
 
     console.log(`Admin user seeded: username="${username}", password="${password}"`);

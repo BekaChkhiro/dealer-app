@@ -1,4 +1,4 @@
--- Royal Motors Portal - Database Schema
+-- Dealer App - Database Schema
 -- All tables for the dealer/car import management dashboard
 
 -- 1. Users table
