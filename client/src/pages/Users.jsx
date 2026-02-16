@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -33,6 +34,7 @@ function formatDate(value) {
 function Users() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const columns = [
@@ -106,6 +108,10 @@ function Users() {
   }
 
   function handleAction(action, row) {
+    if (action === 'view') {
+      navigate(`/users/${row.id}`);
+      return;
+    }
     if (action === 'edit') {
       setEditRow(row);
       setFormData({
@@ -180,6 +186,7 @@ function Users() {
 
   const actions = isAdmin
     ? [
+        { key: 'view', label: t('userDetail.view') },
         { key: 'edit', label: t('common.edit') },
         { key: 'delete', label: t('common.delete') },
       ]

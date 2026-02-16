@@ -1,0 +1,114 @@
+.settings-page {
+  max-width: 800px;
+}
+
+.settings-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+/* Card */
+.settings-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.settings-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+/* Form grid */
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
+
+@media (max-width: 575.98px) {
+  .settings-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-form-grid .form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+/* Language options */
+.settings-language-options {
+  display: flex;
+  gap: 24px;
+}
+
+.settings-language-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--body-text);
+}
+
+.settings-language-option input[type="radio"] {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+}
+
+/* Info grid (read-only items) */
+.settings-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+}
+
+@media (max-width: 575.98px) {
+  .settings-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-info-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 2px;
+}
+
+.settings-info-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--body-text);
+}
+
+/* Role badge */
+.settings-role-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  width: fit-content;
+}
+
+.settings-role-badge.admin {
+  background: #727CF5;
+}

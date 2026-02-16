@@ -5,6 +5,8 @@ import { LanguageProvider } from './context/LanguageContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Calculator from './pages/Calculator';
 import Boats from './pages/Boats';
@@ -14,7 +16,14 @@ import Booking from './pages/Booking';
 import Containers from './pages/Containers';
 import Transactions from './pages/Transactions';
 import Ticket from './pages/Ticket';
+import CarDetail from './pages/CarDetail';
+import BoatDetail from './pages/BoatDetail';
+import UserDetail from './pages/UserDetail';
+import BookingDetail from './pages/BookingDetail';
+import ContainerDetail from './pages/ContainerDetail';
 import ChangePassword from './pages/ChangePassword';
+import AuditLog from './pages/AuditLog';
+import Settings from './pages/Settings';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/global.css';
 
@@ -120,15 +129,22 @@ function ProtectedLayout() {
       }}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/users/:id" element={<AdminRoute><UserDetail /></AdminRoute>} />
           <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
+          <Route path="/booking/:id" element={<BookingDetail />} />
           <Route path="/booking" element={<Booking />} />
+          <Route path="/cars/:id" element={<CarDetail />} />
           <Route path="/cars" element={<Cars />} />
+          <Route path="/containers/:id" element={<ContainerDetail />} />
           <Route path="/containers" element={<Containers />} />
+          <Route path="/boats/:id" element={<BoatDetail />} />
           <Route path="/boats" element={<Boats />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/ticket" element={<Ticket />} />
+          <Route path="/audit-log" element={<AdminRoute><AuditLog /></AdminRoute>} />
           <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -143,6 +159,8 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/*" element={<ProtectedLayout />} />
           </Routes>
         </BrowserRouter>

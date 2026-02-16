@@ -15,11 +15,17 @@ router.use('/containers', require('./containers'));
 router.use('/boats', require('./boats'));
 router.use('/calculator', require('./calculator'));
 router.use('/transactions', require('./transactions'));
+router.use('/tickets', require('./tickets'));
+router.use('/audit-logs', require('./auditLogs'));
 
 // Top-level endpoints
 const { requireAuth } = require('../middleware/auth');
+const dashboardController = require('../controllers/dashboardController');
+router.get('/dashboard/stats', requireAuth, dashboardController.getStats);
+
 const vehiclesController = require('../controllers/vehiclesController');
 router.get('/cities', requireAuth, vehiclesController.getCities);
+router.get('/search', requireAuth, vehiclesController.searchVehicles);
 
 // Dropdown data endpoints for booking/containers forms
 const bookingController = require('../controllers/bookingController');

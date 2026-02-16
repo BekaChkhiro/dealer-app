@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -6,6 +7,8 @@ import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import ActionButtons from '../components/ActionButtons';
 import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
+import BulkActionBar from '../components/BulkActionBar';
+import { exportToCSV } from '../utils/export';
 import './Booking.css';
 
 const EMPTY_FORM = {
@@ -32,6 +35,7 @@ function formatDate(value) {
 function Booking() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const [data, setData] = useState([]);
@@ -58,6 +62,13 @@ function Booking() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const [exporting, setExporting] = useState(false);
+
+  // Bulk operations state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const [vinCodes, setVinCodes] = useState([]);
   const [containersList, setContainersList] = useState([]);
   const [boats, setBoats] = useState([]);
@@ -82,6 +93,11 @@ function Booking() {
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Clear selection when data parameters change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, limit, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => {
     async function fetchDropdowns() {
@@ -175,8 +191,25 @@ function Booking() {
     ]},
   ];
 
-  function handleExport() {
-    // TODO: Export functionality (T2.11)
+  async function handleExport() {
+    if (exporting) return;
+    try {
+      setExporting(true);
+      const params = { limit: 100000, page: 1, asc: sortDir, sort_by: sortBy };
+      if (keyword) params.keyword = keyword;
+      if (filters.start_date) params.start_date = filters.start_date;
+      if (filters.end_date) params.end_date = filters.end_date;
+      if (filters.loading_port) params.loading_port = filters.loading_port;
+      if (filters.line) params.line = filters.line;
+      const res = await api.get('/booking', { params });
+      const rows = res.data.data || [];
+      const today = new Date().toISOString().slice(0, 10);
+      exportToCSV(rows, columns, `booking_${today}`);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
   }
 
   function handleAddNew() {
@@ -187,6 +220,10 @@ function Booking() {
   }
 
   function handleAction(action, row) {
+    if (action === 'view') {
+      navigate(`/booking/${row.id}`);
+      return;
+    }
     if (action === 'edit') {
       setEditRow(row);
       const populated = { ...EMPTY_FORM };
@@ -270,12 +307,37 @@ function Booking() {
     }
   }
 
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await api.post('/booking/bulk-delete', { ids: [...selectedIds] });
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+      fetchData();
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function handleExportSelected() {
+    const selectedRows = data.filter(row => selectedIds.has(row.id));
+    if (selectedRows.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    exportToCSV(selectedRows, columns, `booking_selected_${today}`);
+  }
+
   const actions = isAdmin
     ? [
+        { key: 'view', label: t('bookingDetail.view') },
         { key: 'edit', label: t('common.edit') },
         { key: 'delete', label: t('common.delete') },
       ]
-    : [];
+    : [
+        { key: 'view', label: t('bookingDetail.view') },
+      ];
 
   return (
     <div>
@@ -300,6 +362,16 @@ function Booking() {
         onRemove={handleRemoveFilter}
       />
 
+      {isAdmin && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onBulkDelete={() => setBulkDeleteConfirm(true)}
+          onExportSelected={handleExportSelected}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          bulkDeleting={bulkDeleting}
+        />
+      )}
+
       <DataTable
         columns={columns}
         data={data}
@@ -309,6 +381,9 @@ function Booking() {
         onSort={handleSort}
         actions={actions}
         onAction={handleAction}
+        selectable={isAdmin}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
       />
 
       <Pagination
@@ -509,6 +584,28 @@ function Booking() {
             <div className="booking-modal-footer">
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={handleDelete}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteConfirm && (
+        <div className="booking-modal-overlay" onClick={() => setBulkDeleteConfirm(false)}>
+          <div className="booking-modal booking-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="booking-modal-header">
+              <h5>{t('bulk.bulkDelete')}</h5>
+              <button className="booking-modal-close" onClick={() => setBulkDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="booking-modal-body">
+              <p>{t('bulk.confirmBulkDelete')}</p>
+              <p className="text-muted mb-0">{selectedIds.size} {t('bulk.selected')} — {t('bulk.cannotUndo')}</p>
+            </div>
+            <div className="booking-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setBulkDeleteConfirm(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                {bulkDeleting ? t('bulk.deleting') : t('bulk.deleteItems')}
+              </button>
             </div>
           </div>
         </div>

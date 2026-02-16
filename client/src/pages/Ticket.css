@@ -1,35 +1,93 @@
-.ticket-placeholder {
+/* Modal */
+.ticket-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  padding: 60px 24px;
+  align-items: center;
+  z-index: 1050;
+}
+
+.ticket-modal {
   background: #fff;
   border-radius: 8px;
-  border: 1px solid var(--border-color);
-  text-align: center;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.ticket-placeholder-icon {
-  margin-bottom: 20px;
-  opacity: 0.5;
+.ticket-modal-sm {
+  width: 400px;
 }
 
-.ticket-placeholder-title {
-  color: var(--body-text);
+.ticket-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ticket-modal-header h5 {
+  margin: 0;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 8px;
 }
 
-.ticket-placeholder-text {
-  color: #6C757D;
-  font-size: 14px;
-  max-width: 400px;
-  margin-bottom: 16px;
+.ticket-modal-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6c757d;
+  line-height: 1;
+  padding: 0;
 }
 
-.ticket-placeholder-user {
-  color: #ADB5BD;
-  font-size: 13px;
-  margin-bottom: 0;
+.ticket-modal-body {
+  padding: 20px;
+}
+
+.ticket-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Status badges */
+.ticket-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ticket-badge-info {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.ticket-badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.ticket-badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.ticket-badge-secondary {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.ticket-badge-danger {
+  background: #f8d7da;
+  color: #721c24;
 }

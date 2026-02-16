@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS users (
   last_purchase_date TIMESTAMP,
   superviser_fee DECIMAL(12,2) DEFAULT 0,
   creator INTEGER,
-  debt DECIMAL(12,2) DEFAULT 0
+  debt DECIMAL(12,2) DEFAULT 0,
+  reset_token VARCHAR(255),
+  reset_token_expires TIMESTAMP
 );
 
 -- 2. Boats table (created before booking/containers since they reference it)
@@ -175,6 +177,32 @@ CREATE TABLE IF NOT EXISTS transactions (
   "addToBalanseAmount" DECIMAL(12,2) DEFAULT 0
 );
 
+-- 8. Tickets table
+CREATE TABLE IF NOT EXISTS tickets (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  subject VARCHAR(255) NOT NULL,
+  message TEXT,
+  status VARCHAR(20) DEFAULT 'open',
+  priority VARCHAR(20) DEFAULT 'medium',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  resolved_at TIMESTAMP
+);
+
+-- 9. Audit Logs table
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id INTEGER,
+  action VARCHAR(20) NOT NULL,
+  old_values JSONB,
+  new_values JSONB,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Indexes for frequently queried columns
 CREATE INDEX IF NOT EXISTS idx_vehicles_dealer_id ON vehicles(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_vin ON vehicles(vin);
@@ -186,3 +214,9 @@ CREATE INDEX IF NOT EXISTS idx_containers_user_id ON containers(user_id);
 CREATE INDEX IF NOT EXISTS idx_containers_vin ON containers(vin);
 CREATE INDEX IF NOT EXISTS idx_transactions_vin ON transactions(vin);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs(entity_type);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);

@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { logAudit } = require('../helpers/auditLog');
 
 const ALLOWED_SORT_COLUMNS = ['id', 'name', 'identification_code', 'departure_date', 'estimated_arrival_date', 'arrival_date', 'status'];
 const ALLOWED_ORDER = ['asc', 'desc'];
@@ -64,6 +65,7 @@ async function createBoat(req, res) {
       [name, identification_code || null, departure_date || null, estimated_arrival_date || null, arrival_date || null, status || 'us_port']
     );
 
+    logAudit({ userId: req.session.user.id, entityType: 'boat', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip });
     res.status(201).json({ error: 0, success: true, data: result.rows[0] });
   } catch (err) {
     console.error('createBoat error:', err);
@@ -74,6 +76,7 @@ async function createBoat(req, res) {
 async function updateBoat(req, res) {
   try {
     const { id } = req.params;
+    const oldRecord = await pool.query('SELECT * FROM boats WHERE id = $1', [id]);
     const { name, identification_code, departure_date, estimated_arrival_date, arrival_date, status } = req.body;
 
     const fields = [];
@@ -109,6 +112,7 @@ async function updateBoat(req, res) {
       return res.status(404).json({ error: 1, success: false, message: 'Boat not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'boat', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip });
     res.json({ error: 0, success: true, data: result.rows[0] });
   } catch (err) {
     console.error('updateBoat error:', err);
@@ -120,12 +124,13 @@ async function deleteBoat(req, res) {
   try {
     const { id } = req.params;
 
-    const result = await pool.query('DELETE FROM boats WHERE id = $1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM boats WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 1, success: false, message: 'Boat not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'boat', entityId: parseInt(id), action: 'DELETE', oldValues: result.rows[0], newValues: null, ipAddress: req.ip });
     res.json({ error: 0, success: true, message: 'Boat deleted' });
   } catch (err) {
     console.error('deleteBoat error:', err);
@@ -133,4 +138,21 @@ async function deleteBoat(req, res) {
   }
 }
 
-module.exports = { getBoats, createBoat, updateBoat, deleteBoat };
+async function getBoatById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query('SELECT * FROM boats WHERE id = $1', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Boat not found' });
+    }
+
+    res.json({ error: 0, success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('getBoatById error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getBoats, getBoatById, createBoat, updateBoat, deleteBoat };

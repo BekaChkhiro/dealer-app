@@ -6,6 +6,7 @@ import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import ActionButtons from '../components/ActionButtons';
 import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
+import BulkActionBar from '../components/BulkActionBar';
 import { exportToCSV } from '../utils/export';
 import './Containers.css';
 
@@ -83,6 +84,11 @@ function Containers() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [exporting, setExporting] = useState(false);
 
+  // Bulk operations state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const [editModal, setEditModal] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -111,6 +117,11 @@ function Containers() {
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Clear selection when data parameters change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, limit, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => {
     async function fetchDropdowns() {
@@ -272,6 +283,27 @@ function Containers() {
     }
   }
 
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await api.post('/containers/bulk-delete', { ids: [...selectedIds] });
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+      fetchData();
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function handleExportSelected() {
+    const selectedRows = data.filter(row => selectedIds.has(row.id));
+    if (selectedRows.length === 0) return;
+    exportToCSV(selectedRows, columns, `containers_selected`);
+  }
+
   return (
     <div>
       <h2 className="mb-4">{t('containers.title')}</h2>
@@ -296,6 +328,16 @@ function Containers() {
         onRemove={handleRemoveFilter}
       />
 
+      {isAdmin && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onBulkDelete={() => setBulkDeleteConfirm(true)}
+          onExportSelected={handleExportSelected}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          bulkDeleting={bulkDeleting}
+        />
+      )}
+
       <DataTable
         columns={columns}
         data={data}
@@ -305,6 +347,9 @@ function Containers() {
         onSort={handleSort}
         actions={actions}
         onAction={handleAction}
+        selectable={isAdmin}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
       />
 
       <Pagination
@@ -494,6 +539,28 @@ function Containers() {
             <div className="containers-modal-footer">
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={handleDelete}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteConfirm && (
+        <div className="containers-modal-overlay" onClick={() => setBulkDeleteConfirm(false)}>
+          <div className="containers-modal containers-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="containers-modal-header">
+              <h5>{t('bulk.bulkDelete')}</h5>
+              <button className="containers-modal-close" onClick={() => setBulkDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="containers-modal-body">
+              <p>{t('bulk.confirmBulkDelete')}</p>
+              <p className="text-muted mb-0">{selectedIds.size} {t('bulk.selected')} — {t('bulk.cannotUndo')}</p>
+            </div>
+            <div className="containers-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setBulkDeleteConfirm(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                {bulkDeleting ? t('bulk.deleting') : t('bulk.deleteItems')}
+              </button>
             </div>
           </div>
         </div>

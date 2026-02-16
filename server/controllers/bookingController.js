@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { logAudit } = require('../helpers/auditLog');
 
 const ALLOWED_SORT_COLUMNS = ['id', 'vin', 'buyer_fullname', 'booking_number', 'line', 'container', 'delivery_location', 'loading_port', 'container_loaded_date', 'container_receive_date', 'terminal', 'est_opening_date', 'open_date', 'create_date'];
 const ALLOWED_ORDER = ['asc', 'desc'];
@@ -44,6 +45,12 @@ async function getBookings(req, res) {
     if (line) {
       conditions.push(`b.line = $${paramIndex}`);
       params.push(line);
+      paramIndex++;
+    }
+
+    if (req.query.boat_id) {
+      conditions.push(`b.boat_id = $${paramIndex}`);
+      params.push(req.query.boat_id);
       paramIndex++;
     }
 
@@ -105,6 +112,7 @@ async function createBooking(req, res) {
       ]
     );
 
+    logAudit({ userId: req.session.user.id, entityType: 'booking', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip });
     res.status(201).json({ error: 0, success: true, data: result.rows[0] });
   } catch (err) {
     console.error('createBooking error:', err);
@@ -115,6 +123,7 @@ async function createBooking(req, res) {
 async function updateBooking(req, res) {
   try {
     const { id } = req.params;
+    const oldRecord = await pool.query('SELECT * FROM booking WHERE id = $1', [id]);
     const {
       vin, buyer_fullname, booking_number, booking_paid, container,
       container_loaded_date, container_receiver, container_receive_date,
@@ -171,6 +180,7 @@ async function updateBooking(req, res) {
       return res.status(404).json({ error: 1, success: false, message: 'Booking not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'booking', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip });
     res.json({ error: 0, success: true, data: result.rows[0] });
   } catch (err) {
     console.error('updateBooking error:', err);
@@ -182,15 +192,38 @@ async function deleteBooking(req, res) {
   try {
     const { id } = req.params;
 
-    const result = await pool.query('DELETE FROM booking WHERE id = $1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM booking WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 1, success: false, message: 'Booking not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'booking', entityId: parseInt(id), action: 'DELETE', oldValues: result.rows[0], newValues: null, ipAddress: req.ip });
     res.json({ error: 0, success: true, message: 'Booking deleted' });
   } catch (err) {
     console.error('deleteBooking error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function bulkDeleteBookings(req, res) {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 1, success: false, message: 'ids must be a non-empty array' });
+    }
+    if (ids.length > 100) {
+      return res.status(400).json({ error: 1, success: false, message: 'Maximum 100 items per request' });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM booking WHERE id = ANY($1::int[]) RETURNING id',
+      [ids]
+    );
+
+    res.json({ error: 0, success: true, deletedCount: result.rowCount, deletedIds: result.rows.map(r => r.id) });
+  } catch (err) {
+    console.error('bulkDeleteBookings error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
   }
 }
@@ -229,4 +262,34 @@ async function getContainersList(req, res) {
   }
 }
 
-module.exports = { getBookings, createBooking, updateBooking, deleteBooking, getVinCodes, getContainersList };
+async function getBookingById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT b.*, bt.name AS boat_name_full, bt.identification_code AS boat_code, bt.status AS boat_status
+       FROM booking b
+       LEFT JOIN boats bt ON b.boat_id = bt.id
+       WHERE b.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Booking not found' });
+    }
+
+    const booking = result.rows[0];
+
+    // Non-admin users can only view their own bookings
+    if (req.session.user.role !== 'admin' && booking.user_id !== req.session.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    res.json({ error: 0, success: true, data: booking });
+  } catch (err) {
+    console.error('getBookingById error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getBookings, getBookingById, createBooking, updateBooking, deleteBooking, bulkDeleteBookings, getVinCodes, getContainersList };

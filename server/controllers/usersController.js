@@ -1,5 +1,8 @@
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
+const { logAudit } = require('../helpers/auditLog');
+
+const USER_SENSITIVE_FIELDS = ['password_hash', 'reset_token', 'reset_token_expires'];
 
 const ALLOWED_SORT_COLUMNS = ['id', 'name', 'surname', 'email', 'username', 'role', 'last_login_time', 'last_purchase_date', 'superviser_fee', 'signup_date'];
 const ALLOWED_ORDER = ['asc', 'desc'];
@@ -85,6 +88,7 @@ async function createUser(req, res) {
     );
 
     const { password_hash: _, ...user } = result.rows[0];
+    logAudit({ userId: req.session.user.id, entityType: 'user', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip, sensitiveFields: USER_SENSITIVE_FIELDS });
     res.status(201).json({ error: 0, success: true, data: user });
   } catch (err) {
     console.error('createUser error:', err);
@@ -120,6 +124,12 @@ async function updateUser(req, res) {
       if (duplicate.rows.length > 0) {
         return res.status(409).json({ error: 1, success: false, message: 'Email or username already exists' });
       }
+    }
+
+    // Capture old state for audit
+    const oldRecord = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    if (oldRecord.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
     }
 
     const fields = [];
@@ -165,6 +175,7 @@ async function updateUser(req, res) {
       return res.status(404).json({ error: 1, success: false, message: 'User not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'user', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip, sensitiveFields: USER_SENSITIVE_FIELDS });
     const { password_hash: _, ...user } = result.rows[0];
     res.json({ error: 0, success: true, data: user });
   } catch (err) {
@@ -181,12 +192,13 @@ async function deleteUser(req, res) {
       return res.status(400).json({ error: 1, success: false, message: 'Cannot delete yourself' });
     }
 
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 1, success: false, message: 'User not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'user', entityId: parseInt(id), action: 'DELETE', oldValues: result.rows[0], newValues: null, ipAddress: req.ip, sensitiveFields: USER_SENSITIVE_FIELDS });
     res.json({ error: 0, success: true, message: 'User deleted' });
   } catch (err) {
     console.error('deleteUser error:', err);
@@ -194,4 +206,129 @@ async function deleteUser(req, res) {
   }
 }
 
-module.exports = { getUsers, createUser, updateUser, deleteUser };
+async function getUserById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
+    }
+
+    const { password_hash: _, ...user } = result.rows[0];
+    res.json({ error: 0, success: true, data: user });
+  } catch (err) {
+    console.error('getUserById error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function getUserBalance(req, res) {
+  try {
+    const { id } = req.params;
+
+    const userResult = await pool.query(
+      'SELECT balance, debt, superviser_fee FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    const vehicleDebtResult = await pool.query(
+      'SELECT COALESCE(SUM(debt_amount), 0) AS total_vehicle_debt FROM vehicles WHERE dealer_id = $1',
+      [id]
+    );
+
+    const userForTx = await pool.query('SELECT username FROM users WHERE id = $1', [id]);
+    const username = userForTx.rows[0]?.username;
+
+    const txResult = await pool.query(
+      `SELECT * FROM transactions WHERE payer = $1 ORDER BY id DESC LIMIT 20`,
+      [username]
+    );
+
+    res.json({
+      error: 0,
+      success: true,
+      data: {
+        balance: user.balance,
+        debt: user.debt,
+        superviser_fee: user.superviser_fee,
+        total_vehicle_debt: Number(vehicleDebtResult.rows[0].total_vehicle_debt),
+        recent_transactions: txResult.rows,
+      },
+    });
+  } catch (err) {
+    console.error('getUserBalance error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function adjustBalance(req, res) {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { amount, type, note } = req.body;
+
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) {
+      client.release();
+      return res.status(400).json({ error: 1, success: false, message: 'Invalid amount' });
+    }
+
+    if (!['credit', 'debit'].includes(type)) {
+      client.release();
+      return res.status(400).json({ error: 1, success: false, message: 'Type must be credit or debit' });
+    }
+
+    await client.query('BEGIN');
+
+    const userResult = await client.query('SELECT username, balance FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
+    }
+
+    const username = userResult.rows[0].username;
+    const signedAmount = type === 'credit' ? numAmount : -numAmount;
+
+    await client.query(
+      'UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE id = $2',
+      [signedAmount, id]
+    );
+
+    await client.query(
+      `INSERT INTO transactions (payer, buyer, paid_amount, payment_type, "addToBalanseAmount")
+       VALUES ($1, $2, $3, 'balance', $4)`,
+      [username, note || null, numAmount, signedAmount]
+    );
+
+    await client.query('COMMIT');
+
+    const updated = await pool.query('SELECT balance, debt FROM users WHERE id = $1', [id]);
+    const { password_hash: _, ...userData } = updated.rows[0];
+
+    res.json({
+      error: 0,
+      success: true,
+      data: {
+        balance: updated.rows[0].balance,
+        debt: updated.rows[0].debt,
+      },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('adjustBalance error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { getUsers, getUserById, createUser, updateUser, deleteUser, getUserBalance, adjustBalance };

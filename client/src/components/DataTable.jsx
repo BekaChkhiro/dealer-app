@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import './DataTable.css';
 
@@ -11,10 +11,14 @@ export default function DataTable({
   onSort,
   actions,
   onAction,
+  selectable = false,
+  selectedIds = new Set(),
+  onSelectionChange,
 }) {
   const { t } = useTranslation();
   const [openMenuRow, setOpenMenuRow] = useState(null);
   const menuRef = useRef(null);
+  const selectAllRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -25,6 +29,14 @@ export default function DataTable({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Update indeterminate state on the select-all checkbox
+  useEffect(() => {
+    if (selectAllRef.current && selectable && data.length > 0) {
+      const selectedCount = data.filter(row => selectedIds.has(row.id)).length;
+      selectAllRef.current.indeterminate = selectedCount > 0 && selectedCount < data.length;
+    }
+  }, [selectedIds, data, selectable]);
 
   function handleSort(col) {
     if (!col.sortable || !onSort) return;
@@ -46,6 +58,28 @@ export default function DataTable({
     if (onAction) onAction(action, row);
   }
 
+  const handleSelectAll = useCallback(() => {
+    if (!onSelectionChange) return;
+    const allOnPage = data.map(row => row.id);
+    const allSelected = allOnPage.every(id => selectedIds.has(id));
+    if (allSelected) {
+      onSelectionChange(new Set());
+    } else {
+      onSelectionChange(new Set(allOnPage));
+    }
+  }, [data, selectedIds, onSelectionChange]);
+
+  const handleSelectRow = useCallback((rowId) => {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedIds);
+    if (next.has(rowId)) {
+      next.delete(rowId);
+    } else {
+      next.add(rowId);
+    }
+    onSelectionChange(next);
+  }, [selectedIds, onSelectionChange]);
+
   function renderCell(col, row) {
     if (col.render) return col.render(row);
 
@@ -64,6 +98,8 @@ export default function DataTable({
   }
 
   const hasActions = actions && actions.length > 0;
+  const totalCols = columns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0);
+  const allSelected = data.length > 0 && data.every(row => selectedIds.has(row.id));
 
   return (
     <div className="dt-wrapper">
@@ -71,6 +107,17 @@ export default function DataTable({
         <table className="dt-table">
           <thead>
             <tr>
+              {selectable && (
+                <th className="dt-th dt-th-checkbox">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    className="dt-checkbox"
+                    checked={allSelected}
+                    onChange={handleSelectAll}
+                  />
+                </th>
+              )}
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -103,7 +150,7 @@ export default function DataTable({
             {loading ? (
               <tr>
                 <td
-                  colSpan={columns.length + (hasActions ? 1 : 0)}
+                  colSpan={totalCols}
                   className="dt-loading"
                 >
                   <div className="dt-spinner" />
@@ -112,7 +159,7 @@ export default function DataTable({
             ) : data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={columns.length + (hasActions ? 1 : 0)}
+                  colSpan={totalCols}
                   className="dt-empty"
                 >
                   {t('common.noData')}
@@ -120,7 +167,17 @@ export default function DataTable({
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <tr key={row.id ?? rowIndex} className="dt-row">
+                <tr key={row.id ?? rowIndex} className={`dt-row ${selectable && selectedIds.has(row.id) ? 'dt-row-selected' : ''}`}>
+                  {selectable && (
+                    <td className="dt-td dt-td-checkbox">
+                      <input
+                        type="checkbox"
+                        className="dt-checkbox"
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => handleSelectRow(row.id)}
+                      />
+                    </td>
+                  )}
                   {columns.map((col) => (
                     <td
                       key={col.key}

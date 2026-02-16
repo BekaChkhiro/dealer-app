@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { logAudit } = require('../helpers/auditLog');
 
 const ALLOWED_SORT_COLUMNS = ['id', 'container_number', 'vin', 'purchase_date', 'manufacturer', 'model', 'manufacturer_year', 'buyer_name', 'booking', 'delivery_location', 'container_open_date', 'line', 'personal_number', 'lot_number', 'loading_port', 'container_loaded_date', 'container_receive_date', 'boat_name', 'status'];
 const ALLOWED_ORDER = ['asc', 'desc'];
@@ -38,6 +39,12 @@ async function getContainers(req, res) {
     if (status) {
       conditions.push(`c.status = $${paramIndex}`);
       params.push(status);
+      paramIndex++;
+    }
+
+    if (req.query.boat_id) {
+      conditions.push(`c.boat_id = $${paramIndex}`);
+      params.push(req.query.boat_id);
       paramIndex++;
     }
 
@@ -98,6 +105,7 @@ async function createContainer(req, res) {
       ]
     );
 
+    logAudit({ userId: req.session.user.id, entityType: 'container', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip });
     res.status(201).json({ error: 0, success: true, data: result.rows[0] });
   } catch (err) {
     console.error('createContainer error:', err);
@@ -108,6 +116,7 @@ async function createContainer(req, res) {
 async function updateContainer(req, res) {
   try {
     const { id } = req.params;
+    const oldRecord = await pool.query('SELECT * FROM containers WHERE id = $1', [id]);
     const {
       container_number, vin, purchase_date, manufacturer, model,
       manufacturer_year, buyer_name, booking, delivery_location,
@@ -163,6 +172,7 @@ async function updateContainer(req, res) {
       return res.status(404).json({ error: 1, success: false, message: 'Container not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'container', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip });
     res.json({ error: 0, success: true, data: result.rows[0] });
   } catch (err) {
     console.error('updateContainer error:', err);
@@ -174,12 +184,13 @@ async function deleteContainer(req, res) {
   try {
     const { id } = req.params;
 
-    const result = await pool.query('DELETE FROM containers WHERE id = $1 RETURNING id', [id]);
+    const result = await pool.query('DELETE FROM containers WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 1, success: false, message: 'Container not found' });
     }
 
+    logAudit({ userId: req.session.user.id, entityType: 'container', entityId: parseInt(id), action: 'DELETE', oldValues: result.rows[0], newValues: null, ipAddress: req.ip });
     res.json({ error: 0, success: true, message: 'Container deleted' });
   } catch (err) {
     console.error('deleteContainer error:', err);
@@ -187,4 +198,56 @@ async function deleteContainer(req, res) {
   }
 }
 
-module.exports = { getContainers, createContainer, updateContainer, deleteContainer };
+async function bulkDeleteContainers(req, res) {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 1, success: false, message: 'ids must be a non-empty array' });
+    }
+    if (ids.length > 100) {
+      return res.status(400).json({ error: 1, success: false, message: 'Maximum 100 items per request' });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM containers WHERE id = ANY($1::int[]) RETURNING id',
+      [ids]
+    );
+
+    res.json({ error: 0, success: true, deletedCount: result.rowCount, deletedIds: result.rows.map(r => r.id) });
+  } catch (err) {
+    console.error('bulkDeleteContainers error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function getContainerById(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT c.*, bt.name AS boat_name_full, bt.identification_code AS boat_code, bt.status AS boat_status
+       FROM containers c
+       LEFT JOIN boats bt ON c.boat_id = bt.id
+       WHERE c.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Container not found' });
+    }
+
+    const container = result.rows[0];
+
+    // Non-admin users can only view their own containers
+    if (req.session.user.role !== 'admin' && container.user_id !== req.session.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    res.json({ error: 0, success: true, data: container });
+  } catch (err) {
+    console.error('getContainerById error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getContainers, getContainerById, createContainer, updateContainer, deleteContainer, bulkDeleteContainers };

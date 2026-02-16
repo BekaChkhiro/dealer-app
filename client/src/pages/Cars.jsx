@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -6,6 +7,7 @@ import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import ActionButtons from '../components/ActionButtons';
 import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
+import BulkActionBar from '../components/BulkActionBar';
 import { exportToCSV } from '../utils/export';
 import './Cars.css';
 
@@ -55,6 +57,7 @@ function formatDate(value) {
 function Cars() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const [data, setData] = useState([]);
@@ -77,6 +80,11 @@ function Cars() {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [exporting, setExporting] = useState(false);
+
+  // Bulk operations state
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Add/Edit form state
   const [editModal, setEditModal] = useState(false);
@@ -101,7 +109,10 @@ function Cars() {
     { key: 'profile_image_url', label: 'Image', type: 'image', width: '80px' },
     { key: 'buyer', label: t('cars.dealer'), sortable: true },
     { key: 'purchase_date', label: t('cars.purchaseDate'), sortable: true, render: (row) => formatDate(row.purchase_date) },
-    { key: 'mark', label: t('cars.vehicleName'), sortable: true, render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—' },
+    { key: 'mark', label: t('cars.vehicleName'), sortable: true, render: (row) => {
+      const name = [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—';
+      return <a href={`/cars/${row.id}`} onClick={(e) => { e.preventDefault(); navigate(`/cars/${row.id}`); }} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>{name}</a>;
+    }},
     { key: 'vin', label: t('cars.vin'), sortable: true },
     { key: 'receiver_fullname', label: t('cars.buyer'), sortable: true },
     { key: 'receiver_identity_number', label: t('cars.personalNumber') },
@@ -118,10 +129,13 @@ function Cars() {
 
   const actions = isAdmin
     ? [
+        { key: 'view', label: t('carDetail.view') },
         { key: 'edit', label: t('common.edit') },
         { key: 'delete', label: t('common.delete') },
       ]
-    : [];
+    : [
+        { key: 'view', label: t('carDetail.view') },
+      ];
 
   const fetchData = useCallback(async () => {
     try {
@@ -145,6 +159,11 @@ function Cars() {
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Clear selection when data parameters change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, limit, keyword, sortBy, sortDir, filters]);
 
   // Fetch dropdown data on mount
   useEffect(() => {
@@ -258,6 +277,10 @@ function Cars() {
   }
 
   function handleAction(action, row) {
+    if (action === 'view') {
+      navigate(`/cars/${row.id}`);
+      return;
+    }
     if (action === 'edit') {
       setEditRow(row);
       const populated = { ...EMPTY_FORM };
@@ -341,6 +364,45 @@ function Cars() {
     }
   }
 
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await api.post('/vehicles/bulk-delete', { ids: [...selectedIds] });
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+      fetchData();
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function handleExportSelected() {
+    const selectedRows = data.filter(row => selectedIds.has(row.id));
+    if (selectedRows.length === 0) return;
+    const exportColumns = [
+      { key: 'buyer', label: t('cars.dealer') },
+      { key: 'purchase_date', label: t('cars.purchaseDate'), render: (row) => formatDate(row.purchase_date) },
+      { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+      { key: 'vin', label: t('cars.vin') },
+      { key: 'receiver_fullname', label: t('cars.buyer') },
+      { key: 'receiver_identity_number', label: t('cars.personalNumber') },
+      { key: 'receiver_phone', label: t('cars.phone') },
+      { key: 'container_number', label: t('cars.container') },
+      { key: 'booking', label: t('cars.booking') },
+      { key: 'line', label: t('cars.line') },
+      { key: 'auction', label: t('cars.auction') },
+      { key: 'us_state', label: t('cars.state') },
+      { key: 'payed_amount', label: t('cars.paid'), render: (row) => row.payed_amount != null ? row.payed_amount : '' },
+      { key: 'total_price', label: t('cars.total'), render: (row) => row.total_price != null ? row.total_price : '' },
+      { key: 'debt_amount', label: t('cars.debt'), render: (row) => row.debt_amount != null ? row.debt_amount : '' },
+    ];
+    const today = new Date().toISOString().slice(0, 10);
+    exportToCSV(selectedRows, exportColumns, `vehicles_selected_${today}`);
+  }
+
   return (
     <div>
       <h2 className="mb-4">{t('cars.title')}</h2>
@@ -365,6 +427,16 @@ function Cars() {
         onRemove={handleRemoveFilter}
       />
 
+      {isAdmin && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onBulkDelete={() => setBulkDeleteConfirm(true)}
+          onExportSelected={handleExportSelected}
+          onDeselectAll={() => setSelectedIds(new Set())}
+          bulkDeleting={bulkDeleting}
+        />
+      )}
+
       <DataTable
         columns={columns}
         data={data}
@@ -374,6 +446,9 @@ function Cars() {
         onSort={handleSort}
         actions={actions}
         onAction={handleAction}
+        selectable={isAdmin}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
       />
 
       <Pagination
@@ -797,6 +872,28 @@ function Cars() {
             <div className="cars-modal-footer">
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={handleDelete}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkDeleteConfirm && (
+        <div className="cars-modal-overlay" onClick={() => setBulkDeleteConfirm(false)}>
+          <div className="cars-modal cars-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="cars-modal-header">
+              <h5>{t('bulk.bulkDelete')}</h5>
+              <button className="cars-modal-close" onClick={() => setBulkDeleteConfirm(false)}>&times;</button>
+            </div>
+            <div className="cars-modal-body">
+              <p>{t('bulk.confirmBulkDelete')}</p>
+              <p className="text-muted mb-0">{selectedIds.size} {t('bulk.selected')} — {t('bulk.cannotUndo')}</p>
+            </div>
+            <div className="cars-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setBulkDeleteConfirm(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                {bulkDeleting ? t('bulk.deleting') : t('bulk.deleteItems')}
+              </button>
             </div>
           </div>
         </div>

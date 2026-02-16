@@ -5,7 +5,7 @@
 - **Description:** Dealer/car import management dashboard for Royal Motors — a vehicle import and shipping logistics portal with user management, vehicle tracking, booking/container management, financial transactions, and pricing calculator.
 - **Target Users:** Admin (full access), Dealer/User (limited access)
 - **Created:** 2026-02-13
-- **Last Updated:** 2026-02-13
+- **Last Updated: 2026-02-16**
 
 
 
@@ -21,7 +21,16 @@
 
 
 
-- **Status:** In Progress
+
+
+
+
+
+
+
+
+
+- **Status:** Complete ✅
 - **Plugin Version:** 1.1.1
 
 ## Tech Stack
@@ -325,9 +334,126 @@ dealer-dashboard/
 
 ### T4.8 Deploy to Railway
 - **Complexity:** Medium
-- **Status:** IN_PROGRESS 🔄
+- [x] **Status:** DONE ✅
 - **Dependencies:** T4.7
 - **Description:** Configure Railway deployment for both frontend and backend. Set up PostgreSQL on Railway. Configure environment variables (DB connection, session secret, CORS origins). Set up file storage for static assets. Configure build pipeline.
+
+---
+
+## Phase 5: Detail Pages & Core Missing Features
+**Goal:** Add individual detail/inner pages for key entities, implement VIN global search, and create missing backend endpoints
+
+### T5.1 Add GET /:id endpoints for all entities
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.2
+- **Description:** Add individual record retrieval endpoints for all entities: `GET /api/vehicles/:id`, `GET /api/users/:id`, `GET /api/booking/:id`, `GET /api/containers/:id`, `GET /api/boats/:id`, `GET /api/transactions/:id`. Each should return full record with related data (e.g., vehicle with dealer info, booking with boat info). Response format: `{error: 0, success: true, data: {...}}`. Role-based access: users can only view their own records.
+
+### T5.2 Build Car detail/inner page
+- **Complexity:** High
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.1, T2.8
+- **Description:** Create dedicated `/cars/:id` route and CarDetail component. Sections: Hero section with car image gallery, Vehicle info card (mark, model, year, VIN, lot, auction), Dealer/Buyer info card (dealer name, receiver, personal number, phone), Shipping info card (container, booking, line, ports, dates), Financial info card (vehicle price, total, paid, debt with visual indicators), Status timeline (purchase → warehouse → container → transit → arrived → delivered), Driver info section if applicable. Back button to return to cars list. Edit button (admin only). Related transactions list at bottom.
+
+### T5.3 Build User detail/inner page
+- **Complexity:** High
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.1, T2.5
+- **Description:** Create dedicated `/users/:id` route and UserDetail component. Sections: User profile header (avatar initials, name, surname, email, username, phone, role badge), Financial summary card (balance, debt, supervisor fee), Account info (signup date, last login, last purchase date, calculator category, identity number, creator), User's vehicles table (paginated list of vehicles belonging to this dealer), User's transactions table, User's bookings table. Edit button (admin only). Back button to users list.
+
+### T5.4 Implement VIN global search in Header
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.1
+- **Description:** Make the Header "Search By VIN" input fully functional. On typing: debounced API call to `GET /api/vehicles?keyword={vin}&limit=10` to search across vehicles. Display dropdown results showing: car image thumbnail, mark/model/year, VIN, dealer name, status. On click: navigate to `/cars/:id` detail page. On Enter with exact VIN: navigate directly to matching car. Show "No results" state. Close dropdown on click outside. Support keyboard navigation (arrow keys + Enter).
+
+### T5.5 Add VIN search API endpoint
+- **Complexity:** Low
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.2
+- **Description:** Create dedicated `GET /api/search?q={query}` endpoint that searches across vehicles by VIN, lot_number, mark, model, buyer name. Returns top 10 results with essential fields (id, vin, mark, model, year, profile_image_url, buyer, current_status). Optimized for quick typeahead responses. Uses existing vehicle indexes (idx_vehicles_vin).
+
+---
+
+## Phase 6: Incomplete Features Completion
+**Goal:** Complete all partially implemented and placeholder features
+
+### T6.1 Implement Booking Export functionality
+- **Complexity:** Low
+- [x] **Status:** DONE ✅
+- **Dependencies:** T3.2
+- **Description:** Implement the empty `handleExport()` function in Booking.jsx (currently has TODO comment). Reuse the same CSV export utility already working in Cars and Containers pages. Export all visible/filtered booking data with columns: VIN, Buyer, Booking, Line, Container, Delivery Location, Loading Port, dates, Terminal. Download as CSV file.
+
+### T6.2 Build full Ticket/Support system
+- **Complexity:** High
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.2, T1.7
+- **Description:** Replace "Coming Soon" placeholder with full ticket system. Backend: Create `tickets` table (id, user_id, subject, message, status, priority, created_at, updated_at, resolved_at). API endpoints: `GET /api/tickets`, `POST /api/tickets`, `PUT /api/tickets/:id`, `DELETE /api/tickets/:id`. Frontend: Ticket list page with DataTable (ID, Subject, Status badge, Priority, Created Date, actions). Add new ticket form (subject, message, priority dropdown). Ticket detail view with message thread. Admin can change status (open/in_progress/resolved/closed). Users see only their own tickets.
+
+### T6.3 Implement Private Code search on Login
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.3
+- **Description:** Replace "Feature coming soon" alert with actual Private Code functionality on Login page. Private code = identity_number from users table. Create `POST /api/login/private-code` endpoint that accepts identity_number and returns limited vehicle tracking info (no auth required). Show results: list of user's vehicles with statuses, tracking timeline. This allows clients to check their car status without logging in.
+
+### T6.4 Implement Reset Password flow
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.3
+- **Description:** Implement password reset functionality. Backend: `POST /api/forgot-password` (accepts email, generates reset token, stores token with expiry in DB). `POST /api/reset-password` (accepts token + new password). Add `reset_token` and `reset_token_expires` columns to users table. Frontend: "Forgot Password" page with email input. "Reset Password" page (accessed via token link). Email sending via nodemailer or similar service. Token expiry: 1 hour.
+
+### T6.5 Build Settings page
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.7
+- **Description:** Create `/settings` route and Settings page accessed via header gear icon. Sections: Profile settings (edit own name, surname, email, phone), Notification preferences (if applicable), Language preference (persist to DB instead of just localStorage), Theme preference (future: dark mode toggle), App info (version, last update). Admin-only section: System settings, default calculator category, session timeout configuration.
+
+---
+
+## Phase 7: Advanced Features & Optimization
+**Goal:** Performance improvements, advanced management features, and production readiness
+
+### T7.1 Build dedicated Dashboard statistics endpoint
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.2
+- **Description:** Create `GET /api/dashboard/stats` endpoint that returns all dashboard metrics in one call instead of 4 separate API calls. Response: `{total_vehicles, active_bookings, total_containers, total_boats, boats_in_transit, total_balance, total_debt, recent_transactions: [...], vehicles_by_status: {...}, monthly_revenue: [...]}`. Role-based: admin sees global stats, users see their own stats. Add database views or optimized queries for aggregations.
+
+### T7.2 Implement User Balance & Debt management
+- **Complexity:** High
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.3, T3.13
+- **Description:** Expose and manage user financial fields (balance, debt, superviser_fee). Backend: `GET /api/users/:id/balance` (returns balance, debt, transaction history), `POST /api/users/:id/balance` (add/subtract from balance with reason). Frontend: Balance widget on User detail page showing current balance and debt. Transaction history specific to user. Balance adjustment form (admin only) with amount, type (credit/debit), and note. Auto-update debt when transactions are created.
+
+### T7.3 Build Booking detail inner page
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.1, T3.2
+- **Description:** Create `/booking/:id` route and BookingDetail component. Show: Booking info card (booking number, VIN, buyer, line, container), Shipping timeline (loaded → in transit → arrived → delivered with dates), Location info (loading port, delivery location, terminal), Related vehicle card (clickable link to car detail), Related boat info (if assigned), Container info. Edit button (admin). Back to booking list.
+
+### T7.4 Build Container detail inner page
+- **Complexity:** Medium
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.1, T3.5
+- **Description:** Create `/containers/:id` route and ContainerDetail component. Show: Container info card (container number, status, dates), List of vehicles in this container (table with car links), Shipping route (loading port → destination, with boat info), Timeline (booked → loaded → in transit → received → opened), Related booking info. Edit button (admin). Back to containers list.
+
+### T7.5 Build Boat detail inner page
+- **Complexity:** Low
+- [x] **Status:** DONE ✅
+- **Dependencies:** T5.1, T3.8
+- **Description:** Create `/boats/:id` route and BoatDetail component. Show: Boat info card (name, identification code, status badge), Voyage timeline (departure → estimated arrival → actual arrival), List of containers on this boat (table with links), List of bookings assigned to this boat. Status change controls (admin). Back to boats list.
+
+### T7.6 Implement Bulk operations
+- **Complexity:** High
+- [x] **Status:** DONE ✅
+- **Dependencies:** T2.1
+- **Description:** Add multi-select capability to DataTable component (checkbox column). Backend: `DELETE /api/vehicles/bulk` (accepts array of IDs), `PUT /api/vehicles/bulk` (update status/field for multiple records). Same for booking, containers. Frontend: Select all / deselect all checkbox in table header. Bulk action bar appears when items selected (Delete Selected, Change Status, Export Selected). Confirmation dialog for bulk delete. Progress indicator for bulk operations.
+
+### T7.7 Implement Audit Log system
+- **Complexity:** High
+- [x] **Status:** DONE ✅
+- **Dependencies:** T1.2
+- **Description:** Track all data changes for accountability. Backend: Create `audit_logs` table (id, user_id, entity_type, entity_id, action, old_values, new_values, ip_address, created_at). Middleware that automatically logs CREATE, UPDATE, DELETE operations. API: `GET /api/audit-logs` (admin only, paginated, filterable by entity, user, date range, action). Frontend: Audit Log page (admin only) with DataTable showing: Date, User, Action, Entity, Changes. Filter by date range, user, entity type. Detail modal showing old vs new values diff.
 
 ---
 
@@ -368,21 +494,26 @@ dealer-dashboard/
 ## Progress Tracking
 
 ### Overall Status
-**Total Tasks**: 42
-**Completed**: 41 🟩🟩🟩🟩🟩🟩🟩🟩🟩⬜ (97%)
-**In Progress**: 1
+**Total Tasks**: 59
+**Completed**: 59 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 (100%)
+**In Progress**: 0
+**TODO**: 0
 **Blocked**: 0
 
 ### Phase Progress
 - 🟢 Phase 1: Foundation & Authentication → 8/8 (100%) ✅
 - 🔵 Phase 2: Core Data Management → 11/11 (100%) ✅
 - 🟣 Phase 3: Logistics & Finance → 15/15 (100%) ✅
-- 🟠 Phase 4: Polish, Testing & Deployment → 7/8 (87%)
+- 🟠 Phase 4: Polish, Testing & Deployment → 8/8 (100%) ✅
+- 🔴 Phase 5: Detail Pages & Core Missing → 5/5 (100%) ✅
+- 🟤 Phase 6: Incomplete Features → 5/5 (100%) ✅
+- ⚪ Phase 7: Advanced Features & Optimization → 7/7 (100%) ✅
+
 
 ### Current Focus
-🎯 **Next Task**: T4.8 - Deploy to Railway
-📅 **Phase**: 4 - Polish, Testing & Deployment
-🔄 **Status**: In Progress (1 task active: T4.8)
+🎯 **All tasks completed!**
+📅 **All Phases**: Complete
+✅ **Status**: Project complete — 59/59 tasks done
 
 ---
 
@@ -390,8 +521,8 @@ dealer-dashboard/
 
 | Metric | Count |
 |--------|-------|
-| Total Phases | 4 |
-| Total Tasks | 42 |
-| High Complexity | 6 |
-| Medium Complexity | 19 |
-| Low Complexity | 10 |
+| Total Phases | 7 |
+| Total Tasks | 59 |
+| High Complexity | 12 |
+| Medium Complexity | 27 |
+| Low Complexity | 13 |

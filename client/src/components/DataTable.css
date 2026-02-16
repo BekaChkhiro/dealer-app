@@ -164,6 +164,30 @@
   color: #6c757d;
 }
 
+/* ── Checkbox selection ── */
+
+.dt-th-checkbox,
+.dt-td-checkbox {
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.dt-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary, #0D6EFD);
+}
+
+.dt-row-selected {
+  background-color: #e8f0fe;
+}
+
+.dt-row-selected:hover {
+  background-color: #d6e4fc;
+}
+
 /* ── Loading & empty ── */
 
 .dt-loading {

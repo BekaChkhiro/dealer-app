@@ -1,32 +1,28 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
 import './Dashboard.css';
 
 function Dashboard() {
-  const { user } = useAuth();
   const { t } = useTranslation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/vehicles', { params: { limit: 1, page: 1 } }),
-      api.get('/booking', { params: { limit: 1, page: 1 } }),
-      api.get('/containers', { params: { limit: 1, page: 1 } }),
-      api.get('/boats', { params: { limit: 1, page: 1 } }),
-    ])
-      .then(([vehiclesRes, bookingRes, containersRes, boatsRes]) => {
+    api.get('/dashboard/stats')
+      .then((res) => {
+        const d = res.data.data;
         setStats({
-          vehicles: vehiclesRes.data.total ?? 0,
-          bookings: bookingRes.data.total ?? 0,
-          containers: containersRes.data.total ?? 0,
-          boats: boatsRes.data.total ?? 0,
+          vehicles: d.total_vehicles ?? 0,
+          bookings: d.total_bookings ?? 0,
+          containers: d.total_containers ?? 0,
+          boats: d.total_boats ?? 0,
+          balance: d.total_balance ?? 0,
+          debt: d.total_debt ?? 0,
         });
       })
       .catch(() => {
-        setStats({ vehicles: 0, bookings: 0, containers: 0, boats: 0 });
+        setStats({ vehicles: 0, bookings: 0, containers: 0, boats: 0, balance: 0, debt: 0 });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -98,7 +94,7 @@ function Dashboard() {
     },
     {
       label: t('dashboard.balance'),
-      value: `$${Number(user?.balance ?? 0).toLocaleString()}`,
+      value: `$${Number(stats.balance).toLocaleString()}`,
       color: '#198754',
       bg: '#D1E7DD',
       icon: (
@@ -110,7 +106,7 @@ function Dashboard() {
     },
     {
       label: t('dashboard.totalDebt'),
-      value: `$${Number(user?.debt ?? 0).toLocaleString()}`,
+      value: `$${Number(stats.debt).toLocaleString()}`,
       color: '#DC3545',
       bg: '#F8D7DA',
       icon: (
