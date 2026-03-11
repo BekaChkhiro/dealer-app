@@ -1,7 +1,8 @@
 const pool = require('../config/db');
 const { uploadToR2, deleteFromR2 } = require('../config/r2');
 const { logAudit } = require('../helpers/auditLog');
-const { applyWatermark } = require('../helpers/watermark');
+const { applyWatermark, applyLogoWatermark } = require('../helpers/watermark');
+const path = require('path');
 
 const ALLOWED_SORT_COLUMNS = [
   'id', 'mark', 'model', 'year', 'vin', 'lot_number', 'auction',
@@ -174,12 +175,26 @@ async function createVehicle(req, res) {
       // Apply watermark if enabled
       const enableWatermark = process.env.ENABLE_WATERMARK === 'true';
       if (enableWatermark) {
-        imageBuffer = await applyWatermark(imageBuffer, {
-          text: process.env.WATERMARK_TEXT || 'Royal Motors',
-          position: 'bottom-right',
-          opacity: parseFloat(process.env.WATERMARK_OPACITY) || 0.6,
-          margin: 20,
-        });
+        const logoPath = process.env.WATERMARK_LOGO_PATH || path.join(__dirname, '../../static/logo-watermark.svg');
+        const useLogoWatermark = process.env.USE_LOGO_WATERMARK === 'true';
+
+        if (useLogoWatermark) {
+          // Apply logo watermark
+          imageBuffer = await applyLogoWatermark(imageBuffer, logoPath, {
+            position: 'southeast',
+            scale: parseFloat(process.env.WATERMARK_SCALE) || 0.15,
+            opacity: parseFloat(process.env.WATERMARK_OPACITY) || 0.7,
+            margin: parseInt(process.env.WATERMARK_MARGIN) || 20,
+          });
+        } else {
+          // Apply text watermark (fallback)
+          imageBuffer = await applyWatermark(imageBuffer, {
+            text: process.env.WATERMARK_TEXT || 'Royal Motors',
+            position: 'bottom-right',
+            opacity: parseFloat(process.env.WATERMARK_OPACITY) || 0.6,
+            margin: 20,
+          });
+        }
       }
 
       const key = `cars/${Date.now()}_${lot_number || 'unknown'}_${req.file.originalname}`;
@@ -269,12 +284,26 @@ async function updateVehicle(req, res) {
       // Apply watermark if enabled
       const enableWatermark = process.env.ENABLE_WATERMARK === 'true';
       if (enableWatermark) {
-        imageBuffer = await applyWatermark(imageBuffer, {
-          text: process.env.WATERMARK_TEXT || 'Royal Motors',
-          position: 'bottom-right',
-          opacity: parseFloat(process.env.WATERMARK_OPACITY) || 0.6,
-          margin: 20,
-        });
+        const logoPath = process.env.WATERMARK_LOGO_PATH || path.join(__dirname, '../../static/logo-watermark.svg');
+        const useLogoWatermark = process.env.USE_LOGO_WATERMARK === 'true';
+
+        if (useLogoWatermark) {
+          // Apply logo watermark
+          imageBuffer = await applyLogoWatermark(imageBuffer, logoPath, {
+            position: 'southeast',
+            scale: parseFloat(process.env.WATERMARK_SCALE) || 0.15,
+            opacity: parseFloat(process.env.WATERMARK_OPACITY) || 0.7,
+            margin: parseInt(process.env.WATERMARK_MARGIN) || 20,
+          });
+        } else {
+          // Apply text watermark (fallback)
+          imageBuffer = await applyWatermark(imageBuffer, {
+            text: process.env.WATERMARK_TEXT || 'Royal Motors',
+            position: 'bottom-right',
+            opacity: parseFloat(process.env.WATERMARK_OPACITY) || 0.6,
+            margin: 20,
+          });
+        }
       }
 
       const key = `cars/${Date.now()}_${req.body.lot_number || 'unknown'}_${req.file.originalname}`;
