@@ -3,6 +3,7 @@
   background: #fff;
   border-radius: 6px;
   overflow: hidden;
+  border: 1px solid var(--border-color, #DEE2E6);
 }
 
 .dt-table-container {
@@ -23,10 +24,15 @@
   font-weight: 700;
   color: var(--body-text, #212529);
   padding: 10px 8px;
-  border-bottom: 1px solid var(--border-color, #DEE2E6);
+  border-bottom: 2px solid var(--border-color, #DEE2E6);
+  border-right: 1px solid var(--border-color, #DEE2E6);
   text-align: left;
   white-space: nowrap;
   user-select: none;
+}
+
+.dt-th:last-child {
+  border-right: none;
 }
 
 .dt-sortable {
@@ -62,10 +68,24 @@
 
 .dt-row {
   transition: background-color 0.1s ease;
+  background-color: #ffffff;
+}
+
+/* Zebra striping - alternating row colors */
+.dt-row:nth-child(even) {
+  background-color: #F8F9FA;
 }
 
 .dt-row:hover {
-  background-color: #f8f9fa;
+  background-color: #eef2f7;
+}
+
+.dt-row:nth-child(even):hover {
+  background-color: #e9ecef;
+}
+
+.dt-row:last-child .dt-td {
+  border-bottom: none;
 }
 
 .dt-td {
@@ -74,7 +94,12 @@
   color: var(--body-text, #212529);
   padding: 8px;
   border-bottom: 1px solid var(--border-color, #DEE2E6);
+  border-right: 1px solid var(--border-color, #DEE2E6);
   vertical-align: middle;
+}
+
+.dt-td:last-child {
+  border-right: none;
 }
 
 .dt-align-right {
@@ -216,4 +241,10 @@
   padding: 48px 0;
   color: #6c757d;
   font-size: 14px;
+}
+
+/* ── Uppercase text ── */
+
+.dt-uppercase {
+  text-transform: uppercase;
 }

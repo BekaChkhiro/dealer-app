@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -8,22 +8,26 @@ import Pagination from '../components/Pagination';
 import ActionButtons from '../components/ActionButtons';
 import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
 import BulkActionBar from '../components/BulkActionBar';
+import CopyButton from '../components/CopyButton';
+import VinDisplay from '../components/VinDisplay';
 import { exportToCSV } from '../utils/export';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
 import './Cars.css';
 
 const EMPTY_FORM = {
   // Vehicle info
-  mark: '', model: '', year: '', vin: '', lot_number: '', auction: '', vehicle_type: '', doc_type: '', is_hybrid: false, is_sublot: false,
-  // Buyer / Receiver
-  buyer: '', dealer_id: '', receiver_fullname: '', receiver_identity_number: '', receiver_phone: '', buyer_number: '',
+  mark: '', model: '', year: '', vin: '', lot_number: '', auction: '', vehicle_type: '', doc_type: '', fuel_type: '', is_hybrid: false, is_sublot: false,
+  // Dealer / Receiver
+  dealer_id: '', receiver_fullname: '', receiver_identity_number: '', receiver_phone: '',
   // Location
-  us_state: '', us_port: '', destination_port: '',
-  // Container / Booking
-  container_number: '', line: '', booking: '',
+  us_state: '', us_port: '', destination_port: '', destination_port_id: '',
+  // Container / Shipping
+  container_number: '', line: '',
   // Pricing
   vehicle_price: '', total_price: '', payed_amount: '', debt_amount: '', container_cost: '', landing_cost: '', dealer_fee: '', late_car_payment: '',
   // Status / Payment
-  current_status: '', status_color: '', is_fully_paid: false, is_partially_paid: false, is_funded: false, is_insured: false,
+  current_status: '', status_color: '', is_fully_paid: false, is_partially_paid: false, is_funded: false, is_insured: false, insurance_type: '',
   // Dates
   purchase_date: '', vehicle_pickup_date: '', warehouse_receive_date: '', container_loading_date: '', estimated_receive_date: '', receive_date: '', container_open_date: '', container_receive_date: '',
   // Checkboxes
@@ -31,7 +35,9 @@ const EMPTY_FORM = {
   // Receiver change
   receiver_change_date: '',
   // Driver
-  driver_fullname: '', driver_phone: '', driver_car_license_number: '', driver_company: '',
+  driver_fullname: '', driver_phone: '', driver_car_license_number: '', driver_id_number: '', driver_company: '',
+  // Comment
+  comment: '',
 };
 
 const BOOLEAN_FIELDS = [
@@ -75,6 +81,8 @@ function Cars() {
     line: '',
     status: '',
     paid: '',
+    fuel_type: '',
+    insurance_type: '',
   });
 
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -92,10 +100,18 @@ function Cars() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Receiver data entry mode: 'manual' or 'upload'
+  const [receiverEntryMode, setReceiverEntryMode] = useState('manual');
+  const [receiverIdFile, setReceiverIdFile] = useState(null);
+  const [receiverIdUploading, setReceiverIdUploading] = useState(false);
+  const [receiverIdError, setReceiverIdError] = useState(null);
+  const [receiverIdSuccess, setReceiverIdSuccess] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [dealers, setDealers] = useState([]);
   const [cities, setCities] = useState([]);
+  const [ports, setPorts] = useState([]);
 
   const FILTER_FIELDS = [
     { type: 'date-range', label: t('cars.purchaseDate'), startKey: 'start_date', endKey: 'end_date' },
@@ -103,29 +119,145 @@ function Cars() {
     { type: 'select', key: 'line', label: t('cars.line'), options: [{ value: 'MSC', label: 'MSC' }, { value: 'Maersk', label: 'Maersk' }, { value: 'ZIM', label: 'ZIM' }] },
     { type: 'select', key: 'status', label: t('cars.status'), options: [{ value: 'arrived', label: 'Arrived' }, { value: 'in_transit', label: 'In Transit' }, { value: 'booked', label: 'Booked' }] },
     { type: 'select', key: 'paid', label: t('cars.paid'), options: [{ value: 'paid', label: 'Paid' }, { value: 'unpaid', label: 'Unpaid' }, { value: 'partial', label: 'Partial' }] },
+    { type: 'select', key: 'fuel_type', label: t('cars.fuelType'), options: [{ value: 'gasoline', label: t('cars.fuelTypeGasoline') }, { value: 'diesel', label: t('cars.fuelTypeDiesel') }, { value: 'hybrid', label: t('cars.fuelTypeHybrid') }, { value: 'electric', label: t('cars.fuelTypeElectric') }, { value: 'plug_in_hybrid', label: t('cars.fuelTypePlugInHybrid') }] },
+    { type: 'select', key: 'insurance_type', label: t('cars.insuranceType'), options: [{ value: 'none', label: t('cars.insuranceTypeNone') }, { value: 'franchise', label: t('cars.insuranceTypeFranchise') }, { value: 'full', label: t('cars.insuranceTypeFull') }] },
   ];
 
-  const columns = [
+  // Admin columns - full view with all details
+  const adminColumns = [
     { key: 'profile_image_url', label: 'Image', type: 'image', width: '80px' },
-    { key: 'buyer', label: t('cars.dealer'), sortable: true },
     { key: 'purchase_date', label: t('cars.purchaseDate'), sortable: true, render: (row) => formatDate(row.purchase_date) },
     { key: 'mark', label: t('cars.vehicleName'), sortable: true, render: (row) => {
       const name = [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—';
       return <a href={`/cars/${row.id}`} onClick={(e) => { e.preventDefault(); navigate(`/cars/${row.id}`); }} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>{name}</a>;
     }},
-    { key: 'vin', label: t('cars.vin'), sortable: true },
-    { key: 'receiver_fullname', label: t('cars.buyer'), sortable: true },
+    { key: 'vin', label: t('cars.vin'), sortable: true, render: (row) => (
+      <div className="cell-with-copy">
+        <VinDisplay vin={row.vin} className="cell-text" />
+        {row.vin && <CopyButton text={row.vin} />}
+      </div>
+    )},
+    { key: 'lot_number', label: t('cars.lotNumber'), render: (row) => (
+      <div className="cell-with-copy">
+        <span className="cell-text">{row.lot_number || '—'}</span>
+        {row.lot_number && <CopyButton text={row.lot_number} />}
+      </div>
+    )},
+    { key: 'receiver_fullname', label: t('cars.buyer'), sortable: true, render: (row) => (
+      <span className="dt-uppercase">{row.receiver_fullname || '—'}</span>
+    )},
     { key: 'receiver_identity_number', label: t('cars.personalNumber') },
     { key: 'receiver_phone', label: t('cars.phone') },
-    { key: 'container_number', label: t('cars.container') },
-    { key: 'booking', label: t('cars.booking') },
+    { key: 'container_number', label: t('cars.container'), render: (row) => {
+      if (!row.container_number) return '—';
+      if (row.container_id) {
+        return (
+          <Link
+            to={`/containers/${row.container_id}`}
+            style={{
+              color: '#0D6EFD',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+          >
+            {row.container_number}
+          </Link>
+        );
+      }
+      return row.container_number;
+    }},
     { key: 'line', label: t('cars.line') },
     { key: 'auction', label: t('cars.auction'), sortable: true },
     { key: 'us_state', label: t('cars.state'), sortable: true },
+    { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '—' },
     { key: 'payed_amount', label: t('cars.paid'), sortable: true, align: 'right', render: (row) => formatPrice(row.payed_amount) },
     { key: 'total_price', label: t('cars.total'), sortable: true, align: 'right', render: (row) => formatPrice(row.total_price) },
     { key: 'debt_amount', label: t('cars.debt'), sortable: true, align: 'right', render: (row) => formatPrice(row.debt_amount) },
   ];
+
+  // Dealer columns - simplified view with essential info only
+  const dealerColumns = [
+    { key: 'profile_image_url', label: 'Image', type: 'image', width: '80px' },
+    { key: 'mark', label: t('cars.vehicleName'), sortable: true, render: (row) => {
+      const name = [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—';
+      return <a href={`/cars/${row.id}`} onClick={(e) => { e.preventDefault(); navigate(`/cars/${row.id}`); }} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>{name}</a>;
+    }},
+    { key: 'vin', label: t('cars.vin'), sortable: true, render: (row) => (
+      <div className="cell-with-copy">
+        <VinDisplay vin={row.vin} className="cell-text" />
+        {row.vin && <CopyButton text={row.vin} />}
+      </div>
+    )},
+    { key: 'container_number', label: t('cars.container'), render: (row) => {
+      if (!row.container_number) return '—';
+      if (row.container_id) {
+        return (
+          <Link
+            to={`/containers/${row.container_id}`}
+            style={{
+              color: '#0D6EFD',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+          >
+            {row.container_number}
+          </Link>
+        );
+      }
+      return row.container_number;
+    }},
+    { key: 'current_status', label: t('cars.status'), sortable: true, render: (row) => {
+      const statusLabels = {
+        'arrived': t('cars.statusArrived'),
+        'in_transit': t('cars.statusInTransit'),
+        'booked': t('cars.statusBooked'),
+        'pending': t('cars.statusPending'),
+        'delivered': t('cars.statusDelivered'),
+      };
+      const statusColors = {
+        'arrived': '#28a745',
+        'in_transit': '#17a2b8',
+        'booked': '#ffc107',
+        'pending': '#6c757d',
+        'delivered': '#20c997',
+      };
+      const status = row.current_status || 'pending';
+      return (
+        <span
+          className="status-badge"
+          style={{
+            backgroundColor: statusColors[status] || '#6c757d',
+            color: '#fff',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: 500,
+          }}
+        >
+          {statusLabels[status] || status}
+        </span>
+      );
+    }},
+    { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '—' },
+    { key: 'overdue_days', label: t('cars.overdueDays'), sortable: true, align: 'center', render: (row) => {
+      const days = parseInt(row.overdue_days) || 0;
+      if (days > 0) {
+        return (
+          <span style={{ color: '#DC3545', fontWeight: 600 }}>
+            {days} {t('cars.daysOverdue')}
+          </span>
+        );
+      }
+      return <span style={{ color: '#6c757d' }}>—</span>;
+    }},
+  ];
+
+  // Select columns based on user role
+  const columns = isAdmin ? adminColumns : dealerColumns;
 
   const actions = isAdmin
     ? [
@@ -148,6 +280,8 @@ function Cars() {
       if (filters.line) params.line = filters.line;
       if (filters.status) params.status = filters.status;
       if (filters.paid) params.paid = filters.paid;
+      if (filters.fuel_type) params.fuel_type = filters.fuel_type;
+      if (filters.insurance_type) params.insurance_type = filters.insurance_type;
       const res = await api.get('/vehicles', { params });
       setData(res.data.data || []);
       setTotal(res.data.total || 0);
@@ -169,12 +303,14 @@ function Cars() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [usersRes, citiesRes] = await Promise.all([
+        const [usersRes, citiesRes, portsRes] = await Promise.all([
           api.get('/users', { params: { limit: 500 } }),
           api.get('/cities'),
+          api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
         ]);
         setDealers(usersRes.data.data || []);
         setCities(citiesRes.data.data || []);
+        setPorts(portsRes.data.data || []);
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -213,7 +349,7 @@ function Cars() {
   }
 
   function handleClearFilters() {
-    setFilters({ start_date: '', end_date: '', auction: '', line: '', status: '', paid: '' });
+    setFilters({ start_date: '', end_date: '', auction: '', line: '', status: '', paid: '', fuel_type: '', insurance_type: '' });
     setPage(1);
     setShowFilterPanel(false);
   }
@@ -237,27 +373,41 @@ function Cars() {
       if (filters.line) params.line = filters.line;
       if (filters.status) params.status = filters.status;
       if (filters.paid) params.paid = filters.paid;
+      if (filters.fuel_type) params.fuel_type = filters.fuel_type;
+      if (filters.insurance_type) params.insurance_type = filters.insurance_type;
       const res = await api.get('/vehicles', { params });
       const rows = res.data.data || [];
 
-      const exportColumns = [
-        { key: 'buyer', label: t('cars.dealer') },
+      // Admin export columns - full details
+      const adminExportColumns = [
         { key: 'purchase_date', label: t('cars.purchaseDate'), render: (row) => formatDate(row.purchase_date) },
         { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
         { key: 'vin', label: t('cars.vin') },
-        { key: 'receiver_fullname', label: t('cars.buyer') },
+        { key: 'lot_number', label: t('cars.lotNumber') },
+        { key: 'receiver_fullname', label: t('cars.receiver') },
         { key: 'receiver_identity_number', label: t('cars.personalNumber') },
         { key: 'receiver_phone', label: t('cars.phone') },
         { key: 'container_number', label: t('cars.container') },
-        { key: 'booking', label: t('cars.booking') },
         { key: 'line', label: t('cars.line') },
         { key: 'auction', label: t('cars.auction') },
         { key: 'us_state', label: t('cars.state') },
+        { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '' },
         { key: 'payed_amount', label: t('cars.paid'), render: (row) => row.payed_amount != null ? row.payed_amount : '' },
         { key: 'total_price', label: t('cars.total'), render: (row) => row.total_price != null ? row.total_price : '' },
         { key: 'debt_amount', label: t('cars.debt'), render: (row) => row.debt_amount != null ? row.debt_amount : '' },
       ];
 
+      // Dealer export columns - simplified
+      const dealerExportColumns = [
+        { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+        { key: 'vin', label: t('cars.vin') },
+        { key: 'container_number', label: t('cars.container') },
+        { key: 'current_status', label: t('cars.status') },
+        { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '' },
+        { key: 'overdue_days', label: t('cars.overdueDays'), render: (row) => parseInt(row.overdue_days) || 0 },
+      ];
+
+      const exportColumns = isAdmin ? adminExportColumns : dealerExportColumns;
       const today = new Date().toISOString().slice(0, 10);
       exportToCSV(rows, exportColumns, `vehicles_${today}`);
     } catch (err) {
@@ -314,6 +464,48 @@ function Cars() {
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+    }
+  }
+
+  function handleReceiverIdFileChange(e) {
+    const file = e.target.files[0];
+    if (file) {
+      setReceiverIdFile(file);
+      setReceiverIdError(null);
+      setReceiverIdSuccess(null);
+    }
+  }
+
+  async function handleReceiverIdUpload() {
+    if (!receiverIdFile || !editRow) return;
+
+    setReceiverIdError(null);
+    setReceiverIdSuccess(null);
+    setReceiverIdUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('receiver_id_document', receiverIdFile);
+
+      const res = await api.post(`/vehicles/${editRow.id}/upload-receiver-id`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setReceiverIdSuccess(t('cars.uploadReceiverIdSuccess'));
+      setReceiverIdFile(null);
+
+      // Update form data with the new document URL
+      setFormData(prev => ({
+        ...prev,
+        receiver_id_document_url: res.data.data.receiver_id_document_url
+      }));
+
+      // Refresh the vehicle data
+      fetchData();
+    } catch (err) {
+      setReceiverIdError(err.response?.data?.message || t('cars.uploadReceiverIdError'));
+    } finally {
+      setReceiverIdUploading(false);
     }
   }
 
@@ -382,23 +574,37 @@ function Cars() {
   function handleExportSelected() {
     const selectedRows = data.filter(row => selectedIds.has(row.id));
     if (selectedRows.length === 0) return;
-    const exportColumns = [
-      { key: 'buyer', label: t('cars.dealer') },
+
+    // Admin export columns - full details
+    const adminExportColumns = [
       { key: 'purchase_date', label: t('cars.purchaseDate'), render: (row) => formatDate(row.purchase_date) },
       { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
       { key: 'vin', label: t('cars.vin') },
-      { key: 'receiver_fullname', label: t('cars.buyer') },
+      { key: 'lot_number', label: t('cars.lotNumber') },
+      { key: 'receiver_fullname', label: t('cars.receiver') },
       { key: 'receiver_identity_number', label: t('cars.personalNumber') },
       { key: 'receiver_phone', label: t('cars.phone') },
       { key: 'container_number', label: t('cars.container') },
-      { key: 'booking', label: t('cars.booking') },
       { key: 'line', label: t('cars.line') },
       { key: 'auction', label: t('cars.auction') },
       { key: 'us_state', label: t('cars.state') },
+      { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '' },
       { key: 'payed_amount', label: t('cars.paid'), render: (row) => row.payed_amount != null ? row.payed_amount : '' },
       { key: 'total_price', label: t('cars.total'), render: (row) => row.total_price != null ? row.total_price : '' },
       { key: 'debt_amount', label: t('cars.debt'), render: (row) => row.debt_amount != null ? row.debt_amount : '' },
     ];
+
+    // Dealer export columns - simplified
+    const dealerExportColumns = [
+      { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+      { key: 'vin', label: t('cars.vin') },
+      { key: 'container_number', label: t('cars.container') },
+      { key: 'current_status', label: t('cars.status') },
+      { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '' },
+      { key: 'overdue_days', label: t('cars.overdueDays'), render: (row) => parseInt(row.overdue_days) || 0 },
+    ];
+
+    const exportColumns = isAdmin ? adminExportColumns : dealerExportColumns;
     const today = new Date().toISOString().slice(0, 10);
     exportToCSV(selectedRows, exportColumns, `vehicles_selected_${today}`);
   }
@@ -513,7 +719,26 @@ function Cars() {
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.vin')} <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control" name="vin" value={formData.vin} onChange={handleFormChange} required />
+                    <input
+                      type="text"
+                      className={`form-control ${formData.vin.length > 17 ? 'is-invalid' : ''}`}
+                      name="vin"
+                      value={formData.vin}
+                      onChange={(e) => {
+                        const { name, value } = e.target;
+                        setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
+                      }}
+                      maxLength={17}
+                      required
+                    />
+                    <div className="d-flex justify-content-between mt-1">
+                      <small className={`${formData.vin.length > 17 ? 'text-danger' : 'text-muted'}`}>
+                        {formData.vin.length > 17 ? t('cars.vinMaxLength') : ''}
+                      </small>
+                      <small className={`${formData.vin.length > 17 ? 'text-danger' : 'text-muted'}`}>
+                        {formData.vin.length}/17
+                      </small>
+                    </div>
                   </div>
                 </div>
                 <div className="row mb-3">
@@ -541,6 +766,19 @@ function Cars() {
                   </div>
                 </div>
                 <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label">{t('cars.fuelType')}</label>
+                    <select className="form-select" name="fuel_type" value={formData.fuel_type} onChange={handleFormChange}>
+                      <option value="">Select...</option>
+                      <option value="gasoline">{t('cars.fuelTypeGasoline')}</option>
+                      <option value="diesel">{t('cars.fuelTypeDiesel')}</option>
+                      <option value="hybrid">{t('cars.fuelTypeHybrid')}</option>
+                      <option value="electric">{t('cars.fuelTypeElectric')}</option>
+                      <option value="plug_in_hybrid">{t('cars.fuelTypePlugInHybrid')}</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="row mb-3">
                   <div className="col-6 d-flex align-items-center gap-3">
                     <div className="form-check">
                       <input type="checkbox" className="form-check-input" name="is_hybrid" id="is_hybrid" checked={formData.is_hybrid} onChange={handleFormChange} />
@@ -558,40 +796,201 @@ function Cars() {
                 {/* Section 3 — Dealer & Receiver */}
                 <h6 className="cars-section-heading">{t('cars.dealerReceiver')}</h6>
                 <div className="row mb-3">
-                  <div className="col-6">
+                  <div className="col-12">
                     <label className="form-label">{t('cars.dealer')}</label>
-                    <select className="form-select" name="dealer_id" value={formData.dealer_id} onChange={handleFormChange}>
-                      <option value="">Select...</option>
-                      {dealers.map(d => (
-                        <option key={d.id} value={d.id}>{[d.name, d.surname].filter(Boolean).join(' ') || d.username}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-6">
-                    <label className="form-label">{t('cars.buyer')}</label>
-                    <input type="text" className="form-control" name="buyer" value={formData.buyer} onChange={handleFormChange} />
+                    <Autocomplete
+                      options={dealers}
+                      getOptionLabel={(option) => {
+                        if (!option) return '';
+                        const name = [option.name, option.surname].filter(Boolean).join(' ') || option.username || '';
+                        return `[${option.id}] - ${name}`;
+                      }}
+                      value={dealers.find(d => d.id === Number(formData.dealer_id)) || null}
+                      onChange={(event, newValue) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          dealer_id: newValue ? newValue.id : ''
+                        }));
+                      }}
+                      isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                      renderOption={(props, option) => {
+                        const { key, ...otherProps } = props;
+                        const name = [option.name, option.surname].filter(Boolean).join(' ') || option.username || '';
+                        return (
+                          <li key={option.id} {...otherProps}>
+                            <span className="dealer-option-id">[{option.id}]</span>
+                            <span className="dealer-option-name">{name}</span>
+                          </li>
+                        );
+                      }}
+                      filterOptions={(options, { inputValue }) => {
+                        const searchTerm = inputValue.toLowerCase();
+                        return options.filter(option => {
+                          const name = [option.name, option.surname].filter(Boolean).join(' ').toLowerCase();
+                          const username = (option.username || '').toLowerCase();
+                          const id = String(option.id);
+                          return name.includes(searchTerm) || username.includes(searchTerm) || id.includes(searchTerm);
+                        });
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={t('common.selectOrSearch')}
+                          size="small"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: '#fff',
+                              '& fieldset': { borderColor: '#ced4da' },
+                              '&:hover fieldset': { borderColor: '#86b7fe' },
+                              '&.Mui-focused fieldset': { borderColor: '#86b7fe', boxShadow: '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' },
+                            },
+                            '& .MuiInputBase-input': { padding: '0.375rem 0.75rem', fontSize: '0.875rem' },
+                          }}
+                        />
+                      )}
+                      noOptionsText={t('common.noResults')}
+                      clearText={t('common.clear')}
+                      openText={t('common.open')}
+                      closeText={t('common.close')}
+                    />
                   </div>
                 </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <label className="form-label">{t('cars.receiverFullname')}</label>
-                    <input type="text" className="form-control" name="receiver_fullname" value={formData.receiver_fullname} onChange={handleFormChange} />
-                  </div>
-                  <div className="col-6">
-                    <label className="form-label">{t('cars.receiverIdNumber')}</label>
-                    <input type="text" className="form-control" name="receiver_identity_number" value={formData.receiver_identity_number} onChange={handleFormChange} />
+                {/* Receiver Data Entry Mode Toggle */}
+                <div className="mb-3">
+                  <label className="form-label d-block">{t('cars.receiverDataEntry')}</label>
+                  <div className="btn-group" role="group">
+                    <button
+                      type="button"
+                      className={`btn ${receiverEntryMode === 'manual' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                      onClick={() => setReceiverEntryMode('manual')}
+                    >
+                      {t('cars.manualEntry')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${receiverEntryMode === 'upload' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                      onClick={() => setReceiverEntryMode('upload')}
+                    >
+                      {t('cars.uploadIdDocument')}
+                    </button>
                   </div>
                 </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <label className="form-label">{t('cars.receiverPhone')}</label>
-                    <input type="text" className="form-control" name="receiver_phone" value={formData.receiver_phone} onChange={handleFormChange} />
+
+                {/* Manual Entry Mode */}
+                {receiverEntryMode === 'manual' && (
+                  <>
+                    <div className="row mb-3">
+                      <div className="col-6">
+                        <label className="form-label">{t('cars.receiverFullname')}</label>
+                        <input type="text" className="form-control input-uppercase" name="receiver_fullname" value={formData.receiver_fullname} onChange={handleFormChange} />
+                      </div>
+                      <div className="col-6">
+                        <label className="form-label">{t('cars.receiverIdNumber')}</label>
+                        <input
+                          type="text"
+                          className="form-control input-uppercase"
+                          name="receiver_identity_number"
+                          value={formData.receiver_identity_number}
+                          onChange={(e) => {
+                            const { name, value } = e.target;
+                            setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="row mb-3">
+                      <div className="col-6">
+                        <label className="form-label">{t('cars.receiverPhone')}</label>
+                        <input type="text" className="form-control" name="receiver_phone" value={formData.receiver_phone} onChange={handleFormChange} />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Upload ID Document Mode */}
+                {receiverEntryMode === 'upload' && (
+                  <div className="receiver-id-upload-section mb-3">
+                    {formData.receiver_id_document_url ? (
+                      <div className="alert alert-success py-2">
+                        <div className="d-flex align-items-center justify-content-between">
+                          <div>
+                            <strong>{t('cars.idDocumentUploaded')}</strong>
+                            <div className="mt-1">
+                              <a
+                                href={formData.receiver_id_document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-primary me-2"
+                              >
+                                {t('cars.viewDocument')}
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="card">
+                        <div className="card-body">
+                          <h6 className="card-title mb-3">{t('cars.receiverIdDocumentLabel')}</h6>
+                          {receiverIdError && <div className="alert alert-danger py-2 mb-3">{receiverIdError}</div>}
+                          {receiverIdSuccess && <div className="alert alert-success py-2 mb-3">{receiverIdSuccess}</div>}
+
+                          <div className="mb-3">
+                            <input
+                              type="file"
+                              className="form-control"
+                              accept="image/*,application/pdf"
+                              onChange={handleReceiverIdFileChange}
+                              disabled={!editRow || receiverIdUploading}
+                            />
+                            <div className="form-text">
+                              {editRow ? t('users.selectIdDocument') : t('users.saveVehicleFirst')}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleReceiverIdUpload}
+                            disabled={!receiverIdFile || !editRow || receiverIdUploading}
+                          >
+                            {receiverIdUploading ? t('common.uploading') : t('cars.uploadDocument')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual entry fields after upload */}
+                    <div className="mt-3">
+                      <small className="text-muted">{t('cars.enterReceiverDataAfterUpload') || 'Enter receiver information after reviewing the document:'}</small>
+                      <div className="row mt-2">
+                        <div className="col-6">
+                          <label className="form-label">{t('cars.receiverFullname')}</label>
+                          <input type="text" className="form-control input-uppercase" name="receiver_fullname" value={formData.receiver_fullname} onChange={handleFormChange} />
+                        </div>
+                        <div className="col-6">
+                          <label className="form-label">{t('cars.receiverIdNumber')}</label>
+                          <input
+                            type="text"
+                            className="form-control input-uppercase"
+                            name="receiver_identity_number"
+                            value={formData.receiver_identity_number}
+                            onChange={(e) => {
+                              const { name, value } = e.target;
+                              setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="row mt-2">
+                        <div className="col-6">
+                          <label className="form-label">{t('cars.receiverPhone')}</label>
+                          <input type="text" className="form-control" name="receiver_phone" value={formData.receiver_phone} onChange={handleFormChange} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="col-6">
-                    <label className="form-label">{t('cars.buyerNumber')}</label>
-                    <input type="text" className="form-control" name="buyer_number" value={formData.buyer_number} onChange={handleFormChange} />
-                  </div>
-                </div>
+                )}
 
                 <hr />
 
@@ -610,10 +1009,17 @@ function Cars() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.destinationPort')}</label>
-                    <select className="form-select" name="destination_port" value={formData.destination_port} onChange={handleFormChange}>
+                    <select
+                      className="form-select"
+                      name="destination_port_id"
+                      value={formData.destination_port_id}
+                      onChange={handleFormChange}
+                    >
                       <option value="">Select...</option>
-                      {cities.map(c => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
+                      {ports.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.code ? ` (${p.code})` : ''}{p.country ? ` - ${p.country}` : ''}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -621,8 +1027,8 @@ function Cars() {
 
                 <hr />
 
-                {/* Section 5 — Container & Booking */}
-                <h6 className="cars-section-heading">{t('cars.containerBooking')}</h6>
+                {/* Section 5 — Container & Shipping */}
+                <h6 className="cars-section-heading">{t('cars.containerShipping')}</h6>
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.containerNumber')}</label>
@@ -636,12 +1042,6 @@ function Cars() {
                       <option value="Maersk">Maersk</option>
                       <option value="ZIM">ZIM</option>
                     </select>
-                  </div>
-                </div>
-                <div className="row mb-3">
-                  <div className="col-6">
-                    <label className="form-label">{t('cars.booking')}</label>
-                    <input type="text" className="form-control" name="booking" value={formData.booking} onChange={handleFormChange} />
                   </div>
                 </div>
 
@@ -729,6 +1129,17 @@ function Cars() {
                       <input type="checkbox" className="form-check-input" name="is_insured" id="is_insured" checked={formData.is_insured} onChange={handleFormChange} />
                       <label className="form-check-label" htmlFor="is_insured">{t('cars.insured')}</label>
                     </div>
+                  </div>
+                </div>
+                <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label">{t('cars.insuranceType')}</label>
+                    <select className="form-select" name="insurance_type" value={formData.insurance_type} onChange={handleFormChange}>
+                      <option value="">Select...</option>
+                      <option value="none">{t('cars.insuranceTypeNone')}</option>
+                      <option value="franchise">{t('cars.insuranceTypeFranchise')}</option>
+                      <option value="full">{t('cars.insuranceTypeFull')}</option>
+                    </select>
                   </div>
                 </div>
 
@@ -825,7 +1236,7 @@ function Cars() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.driverFullname')}</label>
-                    <input type="text" className="form-control" name="driver_fullname" value={formData.driver_fullname} onChange={handleFormChange} />
+                    <input type="text" className="form-control input-uppercase" name="driver_fullname" value={formData.driver_fullname} onChange={handleFormChange} />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.driverPhone')}</label>
@@ -834,12 +1245,36 @@ function Cars() {
                 </div>
                 <div className="row mb-3">
                   <div className="col-6">
+                    <label className="form-label">{t('cars.driverIdNumber')}</label>
+                    <input type="text" className="form-control input-uppercase" name="driver_id_number" value={formData.driver_id_number} onChange={handleFormChange} />
+                  </div>
+                  <div className="col-6">
                     <label className="form-label">{t('cars.driverLicenseNumber')}</label>
                     <input type="text" className="form-control" name="driver_car_license_number" value={formData.driver_car_license_number} onChange={handleFormChange} />
                   </div>
+                </div>
+                <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.driverCompany')}</label>
                     <input type="text" className="form-control" name="driver_company" value={formData.driver_company} onChange={handleFormChange} />
+                  </div>
+                </div>
+
+                <hr />
+
+                {/* Section 11 — Comment */}
+                <h6 className="cars-section-heading">{t('cars.comment')}</h6>
+                <div className="row mb-3">
+                  <div className="col-12">
+                    <label className="form-label">{t('cars.commentLabel')}</label>
+                    <textarea
+                      className="form-control"
+                      name="comment"
+                      value={formData.comment}
+                      onChange={handleFormChange}
+                      rows={4}
+                      placeholder={t('cars.commentPlaceholder')}
+                    />
                   </div>
                 </div>
               </div>

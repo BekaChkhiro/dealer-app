@@ -19,17 +19,8 @@ const EMPTY_FORM = {
   role: 'user',
   identity_number: '',
   superviser_fee: '',
+  address: '',
 };
-
-function formatPrice(value) {
-  if (value == null) return '—';
-  return `$${Number(value).toLocaleString()}`;
-}
-
-function formatDate(value) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString();
-}
 
 function Users() {
   const { user } = useAuth();
@@ -39,12 +30,12 @@ function Users() {
 
   const columns = [
     { key: 'id', label: t('users.id'), sortable: true },
-    { key: 'name', label: t('users.fullname'), sortable: true, render: (row) => [row.name, row.surname].filter(Boolean).join(' ') || '—' },
+    { key: 'name', label: t('users.fullname'), sortable: true, render: (row) => (
+      <span className="dt-uppercase">{[row.name, row.surname].filter(Boolean).join(' ') || '—'}</span>
+    )},
+    { key: 'phone', label: t('users.phone'), sortable: true, render: (row) => row.phone || '—' },
     { key: 'email', label: t('users.email'), sortable: true },
-    { key: 'username', label: t('users.username'), sortable: true },
-    { key: 'superviser_fee', label: t('users.supFee'), sortable: true, align: 'right', render: (row) => formatPrice(row.superviser_fee) },
-    { key: 'last_login_time', label: t('users.lastLoginDate'), sortable: true, render: (row) => formatDate(row.last_login_time) },
-    { key: 'last_purchase_date', label: t('users.lastPurchaseDate'), sortable: true, render: (row) => formatDate(row.last_purchase_date) },
+    { key: 'vehicle_count', label: t('users.carsCount'), sortable: true, align: 'center', render: (row) => row.vehicle_count ?? 0 },
     { key: 'role', label: t('users.role'), sortable: true, render: (row) => row.role ? row.role.charAt(0).toUpperCase() + row.role.slice(1) : '—' },
   ];
 
@@ -125,6 +116,7 @@ function Users() {
         role: row.role || 'user',
         identity_number: row.identity_number || '',
         superviser_fee: row.superviser_fee != null ? String(row.superviser_fee) : '',
+        address: row.address || '',
       });
       setFormError('');
       setEditModal(true);
@@ -154,6 +146,7 @@ function Users() {
         role: formData.role || 'user',
         identity_number: formData.identity_number || null,
         superviser_fee: formData.superviser_fee !== '' ? Number(formData.superviser_fee) : null,
+        address: formData.address || null,
       };
 
       if (editRow) {
@@ -241,11 +234,11 @@ function Users() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('users.name')}</label>
-                    <input type="text" className="form-control" name="name" value={formData.name} onChange={handleFormChange} />
+                    <input type="text" className="form-control input-uppercase" name="name" value={formData.name} onChange={handleFormChange} />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('users.surname')}</label>
-                    <input type="text" className="form-control" name="surname" value={formData.surname} onChange={handleFormChange} />
+                    <input type="text" className="form-control input-uppercase" name="surname" value={formData.surname} onChange={handleFormChange} />
                   </div>
                 </div>
                 <div className="row mb-3">
@@ -294,11 +287,26 @@ function Users() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('users.identityNumber')}</label>
-                    <input type="text" className="form-control" name="identity_number" value={formData.identity_number} onChange={handleFormChange} />
+                    <input
+                      type="text"
+                      className="form-control input-uppercase"
+                      name="identity_number"
+                      value={formData.identity_number}
+                      onChange={(e) => {
+                        const { name, value } = e.target;
+                        setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
+                      }}
+                    />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('users.supervisorFee')}</label>
                     <input type="number" className="form-control" name="superviser_fee" value={formData.superviser_fee} onChange={handleFormChange} step="0.01" min="0" />
+                  </div>
+                </div>
+                <div className="row mb-3">
+                  <div className="col-12">
+                    <label className="form-label">{t('users.address')}</label>
+                    <textarea className="form-control" name="address" value={formData.address} onChange={handleFormChange} rows="2" maxLength="500" />
                   </div>
                 </div>
               </div>

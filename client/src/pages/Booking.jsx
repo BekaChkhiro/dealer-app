@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -9,6 +9,7 @@ import ActionButtons from '../components/ActionButtons';
 import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
 import BulkActionBar from '../components/BulkActionBar';
 import { exportToCSV } from '../utils/export';
+import VinDisplay from '../components/VinDisplay';
 import './Booking.css';
 
 const EMPTY_FORM = {
@@ -17,7 +18,7 @@ const EMPTY_FORM = {
   container_receive_date: '', container_released: false,
   delivery_location: '', estimated_arrival_date: '', line: '',
   open_date: '', est_opening_date: '', loading_port: '', terminal: '',
-  car_details: '', lot_number: '', boat_id: '', boat_name: '',
+  car_details: '', lot_number: '',
 };
 
 const DATE_FIELDS = [
@@ -71,7 +72,6 @@ function Booking() {
 
   const [vinCodes, setVinCodes] = useState([]);
   const [containersList, setContainersList] = useState([]);
-  const [boats, setBoats] = useState([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -102,14 +102,12 @@ function Booking() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [vRes, cRes, bRes] = await Promise.all([
+        const [vRes, cRes] = await Promise.all([
           api.get('/vin-codes/booking'),
           api.get('/containers-list/booking'),
-          api.get('/boats', { params: { limit: 500 } }),
         ]);
         setVinCodes(vRes.data.data || []);
         setContainersList(cRes.data.data || []);
-        setBoats(bRes.data.data || []);
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -161,11 +159,30 @@ function Booking() {
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   const columns = [
-    { key: 'vin', label: t('booking.vin'), sortable: true },
+    { key: 'vin', label: t('booking.vin'), sortable: true, render: (row) => <VinDisplay vin={row.vin} /> },
     { key: 'buyer_fullname', label: t('booking.buyer'), sortable: true },
     { key: 'booking_number', label: t('booking.title'), sortable: true },
     { key: 'line', label: t('booking.line'), sortable: true },
-    { key: 'container', label: t('booking.container'), sortable: true },
+    { key: 'container', label: t('booking.container'), sortable: true, render: (row) => {
+      if (!row.container) return '—';
+      if (row.container_id) {
+        return (
+          <Link
+            to={`/containers/${row.container_id}`}
+            style={{
+              color: '#0D6EFD',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+          >
+            {row.container}
+          </Link>
+        );
+      }
+      return row.container;
+    }},
     { key: 'delivery_location', label: t('booking.deliveryLocation'), sortable: true },
     { key: 'loading_port', label: t('booking.loadingPort'), sortable: true },
     { key: 'container_loaded_date', label: t('booking.containerLoadedDate'), sortable: true, render: (row) => formatDate(row.container_loaded_date) },
@@ -254,16 +271,6 @@ function Booking() {
     setFormData(prev => ({ ...prev, [name]: checked }));
   }
 
-  function handleBoatChange(e) {
-    const boatId = e.target.value;
-    const selected = boats.find(b => String(b.id) === boatId);
-    setFormData(prev => ({
-      ...prev,
-      boat_id: boatId,
-      boat_name: selected ? selected.boat_name || selected.name || '' : '',
-    }));
-  }
-
   async function handleFormSubmit(e) {
     e.preventDefault();
     setFormError('');
@@ -279,7 +286,6 @@ function Booking() {
           payload[key] = formData[key] || null;
         }
       }
-      if (payload.boat_id) payload.boat_id = Number(payload.boat_id);
 
       if (editRow) {
         await api.put(`/booking/${editRow.id}`, payload);
@@ -483,17 +489,8 @@ function Booking() {
                     <input type="text" className="form-control" name="terminal" value={formData.terminal} onChange={handleFormChange} />
                   </div>
                 </div>
-                {/* Row 5: Boat | Lot Number */}
+                {/* Row 5: Lot Number */}
                 <div className="row mb-3">
-                  <div className="col-6">
-                    <label className="form-label">{t('booking.boat')}</label>
-                    <select className="form-select" name="boat_id" value={formData.boat_id} onChange={handleBoatChange}>
-                      <option value="">— Select Boat —</option>
-                      {boats.map(b => (
-                        <option key={b.id} value={b.id}>{b.boat_name || b.name || `Boat #${b.id}`}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="col-6">
                     <label className="form-label">{t('booking.lotNumber')}</label>
                     <input type="text" className="form-control" name="lot_number" value={formData.lot_number} onChange={handleFormChange} />

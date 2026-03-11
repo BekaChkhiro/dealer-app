@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
+import VinDisplay from './VinDisplay';
 import './Header.css';
 
 function getInitials(user) {
@@ -55,6 +56,9 @@ export default function Header({ onToggle, sidebarCollapsed }) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const searchRef = useRef(null);
   const debounceRef = useRef(null);
+
+  // Unread messages state
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Debounced search
   const doSearch = useCallback(async (q) => {
@@ -127,6 +131,24 @@ export default function Header({ onToggle, sidebarCollapsed }) {
       setActiveIndex(-1);
     }
   };
+
+  // Fetch unread message count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await api.get('/messages/unread-count');
+        setUnreadCount(res.data?.data?.unread_count || 0);
+      } catch (err) {
+        // Silently fail - not critical
+        console.error('Failed to fetch unread count:', err);
+      }
+    };
+
+    fetchUnreadCount();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -205,7 +227,7 @@ export default function Header({ onToggle, sidebarCollapsed }) {
                       <span className="header-search-result-name">
                         {item.mark} {item.model} {item.year}
                       </span>
-                      <span className="header-search-result-vin">{item.vin}</span>
+                      <VinDisplay vin={item.vin} className="header-search-result-vin" />
                     </div>
                     {item.current_status && (
                       <span className={`header-search-result-status status-${item.current_status}`}>
@@ -255,6 +277,21 @@ export default function Header({ onToggle, sidebarCollapsed }) {
             </div>
           )}
         </div>
+
+        {/* Messages */}
+        <button
+          className="header-messages"
+          aria-label={t('header.messages') || 'Messages'}
+          onClick={() => navigate('/messages')}
+          style={{ position: 'relative' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
+          {unreadCount > 0 && (
+            <span className="header-messages-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+          )}
+        </button>
 
         {/* Settings gear */}
         <button className="header-settings" aria-label="Settings" onClick={() => navigate('/settings')}>

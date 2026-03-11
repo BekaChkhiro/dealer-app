@@ -1,0 +1,88 @@
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: #6c757d;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: #e9ecef;
+  color: #212529;
+}
+
+.copy-btn:active {
+  background: #dee2e6;
+}
+
+/* Success state - green check */
+.copy-btn svg polyline {
+  stroke: currentColor;
+}
+
+.copy-btn:has(svg polyline) {
+  color: #198754;
+}
+
+/* Tooltip */
+.copy-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  background: #198754;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1000;
+  animation: copyTooltipFadeIn 0.15s ease;
+}
+
+.copy-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #198754;
+}
+
+@keyframes copyTooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Cell with copy button layout */
+.cell-with-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cell-with-copy .cell-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

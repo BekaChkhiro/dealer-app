@@ -1,0 +1,466 @@
+/* Modal */
+.ports-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+}
+
+.ports-modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.ports-modal-sm {
+  width: 400px;
+}
+
+.ports-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ports-modal-header h5 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ports-modal-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6c757d;
+  line-height: 1;
+  padding: 0;
+}
+
+.ports-modal-body {
+  padding: 20px;
+}
+
+.ports-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Status badges */
+.ports-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ports-status-active {
+  background: #D1E7DD;
+  color: #0F5132;
+}
+
+.ports-status-inactive {
+  background: #F8D7DA;
+  color: #842029;
+}
+
+/* Expand button */
+.ports-expand-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #6c757d;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.ports-expand-btn:hover {
+  background: #e9ecef;
+  color: #212529;
+}
+
+/* Container count badge */
+.container-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  background: #e2e3e5;
+  color: #41464b;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Expanded row */
+.ports-expanded-row {
+  background: #f8f9fa !important;
+}
+
+.ports-expanded-row > td {
+  padding: 0 !important;
+  border-bottom: 2px solid #dee2e6;
+}
+
+/* Containers section */
+.ports-containers-section {
+  padding: 16px 20px;
+  background: linear-gradient(to bottom, #f8f9fa, #fff);
+}
+
+.ports-containers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ports-containers-header h6 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.ports-containers-loading,
+.ports-containers-empty {
+  padding: 20px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* Containers table */
+.ports-containers-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ports-containers-table th {
+  background: #f6f9fb;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6c757d;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.ports-containers-table td {
+  padding: 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.ports-containers-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ports-containers-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+/* Container status badges */
+.container-status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.container-status-booked {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+.container-status-loaded {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.container-status-transit {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.container-status-arrived {
+  background: #cff4fc;
+  color: #055160;
+}
+
+.container-status-delivered {
+  background: #d3d3d4;
+  color: #41464b;
+}
+
+/* Vehicle count badge */
+.vehicle-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  background: #6c757d;
+  color: #fff;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Container actions */
+.container-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.container-actions .btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Port name label in modal */
+.port-name-label,
+.container-name-label {
+  font-weight: 400;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* Large modal for vehicle assignment */
+.ports-modal-lg {
+  width: 700px;
+}
+
+/* Vehicle modal body */
+.vehicle-modal-body {
+  padding: 0 !important;
+}
+
+.vehicle-search-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  gap: 12px;
+}
+
+.vehicle-search-bar input {
+  flex: 1;
+}
+
+.selected-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0d6efd;
+  white-space: nowrap;
+  background: #e7f1ff;
+  padding: 6px 12px;
+  border-radius: 16px;
+}
+
+.available-vehicles-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.select-all-row {
+  padding: 10px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.vehicle-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.vehicle-checkbox input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.vehicle-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  gap: 12px;
+}
+
+.vehicle-item:hover {
+  background: #f8f9fa;
+}
+
+.vehicle-item.selected {
+  background: #e7f1ff;
+}
+
+.vehicle-item:last-child {
+  border-bottom: none;
+}
+
+.vehicle-image {
+  width: 60px;
+  height: 45px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #e9ecef;
+  flex-shrink: 0;
+}
+
+.vehicle-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vehicle-image .no-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 20px;
+  background: #f8f9fa;
+}
+
+.vehicle-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vehicle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 4px;
+}
+
+.vehicle-details {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 2px;
+}
+
+.vehicle-vin {
+  font-family: monospace;
+}
+
+.vehicle-dealer {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.vehicles-loading,
+.vehicles-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6c757d;
+  font-size: 14px;
+}
+
+/* VIN styling - highlight last 6 digits */
+.vin-prefix {
+  color: #495057;
+}
+
+.vin-suffix {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.vin-cell {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+/* Container vehicles row */
+.container-vehicles-row > td {
+  padding: 0 !important;
+  background: #f5f7f9;
+}
+
+.container-vehicles-section {
+  padding: 16px 20px 16px 40px;
+}
+
+.container-vehicles-section h6 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+}
+
+/* Vehicles table inside container */
+.vehicles-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.vehicles-table th {
+  background: #f6f9fb;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6c757d;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.vehicles-table td {
+  padding: 10px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
+}
+
+.vehicles-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vehicles-table tbody tr:hover {
+  background: #f8f9fa;
+}

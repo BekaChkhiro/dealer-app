@@ -14,9 +14,7 @@ const getStats = async (req, res) => {
         SELECT
           (SELECT COUNT(*) FROM vehicles)::int AS total_vehicles,
           (SELECT COUNT(*) FROM booking)::int AS total_bookings,
-          (SELECT COUNT(*) FROM containers)::int AS total_containers,
-          (SELECT COUNT(*) FROM boats)::int AS total_boats,
-          (SELECT COUNT(*) FROM boats WHERE status = 'in_transit')::int AS boats_in_transit
+          (SELECT COUNT(*) FROM containers)::int AS total_containers
       `;
       countsParams = [];
     } else {
@@ -24,9 +22,7 @@ const getStats = async (req, res) => {
         SELECT
           (SELECT COUNT(*) FROM vehicles WHERE dealer_id = $1)::int AS total_vehicles,
           (SELECT COUNT(*) FROM booking WHERE user_id = $1)::int AS total_bookings,
-          (SELECT COUNT(*) FROM containers WHERE user_id = $1)::int AS total_containers,
-          (SELECT COUNT(*) FROM boats)::int AS total_boats,
-          (SELECT COUNT(*) FROM boats WHERE status = 'in_transit')::int AS boats_in_transit
+          (SELECT COUNT(*) FROM containers WHERE user_id = $1)::int AS total_containers
       `;
       countsParams = [userId];
     }
@@ -120,8 +116,6 @@ const getStats = async (req, res) => {
         total_vehicles: countsRow.total_vehicles,
         total_bookings: countsRow.total_bookings,
         total_containers: countsRow.total_containers,
-        total_boats: countsRow.total_boats,
-        boats_in_transit: countsRow.boats_in_transit,
         total_balance: Number(financialRow.total_balance),
         total_debt: Number(financialRow.total_debt),
         vehicles_by_status: statusMap,

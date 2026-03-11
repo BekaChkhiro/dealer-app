@@ -5,6 +5,7 @@ import api from '../services/api';
 import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import ActionButtons from '../components/ActionButtons';
+import VinDisplay from '../components/VinDisplay';
 import './Transactions.css';
 
 function formatDate(value) {
@@ -82,7 +83,7 @@ function Transactions() {
     { key: 'id', label: t('transactions.id'), sortable: true },
     { key: 'payer', label: t('transactions.payedId'), sortable: true },
     { key: 'create_date', label: t('transactions.date'), sortable: true, render: (row) => formatDate(row.create_date) },
-    { key: 'vin', label: t('transactions.vin'), sortable: true },
+    { key: 'vin', label: t('transactions.vin'), sortable: true, render: (row) => <VinDisplay vin={row.vin} /> },
     { key: 'mark', label: t('transactions.mark'), sortable: true },
     { key: 'model', label: t('transactions.model'), sortable: true },
     { key: 'year', label: t('transactions.year'), sortable: true },

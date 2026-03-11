@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
+import VinDisplay from '../components/VinDisplay';
 import './Login.css';
 
 export default function Login() {
@@ -108,7 +109,7 @@ export default function Login() {
                     <div className="vehicle-track-name">
                       {v.mark} {v.model} {v.year}
                     </div>
-                    <div className="vehicle-track-vin">VIN: {v.vin || '—'}</div>
+                    <div className="vehicle-track-vin">VIN: <VinDisplay vin={v.vin} /></div>
                     {v.current_status && (
                       <span className="status-badge">{v.current_status}</span>
                     )}

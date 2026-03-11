@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import './DataTable.css';
 
@@ -14,6 +14,7 @@ export default function DataTable({
   selectable = false,
   selectedIds = new Set(),
   onSelectionChange,
+  renderExpandableRow,
 }) {
   const { t } = useTranslation();
   const [openMenuRow, setOpenMenuRow] = useState(null);
@@ -167,54 +168,57 @@ export default function DataTable({
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <tr key={row.id ?? rowIndex} className={`dt-row ${selectable && selectedIds.has(row.id) ? 'dt-row-selected' : ''}`}>
-                  {selectable && (
-                    <td className="dt-td dt-td-checkbox">
-                      <input
-                        type="checkbox"
-                        className="dt-checkbox"
-                        checked={selectedIds.has(row.id)}
-                        onChange={() => handleSelectRow(row.id)}
-                      />
-                    </td>
-                  )}
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={`dt-td ${col.align === 'right' ? 'dt-align-right' : ''}`}
-                    >
-                      {renderCell(col, row)}
-                    </td>
-                  ))}
-                  {hasActions && (
-                    <td className="dt-td dt-td-actions">
-                      <button
-                        className="dt-menu-btn"
-                        onClick={(e) => toggleMenu(rowIndex, e)}
+                <Fragment key={row.id ?? rowIndex}>
+                  <tr className={`dt-row ${selectable && selectedIds.has(row.id) ? 'dt-row-selected' : ''}`}>
+                    {selectable && (
+                      <td className="dt-td dt-td-checkbox">
+                        <input
+                          type="checkbox"
+                          className="dt-checkbox"
+                          checked={selectedIds.has(row.id)}
+                          onChange={() => handleSelectRow(row.id)}
+                        />
+                      </td>
+                    )}
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={`dt-td ${col.align === 'right' ? 'dt-align-right' : ''}`}
                       >
-                        <DotsIcon />
-                      </button>
-                      {openMenuRow === rowIndex && (
-                        <div className="dt-menu-dropdown" ref={menuRef}>
-                          {actions.map((action) => (
-                            <button
-                              key={action.key}
-                              className="dt-menu-item"
-                              onClick={() => handleAction(action.key, row)}
-                            >
-                              {action.icon && (
-                                <span className="dt-menu-item-icon">
-                                  {action.icon}
-                                </span>
-                              )}
-                              {action.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                  )}
-                </tr>
+                        {renderCell(col, row)}
+                      </td>
+                    ))}
+                    {hasActions && (
+                      <td className="dt-td dt-td-actions">
+                        <button
+                          className="dt-menu-btn"
+                          onClick={(e) => toggleMenu(rowIndex, e)}
+                        >
+                          <DotsIcon />
+                        </button>
+                        {openMenuRow === rowIndex && (
+                          <div className="dt-menu-dropdown" ref={menuRef}>
+                            {actions.map((action) => (
+                              <button
+                                key={action.key}
+                                className="dt-menu-item"
+                                onClick={() => handleAction(action.key, row)}
+                              >
+                                {action.icon && (
+                                  <span className="dt-menu-item-icon">
+                                    {action.icon}
+                                  </span>
+                                )}
+                                {action.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                  {renderExpandableRow && renderExpandableRow(row)}
+                </Fragment>
               ))
             )}
           </tbody>

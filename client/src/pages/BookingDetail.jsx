@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
+import VinDisplay from '../components/VinDisplay';
 import './BookingDetail.css';
 
 function formatDate(value) {
@@ -121,8 +122,11 @@ function BookingDetail() {
           <div className="booking-detail-card-title">{t('bookingDetail.bookingInfo')}</div>
           <div className="booking-detail-info-grid">
             <InfoItem label={t('booking.bookingNumber')} value={booking.booking_number} />
-            <InfoItem label={t('booking.vin')} value={booking.vin} />
-            <InfoItem label={t('booking.buyer')} value={booking.buyer_fullname} />
+            <div className="booking-detail-info-item">
+              <span className="booking-detail-info-label">{t('booking.vin')}</span>
+              <VinDisplay vin={booking.vin} className="booking-detail-info-value" />
+            </div>
+            <InfoItem label={t('booking.buyer')} value={booking.buyer_fullname} className="uppercase" />
             <InfoItem label={t('booking.line')} value={booking.line} />
             <InfoItem label={t('booking.lotNumber')} value={booking.lot_number} />
           </div>
@@ -132,7 +136,27 @@ function BookingDetail() {
         <div className="booking-detail-card">
           <div className="booking-detail-card-title">{t('bookingDetail.containerInfo')}</div>
           <div className="booking-detail-info-grid">
-            <InfoItem label={t('booking.container')} value={booking.container} />
+            <InfoItem
+              label={t('booking.container')}
+              value={
+                booking.container && booking.container_id ? (
+                  <Link
+                    to={`/containers/${booking.container_id}`}
+                    style={{
+                      color: '#0D6EFD',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                    }}
+                    onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                    onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                  >
+                    {booking.container}
+                  </Link>
+                ) : (
+                  booking.container
+                )
+              }
+            />
             <InfoItem label={t('booking.containerReceiver')} value={booking.container_receiver} />
             <InfoItem label={t('booking.loadingPort')} value={booking.loading_port} />
             <InfoItem label={t('booking.deliveryLocation')} value={booking.delivery_location} />
@@ -183,56 +207,37 @@ function BookingDetail() {
         </div>
       </div>
 
-      {/* Related sections */}
-      <div className="booking-detail-related-row">
-        {/* Related Vehicle */}
-        <div className="booking-detail-card">
-          <div className="booking-detail-card-title">{t('bookingDetail.relatedVehicle')}</div>
-          {relatedVehicle ? (
-            <div>
-              <div className="booking-detail-info-grid">
-                <InfoItem label={t('cars.vehicleName')} value={relatedVehicle.vehicle_name || `${relatedVehicle.mark || ''} ${relatedVehicle.model || ''}`.trim()} />
-                <InfoItem label={t('cars.vin')} value={relatedVehicle.vin} />
-                <InfoItem label={t('cars.buyer')} value={relatedVehicle.buyer_fullname} />
-                <InfoItem label={t('cars.status')} value={relatedVehicle.status} />
+      {/* Related Vehicle */}
+      <div className="booking-detail-card">
+        <div className="booking-detail-card-title">{t('bookingDetail.relatedVehicle')}</div>
+        {relatedVehicle ? (
+          <div>
+            <div className="booking-detail-info-grid">
+              <InfoItem label={t('cars.vehicleName')} value={relatedVehicle.vehicle_name || `${relatedVehicle.mark || ''} ${relatedVehicle.model || ''}`.trim()} />
+              <div className="booking-detail-info-item">
+                <span className="booking-detail-info-label">{t('cars.vin')}</span>
+                <VinDisplay vin={relatedVehicle.vin} className="booking-detail-info-value" />
               </div>
-              <Link to={`/cars/${relatedVehicle.id}`} className="booking-detail-related-link">
-                {t('bookingDetail.viewVehicle')} &rarr;
-              </Link>
+              <InfoItem label={t('cars.buyer')} value={relatedVehicle.buyer_fullname} className="uppercase" />
+              <InfoItem label={t('cars.status')} value={relatedVehicle.status} />
             </div>
-          ) : (
-            <div className="booking-detail-empty">{t('bookingDetail.noVehicle')}</div>
-          )}
-        </div>
-
-        {/* Related Boat */}
-        <div className="booking-detail-card">
-          <div className="booking-detail-card-title">{t('bookingDetail.relatedBoat')}</div>
-          {booking.boat_id ? (
-            <div>
-              <div className="booking-detail-info-grid">
-                <InfoItem label={t('boats.name')} value={booking.boat_name_full || booking.boat_name} />
-                <InfoItem label={t('boats.identificationCode')} value={booking.boat_code} />
-                <InfoItem label={t('boats.status')} value={booking.boat_status} />
-              </div>
-              <Link to={`/boats/${booking.boat_id}`} className="booking-detail-related-link">
-                {t('bookingDetail.viewBoat')} &rarr;
-              </Link>
-            </div>
-          ) : (
-            <div className="booking-detail-empty">{t('bookingDetail.noBoat')}</div>
-          )}
-        </div>
+            <Link to={`/cars/${relatedVehicle.id}`} className="booking-detail-related-link">
+              {t('bookingDetail.viewVehicle')} &rarr;
+            </Link>
+          </div>
+        ) : (
+          <div className="booking-detail-empty">{t('bookingDetail.noVehicle')}</div>
+        )}
       </div>
     </div>
   );
 }
 
-function InfoItem({ label, value }) {
+function InfoItem({ label, value, className }) {
   return (
     <div className="booking-detail-info-item">
       <span className="booking-detail-info-label">{label}</span>
-      <span className="booking-detail-info-value">
+      <span className={`booking-detail-info-value ${className || ''}`}>
         {value == null || value === '' ? '—' : value}
       </span>
     </div>

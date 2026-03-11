@@ -48,12 +48,6 @@ async function getBookings(req, res) {
       paramIndex++;
     }
 
-    if (req.query.boat_id) {
-      conditions.push(`b.boat_id = $${paramIndex}`);
-      params.push(req.query.boat_id);
-      paramIndex++;
-    }
-
     // Non-admin users only see their own bookings
     if (req.session.user.role !== 'admin') {
       conditions.push(`b.user_id = $${paramIndex}`);
@@ -70,7 +64,10 @@ async function getBookings(req, res) {
     const total = parseInt(countResult.rows[0].count);
 
     const dataResult = await pool.query(
-      `SELECT b.* FROM booking b ${whereClause} ORDER BY b.${sortBy} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      `SELECT b.*, c.id AS container_id
+       FROM booking b
+       LEFT JOIN containers c ON b.container = c.container_number
+       ${whereClause} ORDER BY b.${sortBy} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
@@ -88,7 +85,7 @@ async function createBooking(req, res) {
       container_loaded_date, container_receiver, container_receive_date,
       container_released, delivery_location, estimated_arrival_date,
       line, open_date, est_opening_date, loading_port, terminal,
-      car_details, lot_number, user_id, boat_id, boat_name
+      car_details, lot_number, user_id
     } = req.body;
 
     const result = await pool.query(
@@ -97,8 +94,8 @@ async function createBooking(req, res) {
         container_loaded_date, container_receiver, container_receive_date,
         container_released, delivery_location, estimated_arrival_date,
         line, open_date, est_opening_date, loading_port, terminal,
-        car_details, lot_number, user_id, boat_id, boat_name, create_date
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW())
+        car_details, lot_number, user_id, create_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
       RETURNING *`,
       [
         vin || null, buyer_fullname || null, booking_number || null,
@@ -108,7 +105,7 @@ async function createBooking(req, res) {
         delivery_location || null, estimated_arrival_date || null,
         line || null, open_date || null, est_opening_date || null,
         loading_port || null, terminal || null, car_details || null,
-        lot_number || null, user_id || null, boat_id || null, boat_name || null
+        lot_number || null, user_id || null
       ]
     );
 
@@ -129,7 +126,7 @@ async function updateBooking(req, res) {
       container_loaded_date, container_receiver, container_receive_date,
       container_released, delivery_location, estimated_arrival_date,
       line, open_date, est_opening_date, loading_port, terminal,
-      car_details, lot_number, user_id, boat_id, boat_name
+      car_details, lot_number, user_id
     } = req.body;
 
     const fields = [];
@@ -163,8 +160,6 @@ async function updateBooking(req, res) {
     addField('car_details', car_details);
     addField('lot_number', lot_number);
     addField('user_id', user_id);
-    addField('boat_id', boat_id);
-    addField('boat_name', boat_name);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
@@ -267,9 +262,9 @@ async function getBookingById(req, res) {
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT b.*, bt.name AS boat_name_full, bt.identification_code AS boat_code, bt.status AS boat_status
+      `SELECT b.*, c.id AS container_id
        FROM booking b
-       LEFT JOIN boats bt ON b.boat_id = bt.id
+       LEFT JOIN containers c ON b.container = c.container_number
        WHERE b.id = $1`,
       [id]
     );

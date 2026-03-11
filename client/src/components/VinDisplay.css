@@ -1,0 +1,13 @@
+.vin-display {
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.vin-normal {
+  color: inherit;
+}
+
+.vin-highlight {
+  color: #DC3545;
+  font-weight: 500;
+}

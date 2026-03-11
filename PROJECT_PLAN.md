@@ -5,7 +5,7 @@
 - **Description:** Dealer/car import management dashboard for Royal Motors — a vehicle import and shipping logistics portal with user management, vehicle tracking, booking/container management, financial transactions, and pricing calculator.
 - **Target Users:** Admin (full access), Dealer/User (limited access)
 - **Created:** 2026-02-13
-- **Last Updated: 2026-02-16**
+- **Last Updated:** 2026-03-11
 
 
 
@@ -30,7 +30,7 @@
 
 
 
-- **Status:** Complete ✅
+- **Status:** In Progress 🔶
 - **Plugin Version:** 1.1.1
 
 ## Tech Stack
@@ -457,6 +457,405 @@ dealer-dashboard/
 
 ---
 
+## Phase 8: Users & Cars Module Enhancements
+**Goal:** მომხმარებლების მოდულის გაუმჯობესება, მანქანების გვერდის ახალი ფუნქციონალი
+
+#### T8.1: Add address field to users
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.4
+- **Description:**
+  - Add `address` column to users table (VARCHAR 500)
+  - Update Users API endpoints (GET, POST, PUT) to include address
+  - Add address input field to user create/edit form
+  - Display address in user detail page
+
+#### T8.2: Redesign Users table columns
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T2.5, T8.1
+- **Description:**
+  - Change Users table columns to: ID, სახელი გვარი (Fullname), ტელეფონი (Phone), მეილი (Email), მანქანების რაოდენობა (Cars Count), როლი (Role)
+  - Remove: Username, Sup. Fee, Last Login Date, Last Purchase Date columns
+  - Add cars count - requires JOIN with vehicles table or subquery
+  - Backend: Update GET /api/users to include vehicle_count for each user
+
+#### T8.3: Add alternating row background colors to tables
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.1
+- **Description:**
+  - Update DataTable component with zebra striping
+  - Odd rows: white background (#FFFFFF)
+  - Even rows: light gray background (#F8F9FA or similar)
+  - Apply consistently across all tables (Users, Cars, Booking, etc.)
+
+#### T8.4: Redesign table with full borders
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.1
+- **Description:**
+  - Update DataTable component styling to show full table borders
+  - Add vertical borders between columns (border-right on cells)
+  - Add horizontal borders between rows
+  - Table header with distinct border-bottom
+  - Clean, professional spreadsheet-like appearance
+
+#### T8.5: Implement ID document upload and verification
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T2.6, T8.1
+- **Description:**
+  - Add `id_document_url` and `id_verified` columns to users table
+  - Backend: `POST /api/users/:id/upload-id` - upload ID document image
+  - Backend: `PUT /api/users/:id/verify` - admin endpoint to mark as verified
+  - File storage in /static/documents/ with secure naming
+  - Frontend: ID upload component in user form (drag-drop or file select)
+  - Display verification status badge (✅ Verified / ⏳ Pending / ❌ Not uploaded)
+  - Admin can view uploaded ID and approve/reject
+
+#### T8.6: Add VIN and Lot copy buttons
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.8
+- **Description:**
+  - Add copy-to-clipboard icon buttons next to VIN code in Cars table
+  - Add copy-to-clipboard icon button next to Lot number
+  - Use clipboard API (navigator.clipboard.writeText)
+  - Show tooltip "Copied!" on success
+  - Icon: small copy/clipboard SVG icon
+
+#### T8.7: Add Hybrid/Electric vehicle type field
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T2.9
+- **Description:**
+  - Add `fuel_type` column to vehicles table (ENUM: 'gasoline', 'diesel', 'hybrid', 'electric', 'plug_in_hybrid')
+  - Update vehicle create/edit form with fuel type dropdown
+  - Display fuel type badge in Cars table and detail page
+  - Filter by fuel type in Cars filters
+
+#### T8.8: Improve dealer selection with ID and name
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.9
+- **Description:**
+  - Update dealer dropdown in car add/edit form
+  - Show both ID and name: "[ID] - Name Surname" format
+  - Searchable/filterable dropdown (use react-select or MUI Autocomplete)
+  - Clear visual distinction between ID and name
+
+#### T8.9: Remove buyer fields from vehicles
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T2.7, T2.9
+- **Description:**
+  - Remove `buyer`, `buyer_phone`, `buyer_personal_number` fields from vehicles table
+  - Update all vehicle API endpoints to exclude these fields
+  - Remove buyer-related inputs from car add/edit form
+  - Update Cars table to not show buyer column
+  - Clean up any related frontend components
+
+#### T8.10: Auto-uppercase dealer and receiver names
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.9
+- **Description:**
+  - Apply CSS `text-transform: uppercase` to dealer name display
+  - Apply same to receiver name field
+  - Backend: Optionally store names in uppercase
+  - Consistent uppercase display throughout the app
+
+#### T8.11: Allow letters in personal number field (uppercase)
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.9
+- **Description:**
+  - Update personal_number validation to accept letters + numbers
+  - Auto-convert letters to uppercase on input
+  - Frontend: Use input event to transform value to uppercase
+  - Backend: Update validation regex to allow alphanumeric
+
+#### T8.12: VIN code max length validation (17 characters)
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.9
+- **Description:**
+  - Add maxLength="17" to VIN input field
+  - Backend validation: reject VIN > 17 characters
+  - Frontend: Show character counter (e.g., "12/17")
+  - Display validation error if exceeded
+
+#### T8.13: Remove booking field from vehicles
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T2.7, T2.9
+- **Description:**
+  - Remove `booking_id` or booking reference from vehicles table
+  - Update vehicle API endpoints
+  - Remove booking dropdown from car add/edit form
+  - Update Cars table columns
+
+#### T8.14: Auto-update vehicle status on container status change
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T3.4, T2.7
+- **Description:**
+  - Backend trigger/logic: When container status changes, update all vehicles in that container
+  - Container statuses: pending → loaded → in_transit → arrived → delivered
+  - Map container status to vehicle status appropriately
+  - Use database trigger or API middleware
+  - Log status changes in audit log
+
+#### T8.15: Highlight last 6 digits of VIN in red
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.8
+- **Description:**
+  - Create VinDisplay component that splits VIN: first 11 chars normal, last 6 chars in red (#DC3545)
+  - Apply in Cars table VIN column
+  - Apply in Car detail page VIN display
+  - Apply in VIN search results
+
+#### T8.16: Add comment field to vehicles
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T2.7, T2.9
+- **Description:**
+  - Add `comment` column to vehicles table (TEXT)
+  - Add textarea in car add/edit form
+  - Display comment in car detail page (collapsible if long)
+  - Optionally show truncated comment in table
+
+#### T8.17: Add insurance options to vehicles
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T2.7, T2.9
+- **Description:**
+  - Add `insurance_type` column to vehicles (ENUM: 'none', 'franchise', 'full')
+  - Labels: "დაზღვევის გარეშე", "დაზღვევა ფრანშიზით", "დაზღვევა სრული"
+  - Dropdown in car add/edit form
+  - Display insurance status badge in table and detail page
+  - Filter by insurance type
+
+#### T8.18: Add driver information fields
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T2.7, T2.9
+- **Description:**
+  - Add driver fields to vehicles: `driver_name`, `driver_phone`, `driver_id_number`
+  - Section in car add/edit form: "მძღოლის ინფორმაცია"
+  - Display driver info card in car detail page
+  - Optional: Separate drivers table for reuse
+
+---
+
+## Phase 9: Containers, Ports & System Restructuring
+**Goal:** პორტების სისტემა, კონტეინერების გაუმჯობესება, გემების მოდულის წაშლა
+
+#### T9.1: Build Ports management page
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T1.2, T3.4
+- **Description:**
+  - Create `ports` table (id, name, code, country, is_active, created_at)
+  - API endpoints: GET/POST/PUT/DELETE /api/ports
+  - Frontend: Ports page with DataTable (ID, Name, Code, Country, Status)
+  - Add/edit port modal
+  - This is where containers will be created and vehicles assigned
+
+#### T9.2: Add container creation on Ports page
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T9.1, T3.4
+- **Description:**
+  - Ports page shows containers per port
+  - "Add Container" button on each port row
+  - Container create modal: container number, status, dates
+  - Container is associated with a specific port
+  - View containers list per port with expand/collapse
+
+#### T9.3: Add vehicle assignment to containers on Ports page
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T9.2
+- **Description:**
+  - Container row shows "Add Vehicles" button
+  - Vehicle assignment modal: Search/select vehicles by VIN
+  - Multi-select checkboxes for bulk assignment
+  - Show currently assigned vehicles in expandable row
+  - Remove vehicle from container functionality
+
+#### T9.4: Reorder Containers table - container name first
+- [x] **Status:** DONE ✅
+- **Complexity:** Low
+- **Dependencies:** T3.5
+- **Description:**
+  - Move Container# (container name) to first column
+  - Adjust other columns order accordingly
+  - Update export to match new column order
+
+#### T9.5: Remove Boats module entirely
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T3.7, T3.8, T3.9
+- **Description:**
+  - Remove Boats page from frontend routing
+  - Remove Boats link from sidebar navigation
+  - Remove boats API endpoints (or deprecate)
+  - Remove boat_id references from other tables if any
+  - Keep boats table for data integrity but mark as deprecated
+  - Update any booking/container forms that reference boats
+
+#### T9.6: Add destination port to dealer's cars view
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T9.1, T8.2
+- **Description:**
+  - Add `destination_port` field to vehicles (FK to ports)
+  - Show destination port column in dealer's car list
+  - Dropdown to select destination port in car form
+  - Display port name in detail pages
+
+---
+
+## Phase 10: Dealer Dashboard & Invoice System
+**Goal:** დილერის დეშბორდის გაუმჯობესება, ინვოისის გენერაცია, საჯარო გვერდები
+
+#### T10.1: Simplify dealer's car table view
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T8.9, T8.13
+- **Description:**
+  - Remove columns from dealer view: სახელი (name), ნომერი (number), ბუქინგი (booking)
+  - Remove financial columns (Total, Debt, Paid) from dealer's table view
+  - Show only essential columns for dealer: Image, Vehicle, VIN, Container, Status, Destination Port
+
+#### T10.2: Add overdue days column (red) to dealer table
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T10.1
+- **Description:**
+  - Calculate overdue days: current_date - expected_delivery_date (if positive)
+  - Add `overdue_days` column to dealer's car table
+  - Display in red color (#DC3545) if > 0
+  - Sort by overdue days option
+  - Backend: Calculate on-the-fly or store in DB
+
+#### T10.3: Add port viewing for dealers
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T9.1
+- **Description:**
+  - Allow dealers to view Ports page (read-only)
+  - Show containers and vehicles in ports
+  - No create/edit/delete permissions for dealers
+  - Add Ports link to dealer sidebar
+  - Filter to show only ports with dealer's vehicles
+
+#### T10.4: Add admin-to-dealer messaging
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T6.2
+- **Description:**
+  - Create `messages` table (id, from_user_id, to_user_id, subject, body, read_at, created_at)
+  - Admin can send message to any dealer from their profile page
+  - Dealer sees messages in dashboard or dedicated Messages page
+  - Notification indicator for unread messages
+  - Mark as read on view
+  - Reply functionality (optional)
+
+#### T10.5: Build public car tracking page
+- [x] **Status:** DONE ✅
+- **Complexity:** Medium
+- **Dependencies:** T5.2, T6.3
+- **Description:**
+  - Public route: `/track/:vin` or `/public/car/:id`
+  - No authentication required
+  - Show: Car image, mark/model/year, VIN, current status, timeline
+  - Limited information compared to authenticated view
+  - Can be shared via link
+
+#### T10.6: Add logo watermark to car images
+- [ ] **Status:** IN_PROGRESS 🔄
+- **Complexity:** High
+- **Dependencies:** T10.5
+- **Description:**
+  - Backend: Image processing on upload (using sharp or jimp)
+  - Apply Royal Motors logo watermark to all car images
+  - Position: bottom-right corner, semi-transparent
+  - Store watermarked version separately or replace original
+  - Watermark on public page images
+
+#### T10.7: Dealer's car form - receiver data or ID upload
+- [x] **Status:** DONE ✅
+- **Complexity:** High
+- **Dependencies:** T8.5, T2.9
+- **Description:**
+  - When dealer adds a car, show two options:
+    - Option 1: Enter receiver details manually (name, phone, personal number)
+    - Option 2: Upload receiver's ID document
+  - Toggle between the two modes
+  - If ID uploaded, extract/enter data manually after viewing
+  - Store receiver info in vehicles table
+
+#### T10.8: Add clickable container link in tables
+- [ ] **Status:** IN_PROGRESS 🔄
+- **Complexity:** Low
+- **Dependencies:** T7.4
+- **Description:**
+  - In Cars table and other places showing container info
+  - Make container number a clickable link
+  - Navigate to container detail page on click
+  - Style as link (blue, underline on hover)
+
+#### T10.9: Build Invoice generation for vehicles
+- [ ] **Status:** TODO
+- **Complexity:** High
+- **Dependencies:** T5.2, T7.2
+- **Description:**
+  - Backend: `GET /api/vehicles/:id/invoice` - generate PDF invoice
+  - Use pdfkit or puppeteer for PDF generation
+  - Invoice includes: Vehicle details, dealer info, pricing breakdown
+  - Add "Download Invoice" button on car detail page
+  - Store generated invoices in /static/invoices/
+
+#### T10.10: Build Invoice generation for transportation
+- [ ] **Status:** TODO
+- **Complexity:** High
+- **Dependencies:** T10.9
+- **Description:**
+  - Separate invoice type for transportation/shipping
+  - Include: Shipping costs, container fees, port fees
+  - `GET /api/vehicles/:id/invoice/transport`
+  - "Transportation Invoice" button on car detail page
+  - Different template than vehicle invoice
+
+#### T10.11: Add dealer dashboard invoice section
+- [ ] **Status:** TODO
+- **Complexity:** Medium
+- **Dependencies:** T10.9, T10.10
+- **Description:**
+  - Dealer can view and download invoices for their cars
+  - Invoice history list in dealer dashboard
+  - Filter by date, vehicle, type
+  - Download as PDF
+
+#### T10.12: Add files section to car detail page
+- [ ] **Status:** TODO
+- **Complexity:** High
+- **Dependencies:** T5.2
+- **Description:**
+  - Create `vehicle_files` table (id, vehicle_id, file_name, file_url, file_type, uploaded_by, created_at)
+  - API: GET/POST/DELETE /api/vehicles/:id/files
+  - Upload multiple files per vehicle (documents, photos, etc.)
+  - Display files section in car detail page
+  - Download/view file functionality
+  - Admin can upload/delete, dealer can view/download
+  - File types: PDF, images, documents
+
+---
+
 ## Original Specification Analysis
 
 **Source Document:** FULL_SPECIFICATION.md
@@ -494,9 +893,9 @@ dealer-dashboard/
 ## Progress Tracking
 
 ### Overall Status
-**Total Tasks**: 59
-**Completed**: 59 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩 (100%)
-**In Progress**: 0
+**Total Tasks**: 89
+**Completed**: 87 🟩🟩🟩🟩🟩🟩🟩🟩🟩 (98%)
+**In Progress**: 2
 **TODO**: 0
 **Blocked**: 0
 
@@ -508,12 +907,16 @@ dealer-dashboard/
 - 🔴 Phase 5: Detail Pages & Core Missing → 5/5 (100%) ✅
 - 🟤 Phase 6: Incomplete Features → 5/5 (100%) ✅
 - ⚪ Phase 7: Advanced Features & Optimization → 7/7 (100%) ✅
+- 🔶 Phase 8: Users & Cars Module Enhancements → 18/18 (100%) ✅
+- ✅ Phase 9: Containers, Ports & System Restructuring → 6/6 (100%)
+- 🟣 Phase 10: Dealer Dashboard & Invoice System → 6/12 (50%) - T10.8 in progress
 
 
 ### Current Focus
-🎯 **All tasks completed!**
-📅 **All Phases**: Complete
-✅ **Status**: Project complete — 59/59 tasks done
+🎯 **Current Task:** T10.8 - Add clickable container link in tables
+📅 **Phase:** 10 - Dealer Dashboard & Invoice System
+📊 **Progress:** 50% (6/12)
+✅ **Last Completed:** T10.7 - Dealer's car form - receiver data or ID upload
 
 ---
 
@@ -521,8 +924,10 @@ dealer-dashboard/
 
 | Metric | Count |
 |--------|-------|
-| Total Phases | 7 |
-| Total Tasks | 59 |
-| High Complexity | 12 |
-| Medium Complexity | 27 |
-| Low Complexity | 13 |
+| Total Phases | 10 |
+| Total Tasks | 89 |
+| Completed | 83 |
+| TODO | 6 |
+| High Complexity | 22 |
+| Medium Complexity | 38 |
+| Low Complexity | 29 |

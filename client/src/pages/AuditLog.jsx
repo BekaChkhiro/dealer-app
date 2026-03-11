@@ -29,7 +29,6 @@ function EntityTypeBadge({ entityType, t }) {
     user: t('auditLog.userEntity'),
     booking: t('auditLog.booking'),
     container: t('auditLog.container'),
-    boat: t('auditLog.boat'),
     transaction: t('auditLog.transaction'),
     ticket: t('auditLog.ticket'),
   };
@@ -137,7 +136,6 @@ function AuditLog() {
       { value: 'user', label: t('auditLog.userEntity') },
       { value: 'booking', label: t('auditLog.booking') },
       { value: 'container', label: t('auditLog.container') },
-      { value: 'boat', label: t('auditLog.boat') },
       { value: 'transaction', label: t('auditLog.transaction') },
       { value: 'ticket', label: t('auditLog.ticket') },
     ]},

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
+import VinDisplay from '../components/VinDisplay';
 import './ContainerDetail.css';
 
 const STATUS_KEYS = {
@@ -151,7 +152,10 @@ function ContainerDetail() {
           <div className="container-detail-card-title">{t('containerDetail.containerInfo')}</div>
           <div className="container-detail-info-grid">
             <InfoItem label={t('containers.containerNumber')} value={container.container_number} />
-            <InfoItem label={t('containers.vin')} value={container.vin} />
+            <div className="container-detail-info-item">
+              <span className="container-detail-info-label">{t('containers.vin')}</span>
+              <VinDisplay vin={container.vin} className="container-detail-info-value" />
+            </div>
             <InfoItem label={t('containers.buyer')} value={container.buyer_name} />
             <InfoItem label={t('containers.personalNumber')} value={container.personal_number} />
             <InfoItem label={t('containers.vehicleName')} value={vehicleName} />
@@ -172,20 +176,6 @@ function ContainerDetail() {
             <InfoItem label={t('containers.containerReceiveDate')} value={formatDate(container.container_receive_date)} />
             <InfoItem label={t('containers.containerOpenDate')} value={formatDate(container.container_open_date)} />
           </div>
-          {/* Boat info */}
-          {(container.boat_name || container.boat_name_full) && (
-            <div className="container-detail-boat-info">
-              <InfoItem label={t('containerDetail.boatName')} value={container.boat_name_full || container.boat_name} />
-              {container.boat_code && (
-                <InfoItem label={t('boats.identificationCode')} value={container.boat_code} />
-              )}
-              {container.boat_id && (
-                <Link to={`/boats/${container.boat_id}`} className="container-detail-related-link">
-                  {t('containerDetail.viewBoat')} &rarr;
-                </Link>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -231,7 +221,7 @@ function ContainerDetail() {
             <tbody>
               {vehicles.map((v) => (
                 <tr key={v.id}>
-                  <td>{v.vin || '—'}</td>
+                  <td><VinDisplay vin={v.vin} /></td>
                   <td>{[v.mark, v.model, v.year].filter(Boolean).join(' ') || '—'}</td>
                   <td>{v.buyer || '—'}</td>
                   <td>{v.current_status?.replace('_', ' ') || '—'}</td>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -8,6 +9,7 @@ import ActionButtons from '../components/ActionButtons';
 import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
 import BulkActionBar from '../components/BulkActionBar';
 import { exportToCSV } from '../utils/export';
+import VinDisplay from '../components/VinDisplay';
 import './Containers.css';
 
 const EMPTY_FORM = {
@@ -15,7 +17,7 @@ const EMPTY_FORM = {
   manufacturer_year: '', buyer_name: '', booking: '', delivery_location: '',
   container_open_date: '', line: '', personal_number: '', lot_number: '',
   loading_port: '', container_loaded_date: '', container_receive_date: '',
-  boat_id: '', boat_name: '', status: 'booked',
+  status: 'booked',
 };
 
 const DATE_FIELDS = [
@@ -33,8 +35,27 @@ function Containers() {
   const isAdmin = user?.role === 'admin';
 
   const columns = [
-    { key: 'vin', label: t('containers.vin'), sortable: true },
-    { key: 'container_number', label: t('containers.containerHash'), sortable: true },
+    { key: 'container_number', label: t('containers.containerHash'), sortable: true, render: (row) => {
+      if (!row.container_number) return '—';
+      if (row.id) {
+        return (
+          <Link
+            to={`/containers/${row.id}`}
+            style={{
+              color: '#0D6EFD',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+          >
+            {row.container_number}
+          </Link>
+        );
+      }
+      return row.container_number;
+    }},
+    { key: 'vin', label: t('containers.vin'), sortable: true, render: (row) => <VinDisplay vin={row.vin} /> },
     { key: 'purchase_date', label: t('containers.purchaseDate'), sortable: true, render: (row) => formatDate(row.purchase_date) },
     { key: 'vehicle_name', label: t('containers.vehicleName'), render: (row) => [row.manufacturer, row.model, row.manufacturer_year].filter(Boolean).join(' ') || '—' },
     { key: 'buyer_name', label: t('containers.buyer'), sortable: true },
@@ -96,7 +117,6 @@ function Containers() {
   const [formError, setFormError] = useState('');
 
   const [vinCodes, setVinCodes] = useState([]);
-  const [boats, setBoats] = useState([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -126,12 +146,8 @@ function Containers() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [vRes, bRes] = await Promise.all([
-          api.get('/vin-codes/booking'),
-          api.get('/boats', { params: { limit: 500 } }),
-        ]);
+        const vRes = await api.get('/vin-codes/booking');
         setVinCodes(vRes.data.data || []);
-        setBoats(bRes.data.data || []);
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -232,16 +248,6 @@ function Containers() {
     setFormData(prev => ({ ...prev, [name]: value }));
   }
 
-  function handleBoatChange(e) {
-    const boatId = e.target.value;
-    const selected = boats.find(b => String(b.id) === boatId);
-    setFormData(prev => ({
-      ...prev,
-      boat_id: boatId,
-      boat_name: selected ? selected.boat_name || selected.name || '' : '',
-    }));
-  }
-
   async function handleFormSubmit(e) {
     e.preventDefault();
     setFormError('');
@@ -255,7 +261,6 @@ function Containers() {
           payload[key] = formData[key] || null;
         }
       }
-      if (payload.boat_id) payload.boat_id = Number(payload.boat_id);
 
       if (editRow) {
         await api.put(`/containers/${editRow.id}`, payload);
@@ -488,17 +493,8 @@ function Containers() {
                     <input type="date" className="form-control" name="container_receive_date" value={formData.container_receive_date} onChange={handleFormChange} />
                   </div>
                 </div>
-                {/* Row 9: Boat | Status */}
+                {/* Row 9: Status */}
                 <div className="row mb-3">
-                  <div className="col-6">
-                    <label className="form-label">{t('containers.boat')}</label>
-                    <select className="form-select" name="boat_id" value={formData.boat_id} onChange={handleBoatChange}>
-                      <option value="">— Select Boat —</option>
-                      {boats.map(b => (
-                        <option key={b.id} value={b.id}>{b.boat_name || b.name || `Boat #${b.id}`}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="col-6">
                     <label className="form-label">{t('containers.status')}</label>
                     <select className="form-select" name="status" value={formData.status} onChange={handleFormChange}>

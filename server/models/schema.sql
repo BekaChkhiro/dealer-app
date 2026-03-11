@@ -21,7 +21,13 @@ CREATE TABLE IF NOT EXISTS users (
   creator INTEGER,
   debt DECIMAL(12,2) DEFAULT 0,
   reset_token VARCHAR(255),
-  reset_token_expires TIMESTAMP
+  reset_token_expires TIMESTAMP,
+  address VARCHAR(500),
+  id_document_url VARCHAR(500),
+  id_verified BOOLEAN DEFAULT NULL,
+  id_document_uploaded_at TIMESTAMP,
+  id_verified_by INTEGER,
+  id_verified_at TIMESTAMP
 );
 
 -- 2. Boats table (created before booking/containers since they reference it)
@@ -38,7 +44,6 @@ CREATE TABLE IF NOT EXISTS boats (
 -- 3. Vehicles table
 CREATE TABLE IF NOT EXISTS vehicles (
   id SERIAL PRIMARY KEY,
-  buyer VARCHAR(255),
   dealer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   receiver_fullname VARCHAR(255),
   receiver_identity_number VARCHAR(50),
@@ -51,6 +56,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   receiver_phone VARCHAR(50),
   us_state VARCHAR(100),
   destination_port VARCHAR(100),
+  destination_port_id INTEGER,
   us_port VARCHAR(100),
   is_sublot BOOLEAN DEFAULT FALSE,
   is_fully_paid BOOLEAN DEFAULT FALSE,
@@ -76,7 +82,6 @@ CREATE TABLE IF NOT EXISTS vehicles (
   booking VARCHAR(100),
   dealer_fee DECIMAL(12,2) DEFAULT 0,
   status_color VARCHAR(20),
-  buyer_number VARCHAR(50),
   has_key BOOLEAN DEFAULT FALSE,
   profile_image_url VARCHAR(500),
   has_auction_image BOOLEAN DEFAULT FALSE,
@@ -85,6 +90,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   has_poti_image BOOLEAN DEFAULT FALSE,
   is_hybrid BOOLEAN DEFAULT FALSE,
   vehicle_type VARCHAR(50),
+  fuel_type VARCHAR(20),
   container_open_date TIMESTAMP,
   container_receive_date TIMESTAMP,
   receiver_changed BOOLEAN DEFAULT FALSE,
@@ -94,7 +100,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
   driver_car_license_number VARCHAR(50),
   purchase_date TIMESTAMP,
   driver_company VARCHAR(255),
-  late_car_payment DECIMAL(12,2) DEFAULT 0
+  late_car_payment DECIMAL(12,2) DEFAULT 0,
+  comment TEXT,
+  insurance_type VARCHAR(20) DEFAULT 'none'
 );
 
 -- 4. Booking table
@@ -190,7 +198,17 @@ CREATE TABLE IF NOT EXISTS tickets (
   resolved_at TIMESTAMP
 );
 
--- 9. Audit Logs table
+-- 9. Ports table
+CREATE TABLE IF NOT EXISTS ports (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  code VARCHAR(50),
+  country VARCHAR(100),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 10. Audit Logs table
 CREATE TABLE IF NOT EXISTS audit_logs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -208,6 +226,8 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_dealer_id ON vehicles(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_vin ON vehicles(vin);
 CREATE INDEX IF NOT EXISTS idx_vehicles_auction ON vehicles(auction);
 CREATE INDEX IF NOT EXISTS idx_vehicles_current_status ON vehicles(current_status);
+CREATE INDEX IF NOT EXISTS idx_vehicles_container_number ON vehicles(container_number);
+CREATE INDEX IF NOT EXISTS idx_vehicles_destination_port_id ON vehicles(destination_port_id);
 CREATE INDEX IF NOT EXISTS idx_booking_user_id ON booking(user_id);
 CREATE INDEX IF NOT EXISTS idx_booking_vin ON booking(vin);
 CREATE INDEX IF NOT EXISTS idx_containers_user_id ON containers(user_id);
@@ -220,3 +240,5 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs(entity_type);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_ports_is_active ON ports(is_active);
+CREATE INDEX IF NOT EXISTS idx_ports_code ON ports(code);

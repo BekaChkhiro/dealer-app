@@ -7,17 +7,18 @@ import Header from './components/Header';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import PublicTracking from './pages/PublicTracking';
 import Dashboard from './pages/Dashboard';
 import Calculator from './pages/Calculator';
-import Boats from './pages/Boats';
+import Ports from './pages/Ports';
 import Cars from './pages/Cars';
 import Users from './pages/Users';
 import Booking from './pages/Booking';
 import Containers from './pages/Containers';
 import Transactions from './pages/Transactions';
 import Ticket from './pages/Ticket';
+import Messages from './pages/Messages';
 import CarDetail from './pages/CarDetail';
-import BoatDetail from './pages/BoatDetail';
 import UserDetail from './pages/UserDetail';
 import BookingDetail from './pages/BookingDetail';
 import ContainerDetail from './pages/ContainerDetail';
@@ -137,11 +138,11 @@ function ProtectedLayout() {
           <Route path="/cars" element={<Cars />} />
           <Route path="/containers/:id" element={<ContainerDetail />} />
           <Route path="/containers" element={<Containers />} />
-          <Route path="/boats/:id" element={<BoatDetail />} />
-          <Route path="/boats" element={<Boats />} />
+          <Route path="/ports" element={<AdminRoute><Ports /></AdminRoute>} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/ticket" element={<Ticket />} />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/audit-log" element={<AdminRoute><AuditLog /></AdminRoute>} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/settings" element={<Settings />} />
@@ -161,6 +162,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            <Route path="/track/:vin" element={<PublicTracking />} />
             <Route path="/*" element={<ProtectedLayout />} />
           </Routes>
         </BrowserRouter>

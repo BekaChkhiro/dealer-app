@@ -57,3 +57,12 @@
   padding: 12px 20px;
   border-top: 1px solid var(--border-color);
 }
+
+/* Uppercase input fields for names */
+.input-uppercase {
+  text-transform: uppercase;
+}
+
+.input-uppercase::placeholder {
+  text-transform: none;
+}

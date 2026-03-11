@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
+import VinDisplay from '../components/VinDisplay';
 import './CarDetail.css';
 
 function formatPrice(value) {
@@ -27,6 +28,8 @@ function CarDetail() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [commentExpanded, setCommentExpanded] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     async function fetchVehicle() {
@@ -103,7 +106,15 @@ function CarDetail() {
     if (vehicle[step.key]) lastCompletedIdx = i;
   });
 
-  const hasDriverInfo = vehicle.driver_fullname || vehicle.driver_phone || vehicle.driver_car_license_number || vehicle.driver_company;
+  const hasDriverInfo = vehicle.driver_fullname || vehicle.driver_phone || vehicle.driver_car_license_number || vehicle.driver_id_number || vehicle.driver_company;
+
+  const handleCopyTrackingLink = () => {
+    const trackingUrl = `${window.location.origin}/track/${vehicle.vin}`;
+    navigator.clipboard.writeText(trackingUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
 
   return (
     <div>
@@ -118,11 +129,37 @@ function CarDetail() {
       {/* Title bar */}
       <div className="car-detail-title-bar">
         <h2>{vehicleName}</h2>
-        {isAdmin && (
-          <Link to="/cars" className="btn btn-sm btn-outline-primary">
-            {t('common.edit')}
-          </Link>
-        )}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {vehicle.vin && (
+            <button
+              onClick={handleCopyTrackingLink}
+              className="btn btn-sm btn-outline-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              {linkCopied ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                  </svg>
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M13.5 1a1.5 1.5 0 0 1 1.5 1.5v11a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-11A1.5 1.5 0 0 1 2.5 1h11zm-11-1A2.5 2.5 0 0 0 0 2.5v11A2.5 2.5 0 0 0 2.5 16h11a2.5 2.5 0 0 0 2.5-2.5v-11A2.5 2.5 0 0 0 13.5 0h-11z"/>
+                    <path d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
+                  </svg>
+                  Share Link
+                </>
+              )}
+            </button>
+          )}
+          {isAdmin && (
+            <Link to="/cars" className="btn btn-sm btn-outline-primary">
+              {t('common.edit')}
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Top row: Image + Vehicle Info + Financial */}
@@ -140,10 +177,14 @@ function CarDetail() {
         <div className="car-detail-card">
           <div className="car-detail-card-title">{t('carDetail.vehicleInfo')}</div>
           <div className="car-detail-info-grid">
-            <InfoItem label={t('cars.vin')} value={vehicle.vin} />
+            <div className="car-detail-info-item">
+              <span className="car-detail-info-label">{t('cars.vin')}</span>
+              <VinDisplay vin={vehicle.vin} className="car-detail-info-value" />
+            </div>
             <InfoItem label={t('cars.lotNumber')} value={vehicle.lot_number} />
             <InfoItem label={t('cars.auction')} value={vehicle.auction} />
             <InfoItem label={t('cars.vehicleType')} value={vehicle.vehicle_type} />
+            <InfoItem label={t('cars.fuelType')} value={vehicle.fuel_type ? vehicle.fuel_type.replace('_', ' ') : null} />
             <InfoItem label={t('cars.docType')} value={vehicle.doc_type} />
             <div className="car-detail-info-item">
               <span className="car-detail-info-label">{t('cars.status')}</span>
@@ -158,11 +199,17 @@ function CarDetail() {
           </div>
           {/* Boolean flags */}
           <div className="car-detail-badges" style={{ marginTop: 12 }}>
+            {vehicle.fuel_type && <span className="car-detail-badge active">{vehicle.fuel_type.replace('_', ' ')}</span>}
             {vehicle.is_hybrid && <span className="car-detail-badge active">{t('cars.isHybrid')}</span>}
             {vehicle.is_sublot && <span className="car-detail-badge active">{t('cars.isSublot')}</span>}
             {vehicle.has_key && <span className="car-detail-badge active">{t('cars.hasKey')}</span>}
             {vehicle.is_funded && <span className="car-detail-badge active">{t('cars.funded')}</span>}
             {vehicle.is_insured && <span className="car-detail-badge active">{t('cars.insured')}</span>}
+            {vehicle.insurance_type && vehicle.insurance_type !== 'none' && (
+              <span className="car-detail-badge active">
+                {vehicle.insurance_type === 'franchise' ? t('cars.insuranceTypeFranchise') : t('cars.insuranceTypeFull')}
+              </span>
+            )}
           </div>
         </div>
 
@@ -190,28 +237,45 @@ function CarDetail() {
       {/* Two-column: Dealer/Buyer + Shipping */}
       <div className="car-detail-two-col">
         <div className="car-detail-card">
-          <div className="car-detail-card-title">{t('carDetail.dealerBuyer')}</div>
+          <div className="car-detail-card-title">{t('carDetail.dealerReceiver')}</div>
           <div className="car-detail-info-grid">
-            <InfoItem label={t('cars.dealer')} value={[vehicle.dealer_name, vehicle.dealer_surname].filter(Boolean).join(' ') || vehicle.buyer} />
+            <InfoItem label={t('cars.dealer')} value={[vehicle.dealer_name, vehicle.dealer_surname].filter(Boolean).join(' ')} className="uppercase" />
             <InfoItem label={t('users.email')} value={vehicle.dealer_email} />
             <InfoItem label={t('users.phone')} value={vehicle.dealer_phone} />
-            <InfoItem label={t('cars.buyer')} value={vehicle.buyer} />
-            <InfoItem label={t('cars.receiverFullname')} value={vehicle.receiver_fullname} />
+            <InfoItem label={t('cars.receiverFullname')} value={vehicle.receiver_fullname} className="uppercase" />
             <InfoItem label={t('cars.receiverIdNumber')} value={vehicle.receiver_identity_number} />
             <InfoItem label={t('cars.receiverPhone')} value={vehicle.receiver_phone} />
-            <InfoItem label={t('cars.buyerNumber')} value={vehicle.buyer_number} />
           </div>
         </div>
 
         <div className="car-detail-card">
           <div className="car-detail-card-title">{t('carDetail.shipping')}</div>
           <div className="car-detail-info-grid">
-            <InfoItem label={t('cars.containerNumber')} value={vehicle.container_number} />
-            <InfoItem label={t('cars.booking')} value={vehicle.booking} />
+            <InfoItem
+              label={t('cars.containerNumber')}
+              value={
+                vehicle.container_number && vehicle.container_id ? (
+                  <Link
+                    to={`/containers/${vehicle.container_id}`}
+                    style={{
+                      color: '#0D6EFD',
+                      textDecoration: 'none',
+                      fontWeight: 500,
+                    }}
+                    onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                    onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                  >
+                    {vehicle.container_number}
+                  </Link>
+                ) : (
+                  vehicle.container_number
+                )
+              }
+            />
             <InfoItem label={t('cars.line')} value={vehicle.line} />
             <InfoItem label={t('cars.usState')} value={vehicle.us_state} />
             <InfoItem label={t('cars.usPort')} value={vehicle.us_port} />
-            <InfoItem label={t('cars.destinationPort')} value={vehicle.destination_port} />
+            <InfoItem label={t('cars.destinationPort')} value={vehicle.destination_port_name || vehicle.destination_port} />
           </div>
         </div>
       </div>
@@ -243,10 +307,34 @@ function CarDetail() {
         <div className="car-detail-card">
           <div className="car-detail-card-title">{t('carDetail.driverInfo')}</div>
           <div className="car-detail-info-grid">
-            <InfoItem label={t('cars.driverFullname')} value={vehicle.driver_fullname} />
+            <InfoItem label={t('cars.driverFullname')} value={vehicle.driver_fullname} className="uppercase" />
             <InfoItem label={t('cars.driverPhone')} value={vehicle.driver_phone} />
+            <InfoItem label={t('cars.driverIdNumber')} value={vehicle.driver_id_number} className="uppercase" />
             <InfoItem label={t('cars.driverLicenseNumber')} value={vehicle.driver_car_license_number} />
             <InfoItem label={t('cars.driverCompany')} value={vehicle.driver_company} />
+          </div>
+        </div>
+      )}
+
+      {/* Comment (conditional) */}
+      {vehicle.comment && (
+        <div className="car-detail-card">
+          <div className="car-detail-card-title">{t('carDetail.comment')}</div>
+          <div className={`car-detail-comment ${commentExpanded ? 'expanded' : ''}`}>
+            <p className="car-detail-comment-text">
+              {commentExpanded || vehicle.comment.length <= 200
+                ? vehicle.comment
+                : `${vehicle.comment.substring(0, 200)}...`}
+            </p>
+            {vehicle.comment.length > 200 && (
+              <button
+                type="button"
+                className="car-detail-comment-toggle"
+                onClick={() => setCommentExpanded(!commentExpanded)}
+              >
+                {commentExpanded ? t('carDetail.showLess') : t('carDetail.showMore')}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -302,7 +390,24 @@ function CarDetail() {
               {bookings.map((bk) => (
                 <tr key={bk.id}>
                   <td>{bk.booking_number || '—'}</td>
-                  <td>{bk.container || '—'}</td>
+                  <td>
+                    {bk.container && bk.container_id ? (
+                      <Link
+                        to={`/containers/${bk.container_id}`}
+                        style={{
+                          color: '#0D6EFD',
+                          textDecoration: 'none',
+                          fontWeight: 500,
+                        }}
+                        onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                      >
+                        {bk.container}
+                      </Link>
+                    ) : (
+                      bk.container || '—'
+                    )}
+                  </td>
                   <td>{bk.line || '—'}</td>
                   <td>{bk.loading_port || '—'}</td>
                   <td>{bk.delivery_location || '—'}</td>

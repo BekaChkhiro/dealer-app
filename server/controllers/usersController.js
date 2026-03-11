@@ -1,10 +1,21 @@
 const bcrypt = require('bcrypt');
 const pool = require('../config/db');
 const { logAudit } = require('../helpers/auditLog');
+const { uploadToR2, deleteFromR2 } = require('../config/r2');
+
+// Helper to extract R2 key from URL
+function extractR2Key(url) {
+  if (!url) return null;
+  const publicUrl = process.env.R2_PUBLIC_URL;
+  if (publicUrl && url.startsWith(publicUrl)) {
+    return url.slice(publicUrl.length + 1);
+  }
+  return null;
+}
 
 const USER_SENSITIVE_FIELDS = ['password_hash', 'reset_token', 'reset_token_expires'];
 
-const ALLOWED_SORT_COLUMNS = ['id', 'name', 'surname', 'email', 'username', 'role', 'last_login_time', 'last_purchase_date', 'superviser_fee', 'signup_date'];
+const ALLOWED_SORT_COLUMNS = ['id', 'name', 'surname', 'email', 'username', 'role', 'last_login_time', 'last_purchase_date', 'superviser_fee', 'signup_date', 'vehicle_count', 'phone'];
 const ALLOWED_ORDER = ['asc', 'desc'];
 
 async function getUsers(req, res) {
@@ -48,11 +59,16 @@ async function getUsers(req, res) {
     const total = parseInt(countResult.rows[0].count);
 
     const dataResult = await pool.query(
-      `SELECT * FROM users ${whereClause} ORDER BY ${sortBy} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      `SELECT u.*,
+        (SELECT COUNT(*) FROM vehicles WHERE dealer_id = u.id) AS vehicle_count
+       FROM users u ${whereClause} ORDER BY ${sortBy === 'vehicle_count' ? 'vehicle_count' : sortBy} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
-    const users = dataResult.rows.map(({ password_hash, ...user }) => user);
+    const users = dataResult.rows.map(({ password_hash, ...user }) => ({
+      ...user,
+      vehicle_count: parseInt(user.vehicle_count) || 0
+    }));
 
     res.json({ error: 0, success: true, data: users, total });
   } catch (err) {
@@ -63,7 +79,7 @@ async function getUsers(req, res) {
 
 async function createUser(req, res) {
   try {
-    const { name, surname, email, username, password, phone, calculator_category, role, identity_number, superviser_fee } = req.body;
+    const { name, surname, email, username, password, phone, calculator_category, role, identity_number, superviser_fee, address } = req.body;
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 1, success: false, message: 'Email, username, and password are required' });
@@ -81,10 +97,10 @@ async function createUser(req, res) {
     const creator = req.session.user.id;
 
     const result = await pool.query(
-      `INSERT INTO users (name, surname, email, username, password_hash, phone, calculator_category, role, identity_number, superviser_fee, creator, signup_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      `INSERT INTO users (name, surname, email, username, password_hash, phone, calculator_category, role, identity_number, superviser_fee, creator, signup_date, address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
        RETURNING *`,
-      [name, surname, email, username, password_hash, phone, calculator_category, role, identity_number, superviser_fee, creator]
+      [name, surname, email, username, password_hash, phone, calculator_category, role, identity_number, superviser_fee, creator, address]
     );
 
     const { password_hash: _, ...user } = result.rows[0];
@@ -99,7 +115,7 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { name, surname, email, username, password, phone, calculator_category, role, identity_number, superviser_fee } = req.body;
+    const { name, surname, email, username, password, phone, calculator_category, role, identity_number, superviser_fee, address } = req.body;
 
     if (email || username) {
       const conditions = [];
@@ -153,6 +169,7 @@ async function updateUser(req, res) {
     addField('role', role);
     addField('identity_number', identity_number);
     addField('superviser_fee', superviser_fee);
+    addField('address', address);
 
     if (password) {
       const password_hash = await bcrypt.hash(password, 10);
@@ -331,4 +348,178 @@ async function adjustBalance(req, res) {
   }
 }
 
-module.exports = { getUsers, getUserById, createUser, updateUser, deleteUser, getUserBalance, adjustBalance };
+// Upload ID document for a user
+async function uploadIdDocument(req, res) {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 1, success: false, message: 'No file uploaded' });
+    }
+
+    // Check if user exists
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
+    }
+
+    const oldUser = userResult.rows[0];
+
+    // Delete old document if exists
+    if (oldUser.id_document_url) {
+      const oldKey = extractR2Key(oldUser.id_document_url);
+      if (oldKey) {
+        deleteFromR2(oldKey).catch(err => console.error('Failed to delete old ID document:', err));
+      }
+    }
+
+    // Upload new document to R2
+    const ext = req.file.originalname.split('.').pop() || 'file';
+    const key = `documents/users/${id}/id_document_${Date.now()}.${ext}`;
+    const documentUrl = await uploadToR2(req.file.buffer, key, req.file.mimetype);
+
+    // Update user record - set as pending verification (false), not verified yet
+    const result = await pool.query(
+      `UPDATE users
+       SET id_document_url = $1,
+           id_verified = false,
+           id_document_uploaded_at = NOW(),
+           id_verified_by = NULL,
+           id_verified_at = NULL
+       WHERE id = $2
+       RETURNING *`,
+      [documentUrl, id]
+    );
+
+    logAudit({
+      userId: req.session.user.id,
+      entityType: 'user',
+      entityId: parseInt(id),
+      action: 'UPDATE',
+      oldValues: { id_document_url: oldUser.id_document_url, id_verified: oldUser.id_verified },
+      newValues: { id_document_url: documentUrl, id_verified: false },
+      ipAddress: req.ip,
+      sensitiveFields: USER_SENSITIVE_FIELDS
+    });
+
+    const { password_hash: _, ...user } = result.rows[0];
+    res.json({ error: 0, success: true, data: user, message: 'ID document uploaded successfully' });
+  } catch (err) {
+    console.error('uploadIdDocument error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Verify user's ID document (admin only)
+async function verifyIdDocument(req, res) {
+  try {
+    const { id } = req.params;
+    const { verified } = req.body;
+
+    if (typeof verified !== 'boolean') {
+      return res.status(400).json({ error: 1, success: false, message: 'verified must be a boolean' });
+    }
+
+    // Check if user exists and has a document
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
+    }
+
+    const oldUser = userResult.rows[0];
+
+    if (!oldUser.id_document_url) {
+      return res.status(400).json({ error: 1, success: false, message: 'User has not uploaded an ID document' });
+    }
+
+    // Update verification status
+    const result = await pool.query(
+      `UPDATE users
+       SET id_verified = $1,
+           id_verified_by = $2,
+           id_verified_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [verified, req.session.user.id, id]
+    );
+
+    logAudit({
+      userId: req.session.user.id,
+      entityType: 'user',
+      entityId: parseInt(id),
+      action: 'UPDATE',
+      oldValues: { id_verified: oldUser.id_verified, id_verified_by: oldUser.id_verified_by },
+      newValues: { id_verified: verified, id_verified_by: req.session.user.id },
+      ipAddress: req.ip,
+      sensitiveFields: USER_SENSITIVE_FIELDS
+    });
+
+    const { password_hash: _, ...user } = result.rows[0];
+    res.json({
+      error: 0,
+      success: true,
+      data: user,
+      message: verified ? 'ID document verified' : 'ID document rejected'
+    });
+  } catch (err) {
+    console.error('verifyIdDocument error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Delete user's ID document
+async function deleteIdDocument(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Check if user exists
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'User not found' });
+    }
+
+    const oldUser = userResult.rows[0];
+
+    if (!oldUser.id_document_url) {
+      return res.status(400).json({ error: 1, success: false, message: 'User has no ID document to delete' });
+    }
+
+    // Delete from R2
+    const oldKey = extractR2Key(oldUser.id_document_url);
+    if (oldKey) {
+      await deleteFromR2(oldKey).catch(err => console.error('Failed to delete ID document from R2:', err));
+    }
+
+    // Clear document fields in database
+    const result = await pool.query(
+      `UPDATE users
+       SET id_document_url = NULL,
+           id_verified = NULL,
+           id_document_uploaded_at = NULL,
+           id_verified_by = NULL,
+           id_verified_at = NULL
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    logAudit({
+      userId: req.session.user.id,
+      entityType: 'user',
+      entityId: parseInt(id),
+      action: 'UPDATE',
+      oldValues: { id_document_url: oldUser.id_document_url, id_verified: oldUser.id_verified },
+      newValues: { id_document_url: null, id_verified: null },
+      ipAddress: req.ip,
+      sensitiveFields: USER_SENSITIVE_FIELDS
+    });
+
+    const { password_hash: _, ...user } = result.rows[0];
+    res.json({ error: 0, success: true, data: user, message: 'ID document deleted successfully' });
+  } catch (err) {
+    console.error('deleteIdDocument error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getUsers, getUserById, createUser, updateUser, deleteUser, getUserBalance, adjustBalance, uploadIdDocument, verifyIdDocument, deleteIdDocument };

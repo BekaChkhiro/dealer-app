@@ -79,29 +79,6 @@ const USERS = [
   },
 ];
 
-const BOATS = [
-  {
-    name: 'CAPE TAINARO', identification_code: 'IMO-9365597',
-    departure_date: '2025-01-15', estimated_arrival_date: '2025-02-18',
-    arrival_date: '2025-02-20', status: 'delivered',
-  },
-  {
-    name: 'MSC AURORA', identification_code: 'IMO-9484525',
-    departure_date: '2025-01-28', estimated_arrival_date: '2025-03-01',
-    arrival_date: '2025-02-28', status: 'arrived',
-  },
-  {
-    name: 'MAERSK SELETAR', identification_code: 'IMO-9502937',
-    departure_date: '2025-02-05', estimated_arrival_date: '2025-03-10',
-    arrival_date: null, status: 'in_transit',
-  },
-  {
-    name: 'ZIM CONSTANZA', identification_code: 'IMO-9413898',
-    departure_date: null, estimated_arrival_date: '2025-03-25',
-    arrival_date: null, status: 'us_port',
-  },
-];
-
 const VEHICLES = [
   {
     buyer: 'გიორგი კაპანაძე', dealer_idx: 1, receiver_fullname: 'ალექსანდრე თოფურია',
@@ -410,21 +387,6 @@ async function seedUsers() {
   return userIds;
 }
 
-async function seedBoats() {
-  console.log('\nSeeding boats...');
-  const boatIds = [];
-  for (const b of BOATS) {
-    const result = await pool.query(
-      `INSERT INTO boats (name, identification_code, departure_date, estimated_arrival_date, arrival_date, status)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [b.name, b.identification_code, b.departure_date, b.estimated_arrival_date, b.arrival_date, b.status]
-    );
-    boatIds.push(result.rows[0].id);
-    console.log(`  Created boat: ${b.name} (${b.status}) - ID: ${result.rows[0].id}`);
-  }
-  return boatIds;
-}
-
 async function seedVehicles(userIds) {
   console.log('\nSeeding vehicles (with R2 image uploads)...');
   const vehicleData = [];
@@ -477,25 +439,22 @@ async function seedVehicles(userIds) {
   return vehicleData;
 }
 
-async function seedBooking(userIds, boatIds, vehicles) {
+async function seedBooking(userIds, vehicles) {
   console.log('\nSeeding bookings...');
   // Only create bookings for vehicles that have a booking number
   const bookedVehicles = vehicles.filter(v => v.booking);
-  const boatAssignment = [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 3];
   const ports = ['Long Beach', 'Newark', 'Houston', 'Jacksonville', 'Savannah', 'Seattle', 'Detroit', 'Chicago'];
 
   for (let i = 0; i < bookedVehicles.length; i++) {
     const v = bookedVehicles[i];
-    const boatIdx = boatAssignment[i % boatAssignment.length];
-    const boat = BOATS[boatIdx];
 
     await pool.query(
       `INSERT INTO booking (
         vin, buyer_fullname, booking_number, booking_paid, container,
         container_loaded_date, container_receiver, container_receive_date,
         delivery_location, estimated_arrival_date, line, open_date,
-        loading_port, terminal, lot_number, user_id, boat_id, boat_name
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+        loading_port, terminal, lot_number, user_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
       [
         v.vin, v.receiver_fullname, v.booking, v.is_fully_paid,
         v.container_number, v.container_loading_date, v.receiver_fullname,
@@ -503,24 +462,21 @@ async function seedBooking(userIds, boatIds, vehicles) {
         v.destination_port, v.estimated_receive_date, v.line,
         v.container_open_date || null,
         v.us_port, `Terminal ${i + 1}`, v.lot_number,
-        userIds[v.dealer_idx], boatIds[boatIdx], boat.name,
+        userIds[v.dealer_idx],
       ]
     );
     console.log(`  Created booking: ${v.booking} for ${v.vin}`);
   }
 }
 
-async function seedContainers(userIds, boatIds, vehicles) {
+async function seedContainers(userIds, vehicles) {
   console.log('\nSeeding containers...');
   // Only vehicles with container numbers
   const containered = vehicles.filter(v => v.container_number);
   const statusMap = { arrived: 'arrived', in_transit: 'in_transit', booked: 'booked' };
-  const boatAssignment = [0, 1, 2, 0, 1, 2, 0, 1, 2, 0];
 
   for (let i = 0; i < containered.length; i++) {
     const v = containered[i];
-    const boatIdx = boatAssignment[i % boatAssignment.length];
-    const boat = BOATS[boatIdx];
 
     await pool.query(
       `INSERT INTO containers (
@@ -528,15 +484,15 @@ async function seedContainers(userIds, boatIds, vehicles) {
         manufacturer_year, buyer_name, booking, delivery_location,
         container_open_date, line, personal_number, lot_number,
         loading_port, container_loaded_date, container_receive_date,
-        boat_id, boat_name, user_id, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+        user_id, status
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
       [
         v.container_number, v.vin, v.purchase_date, v.mark, v.model,
         v.year, v.buyer, v.booking, v.destination_port,
         v.container_open_date || null, v.line, v.receiver_identity_number,
         v.lot_number, v.us_port, v.container_loading_date,
         v.container_receive_date || null,
-        boatIds[boatIdx], boat.name, userIds[v.dealer_idx],
+        userIds[v.dealer_idx],
         statusMap[v.current_status] || 'booked',
       ]
     );
@@ -614,20 +570,17 @@ async function seed() {
     await pool.query('DELETE FROM containers');
     await pool.query('DELETE FROM booking');
     await pool.query('DELETE FROM vehicles');
-    await pool.query('DELETE FROM boats');
     await pool.query('DELETE FROM users');
     console.log('  Cleared all tables');
 
     const userIds = await seedUsers();
-    const boatIds = await seedBoats();
     const vehicles = await seedVehicles(userIds);
-    await seedBooking(userIds, boatIds, vehicles);
-    await seedContainers(userIds, boatIds, vehicles);
+    await seedBooking(userIds, vehicles);
+    await seedContainers(userIds, vehicles);
     await seedTransactions(vehicles);
 
     console.log('\n=== Seed Complete ===');
     console.log(`  Users: ${USERS.length}`);
-    console.log(`  Boats: ${BOATS.length}`);
     console.log(`  Vehicles: ${VEHICLES.length}`);
     console.log(`  Login: admin/admin123 or giorgi/dealer123`);
   } catch (err) {

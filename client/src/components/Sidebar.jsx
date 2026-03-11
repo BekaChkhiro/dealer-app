@@ -58,14 +58,15 @@ function ContainersIcon() {
   );
 }
 
-function BoatsIcon() {
+function PortsIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 20l2-2h16l2 2" />
-      <path d="M4 18l-1-5h18l-1 5" />
-      <path d="M12 3v10" />
-      <path d="M12 3l7 10" />
-      <path d="M12 3L5 13" />
+      <path d="M12 2v6" />
+      <path d="M12 8l-4 4h8l-4-4z" />
+      <rect x="4" y="12" width="16" height="8" rx="1" />
+      <line x1="8" y1="16" x2="8" y2="16" />
+      <line x1="12" y1="16" x2="12" y2="16" />
+      <line x1="16" y1="16" x2="16" y2="16" />
     </svg>
   );
 }
@@ -98,6 +99,14 @@ function TicketIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function MessagesIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
   );
 }
@@ -142,10 +151,11 @@ const NAV_ITEMS = [
   { labelKey: 'nav.booking', path: '/booking', icon: BookingIcon },
   { labelKey: 'nav.cars', path: '/cars', icon: CarsIcon },
   { labelKey: 'nav.containers', path: '/containers', icon: ContainersIcon },
-  { labelKey: 'nav.boats', path: '/boats', icon: BoatsIcon },
+  { labelKey: 'nav.ports', path: '/ports', icon: PortsIcon },
   { labelKey: 'nav.calculator', path: '/calculator', icon: CalculatorIcon },
   { labelKey: 'nav.transactions', path: '/transactions', icon: TransactionsIcon },
   { labelKey: 'nav.ticket', path: '/ticket', icon: TicketIcon },
+  { labelKey: 'nav.messages', path: '/messages', icon: MessagesIcon },
   { labelKey: 'nav.auditLog', path: '/audit-log', icon: AuditLogIcon, adminOnly: true },
   { labelKey: 'nav.changePassword', path: '/change-password', icon: ChangePasswordIcon },
 ];

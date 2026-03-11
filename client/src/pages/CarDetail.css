@@ -329,3 +329,40 @@
   background: #d1e7dd;
   color: #0f5132;
 }
+
+/* Uppercase text for dealer/receiver names */
+.car-detail-info-value.uppercase {
+  text-transform: uppercase;
+}
+
+/* Comment section */
+.car-detail-comment {
+  position: relative;
+}
+
+.car-detail-comment-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--body-text);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.car-detail-comment-toggle {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.car-detail-comment-toggle:hover {
+  text-decoration: underline;
+}

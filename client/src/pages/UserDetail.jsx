@@ -5,6 +5,8 @@ import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
 import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
+import VinDisplay from '../components/VinDisplay';
+import MessageComposer from '../components/MessageComposer';
 import './UserDetail.css';
 
 function formatPrice(value) {
@@ -50,6 +52,14 @@ function UserDetail() {
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustError, setAdjustError] = useState(null);
   const [adjustSuccess, setAdjustSuccess] = useState(null);
+
+  // ID Document state
+  const [idDocFile, setIdDocFile] = useState(null);
+  const [idDocUploading, setIdDocUploading] = useState(false);
+  const [idDocError, setIdDocError] = useState(null);
+  const [idDocSuccess, setIdDocSuccess] = useState(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [showIdPreview, setShowIdPreview] = useState(false);
 
   // Fetch user
   useEffect(() => {
@@ -109,6 +119,77 @@ function UserDetail() {
 
   useEffect(() => { if (userData) fetchTransactions(); }, [fetchTransactions, userData]);
 
+  // ID Document upload handler
+  const handleIdDocUpload = async () => {
+    if (!idDocFile) return;
+    try {
+      setIdDocUploading(true);
+      setIdDocError(null);
+      setIdDocSuccess(null);
+      const formData = new FormData();
+      formData.append('id_document', idDocFile);
+      const res = await api.post(`/users/${id}/upload-id`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setUserData(res.data.data);
+      setIdDocFile(null);
+      setIdDocSuccess(t('users.idUploadSuccess'));
+    } catch (err) {
+      setIdDocError(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setIdDocUploading(false);
+    }
+  };
+
+  // ID Document verification handler
+  const handleVerifyId = async (verified) => {
+    const confirmMsg = verified ? t('users.confirmVerifyId') : t('users.confirmRejectId');
+    if (!window.confirm(confirmMsg)) return;
+    try {
+      setVerifyLoading(true);
+      setIdDocError(null);
+      setIdDocSuccess(null);
+      const res = await api.put(`/users/${id}/verify`, { verified });
+      setUserData(res.data.data);
+      setIdDocSuccess(verified ? t('users.idVerifySuccess') : t('users.idRejectSuccess'));
+    } catch (err) {
+      setIdDocError(err.response?.data?.message || 'Verification failed');
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  // ID Document delete handler
+  const handleDeleteIdDoc = async () => {
+    if (!window.confirm(t('users.confirmDeleteId'))) return;
+    try {
+      setIdDocUploading(true);
+      setIdDocError(null);
+      setIdDocSuccess(null);
+      const res = await api.delete(`/users/${id}/id-document`);
+      setUserData(res.data.data);
+      setIdDocSuccess(t('users.idDeleteSuccess'));
+    } catch (err) {
+      setIdDocError(err.response?.data?.message || 'Delete failed');
+    } finally {
+      setIdDocUploading(false);
+    }
+  };
+
+  // Get verification status badge
+  const getIdVerificationBadge = () => {
+    if (!userData.id_document_url) {
+      return <span className="badge bg-secondary">{t('users.idNotUploaded')}</span>;
+    }
+    if (userData.id_verified === true) {
+      return <span className="badge bg-success">{t('users.idVerified')}</span>;
+    }
+    if (userData.id_verified === false) {
+      return <span className="badge bg-warning text-dark">{t('users.idPending')}</span>;
+    }
+    return <span className="badge bg-secondary">{t('users.idNotUploaded')}</span>;
+  };
+
   // Balance adjustment handler
   const handleAdjustBalance = async (e) => {
     e.preventDefault();
@@ -151,7 +232,7 @@ function UserDetail() {
       label: t('cars.vehicleName'),
       render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—',
     },
-    { key: 'vin', label: t('cars.vin') },
+    { key: 'vin', label: t('cars.vin'), render: (row) => <VinDisplay vin={row.vin} /> },
     { key: 'current_status', label: t('cars.status'), render: (row) => row.current_status ? row.current_status.replace('_', ' ') : '—' },
     { key: 'is_fully_paid', label: t('cars.paid'), render: (row) => row.is_fully_paid ? t('common.yes') : row.is_partially_paid ? 'Partial' : t('common.no') },
     { key: 'total_price', label: t('cars.total'), align: 'right', render: (row) => formatPrice(row.total_price) },
@@ -162,7 +243,7 @@ function UserDetail() {
   const transactionColumns = [
     { key: 'id', label: t('transactions.id'), width: '60px' },
     { key: 'create_date', label: t('transactions.date'), render: (row) => formatDate(row.create_date) },
-    { key: 'vin', label: t('transactions.vin'), render: (row) => row.vin || t('transactions.noVin') },
+    { key: 'vin', label: t('transactions.vin'), render: (row) => row.vin ? <VinDisplay vin={row.vin} /> : t('transactions.noVin') },
     { key: 'mark', label: t('transactions.mark') },
     { key: 'model', label: t('transactions.model') },
     { key: 'paid_amount', label: t('transactions.amount'), align: 'right', render: (row) => formatPrice(row.paid_amount) },
@@ -248,6 +329,7 @@ function UserDetail() {
             <InfoItem label={t('users.phone')} value={userData.phone} />
             <InfoItem label={t('users.email')} value={userData.email} />
             <InfoItem label={t('users.role')} value={userData.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : '—'} />
+            <InfoItem label={t('users.address')} value={userData.address} />
           </div>
         </div>
 
@@ -338,6 +420,143 @@ function UserDetail() {
           </div>
         </div>
       </div>
+
+      {/* ID Document Section */}
+      <div className="user-detail-card">
+        <div className="user-detail-section-header">
+          <div className="user-detail-card-title">{t('userDetail.idDocumentSection')}</div>
+          {getIdVerificationBadge()}
+        </div>
+
+        {idDocError && <div className="alert alert-danger py-2 mb-3">{idDocError}</div>}
+        {idDocSuccess && <div className="alert alert-success py-2 mb-3">{idDocSuccess}</div>}
+
+        {userData.id_document_url ? (
+          <div className="id-document-section">
+            <div className="id-document-preview mb-3">
+              {userData.id_document_url.toLowerCase().endsWith('.pdf') ? (
+                <div className="id-document-pdf">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="#dc3545">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.72 10.9,12.35 10.92,12.31Z" />
+                  </svg>
+                  <span>PDF Document</span>
+                </div>
+              ) : (
+                <img
+                  src={userData.id_document_url}
+                  alt="ID Document"
+                  className="id-document-image"
+                  onClick={() => setShowIdPreview(true)}
+                  style={{ cursor: 'pointer', maxWidth: '300px', maxHeight: '200px', objectFit: 'contain', border: '1px solid #dee2e6', borderRadius: '4px' }}
+                />
+              )}
+            </div>
+
+            <div className="id-document-info mb-3">
+              <InfoItem label={t('userDetail.uploadedAt')} value={formatDate(userData.id_document_uploaded_at)} />
+              {userData.id_verified === true && (
+                <>
+                  <InfoItem label={t('userDetail.verifiedAt')} value={formatDate(userData.id_verified_at)} />
+                </>
+              )}
+            </div>
+
+            <div className="id-document-actions d-flex gap-2 flex-wrap">
+              <a
+                href={userData.id_document_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-sm btn-outline-primary"
+              >
+                {t('users.viewIdDocument')}
+              </a>
+
+              {isAdmin && userData.id_verified !== true && (
+                <>
+                  <button
+                    className="btn btn-sm btn-success"
+                    onClick={() => handleVerifyId(true)}
+                    disabled={verifyLoading}
+                  >
+                    {verifyLoading ? '...' : t('users.verifyId')}
+                  </button>
+                  <button
+                    className="btn btn-sm btn-warning"
+                    onClick={() => handleVerifyId(false)}
+                    disabled={verifyLoading}
+                  >
+                    {t('users.rejectId')}
+                  </button>
+                </>
+              )}
+
+              {isAdmin && (
+                <button
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={handleDeleteIdDoc}
+                  disabled={idDocUploading}
+                >
+                  {t('users.deleteIdDocument')}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="id-document-upload">
+            {isAdmin && (
+              <>
+                <p className="text-muted small mb-2">{t('users.idUploadHint')}</p>
+                <div className="d-flex gap-2 align-items-center flex-wrap">
+                  <input
+                    type="file"
+                    className="form-control form-control-sm"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setIdDocFile(e.target.files[0])}
+                    style={{ maxWidth: '300px' }}
+                  />
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={handleIdDocUpload}
+                    disabled={!idDocFile || idDocUploading}
+                  >
+                    {idDocUploading ? t('common.saving') : t('users.uploadIdDocument')}
+                  </button>
+                </div>
+              </>
+            )}
+            {!isAdmin && (
+              <p className="text-muted mb-0">{t('users.idNotUploaded')}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ID Document Preview Modal */}
+      {showIdPreview && userData.id_document_url && (
+        <div className="users-modal-overlay" onClick={() => setShowIdPreview(false)}>
+          <div className="users-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh' }}>
+            <div className="users-modal-header">
+              <h5>{t('users.idDocument')}</h5>
+              <button className="users-modal-close" onClick={() => setShowIdPreview(false)}>&times;</button>
+            </div>
+            <div className="users-modal-body text-center">
+              <img
+                src={userData.id_document_url}
+                alt="ID Document"
+                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message Composition Section (Admin Only) */}
+      {isAdmin && (
+        <div className="user-detail-card">
+          <div className="user-detail-card-title">{t('userDetail.sendMessage') || 'Send Message'}</div>
+          <MessageComposer userId={id} userName={`${userData.name} ${userData.surname}`} />
+        </div>
+      )}
 
       {/* Vehicles table */}
       <div className="user-detail-card">

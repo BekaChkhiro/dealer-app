@@ -1,0 +1,98 @@
+.message-composer {
+  max-width: 700px;
+}
+
+.message-composer .alert {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.message-composer .alert-danger {
+  background: #F8D7DA;
+  color: #842029;
+  border: 1px solid #F5C2C7;
+}
+
+.message-composer .alert-success {
+  background: #D1E7DD;
+  color: #0F5132;
+  border: 1px solid #BADBCC;
+}
+
+.message-composer .form-group {
+  margin-bottom: 20px;
+}
+
+.message-composer .form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 8px;
+}
+
+.message-composer .form-control {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #DEE2E6;
+  border-radius: 4px;
+  background: white;
+  transition: border-color 0.15s;
+}
+
+.message-composer .form-control:focus {
+  outline: none;
+  border-color: #0D6EFD;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+}
+
+.message-composer .form-control:disabled {
+  background: #E9ECEF;
+  cursor: not-allowed;
+}
+
+.message-composer textarea.form-control {
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+}
+
+.message-composer .form-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.message-composer .btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.message-composer .btn-primary {
+  background: #0D6EFD;
+  color: white;
+}
+
+.message-composer .btn-primary:hover:not(:disabled) {
+  background: #0B5ED7;
+}
+
+.message-composer .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .message-composer {
+    max-width: 100%;
+  }
+}

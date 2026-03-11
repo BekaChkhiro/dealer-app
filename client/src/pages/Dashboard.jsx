@@ -16,13 +16,12 @@ function Dashboard() {
           vehicles: d.total_vehicles ?? 0,
           bookings: d.total_bookings ?? 0,
           containers: d.total_containers ?? 0,
-          boats: d.total_boats ?? 0,
           balance: d.total_balance ?? 0,
           debt: d.total_debt ?? 0,
         });
       })
       .catch(() => {
-        setStats({ vehicles: 0, bookings: 0, containers: 0, boats: 0, balance: 0, debt: 0 });
+        setStats({ vehicles: 0, bookings: 0, containers: 0, balance: 0, debt: 0 });
       })
       .finally(() => setLoading(false));
   }, []);
@@ -76,19 +75,6 @@ function Dashboard() {
           <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
           <line x1="12" y1="11" x2="12" y2="17" />
           <line x1="9" y1="14" x2="15" y2="14" />
-        </svg>
-      ),
-    },
-    {
-      label: t('dashboard.boats'),
-      value: stats.boats,
-      color: '#0DCAF0',
-      bg: '#CFF4FC',
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0DCAF0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 20s2-2 5-2 5 2 8 2 5-2 5-2" />
-          <path d="M12 4l-4 12h8L12 4z" />
-          <line x1="12" y1="4" x2="12" y2="16" />
         </svg>
       ),
     },

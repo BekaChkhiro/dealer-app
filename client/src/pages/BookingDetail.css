@@ -122,6 +122,11 @@
   word-break: break-word;
 }
 
+/* Uppercase text for names */
+.booking-detail-info-value.uppercase {
+  text-transform: uppercase;
+}
+
 /* Timeline */
 .booking-detail-timeline {
   display: flex;
