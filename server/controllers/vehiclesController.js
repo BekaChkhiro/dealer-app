@@ -962,4 +962,595 @@ async function generateVehicleInvoice(req, res) {
   }
 }
 
-module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice };
+// Generate transportation invoice
+async function generateTransportInvoice(req, res) {
+  try {
+    const { id } = req.params;
+    const PDFDocument = require('pdfkit');
+    const fs = require('fs');
+    const path = require('path');
+
+    // Fetch vehicle with shipping/transport info
+    const result = await pool.query(
+      `SELECT v.*,
+              u.name AS dealer_name,
+              u.surname AS dealer_surname,
+              u.email AS dealer_email,
+              u.phone AS dealer_phone,
+              u.address AS dealer_address,
+              p.name AS destination_port_name,
+              p.code AS destination_port_code,
+              p.country AS destination_port_country,
+              c.container_number,
+              c.loading_port,
+              c.container_loaded_date,
+              c.container_receive_date,
+              c.estimated_opening_date,
+              c.opening_date,
+              b.booking_number,
+              b.line,
+              b.delivery_location,
+              b.terminal
+       FROM vehicles v
+       LEFT JOIN users u ON v.dealer_id = u.id
+       LEFT JOIN ports p ON v.destination_port_id = p.id
+       LEFT JOIN containers c ON v.container_number = c.container_number
+       LEFT JOIN booking b ON v.vin = b.vin
+       WHERE v.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const vehicle = result.rows[0];
+
+    // Non-admin users can only generate invoices for their own vehicles
+    if (req.session.user.role !== 'admin' && vehicle.dealer_id !== req.session.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Create PDF document
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    // Generate filename
+    const invoiceDir = path.join(__dirname, '../../static/invoices/transport');
+    if (!fs.existsSync(invoiceDir)) {
+      fs.mkdirSync(invoiceDir, { recursive: true });
+    }
+
+    const fileName = `transport_invoice_${vehicle.vin}_${Date.now()}.pdf`;
+    const filePath = path.join(invoiceDir, fileName);
+    const writeStream = fs.createWriteStream(filePath);
+
+    doc.pipe(writeStream);
+
+    // Helper function for formatting currency
+    const formatCurrency = (value) => {
+      if (!value && value !== 0) return '$0.00';
+      return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Helper function for formatting date
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    // Header
+    doc.fontSize(24).font('Helvetica-Bold').fillColor('#0D6EFD').text('TRANSPORTATION INVOICE', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).font('Helvetica').fillColor('#000000').text(`Invoice Date: ${formatDate(new Date())}`, { align: 'center' });
+    doc.fontSize(10).text(`Invoice #: TRN-${vehicle.id}-${Date.now().toString().slice(-6)}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Company Info (Left) and Dealer Info (Right)
+    const leftColumn = 50;
+    const rightColumn = 320;
+    let currentY = doc.y;
+
+    // Royal Motors Info
+    doc.fontSize(12).font('Helvetica-Bold').text('FROM:', leftColumn, currentY);
+    doc.fontSize(10).font('Helvetica');
+    doc.text('Royal Motors', leftColumn, doc.y + 5);
+    doc.text('Vehicle Import & Shipping', leftColumn, doc.y + 3);
+    doc.text('Logistics & Transportation', leftColumn, doc.y + 3);
+    doc.text('Phone: [Company Phone]', leftColumn, doc.y + 3);
+    doc.text('Email: [Company Email]', leftColumn, doc.y + 3);
+
+    // Dealer Info
+    doc.fontSize(12).font('Helvetica-Bold').text('BILL TO:', rightColumn, currentY);
+    doc.fontSize(10).font('Helvetica');
+    const dealerName = [vehicle.dealer_name, vehicle.dealer_surname].filter(Boolean).join(' ') || 'N/A';
+    doc.text(dealerName.toUpperCase(), rightColumn, doc.y + 5);
+    if (vehicle.dealer_email) doc.text(`Email: ${vehicle.dealer_email}`, rightColumn, doc.y + 3);
+    if (vehicle.dealer_phone) doc.text(`Phone: ${vehicle.dealer_phone}`, rightColumn, doc.y + 3);
+    if (vehicle.dealer_address) doc.text(`Address: ${vehicle.dealer_address}`, rightColumn, doc.y + 3);
+
+    doc.moveDown(2);
+
+    // Vehicle & Shipment Information
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('SHIPMENT DETAILS', leftColumn);
+    doc.moveDown(0.5);
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#000000');
+
+    currentY = doc.y;
+    const vehicleName = [vehicle.mark, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'N/A';
+
+    doc.font('Helvetica-Bold').text('Vehicle:', leftColumn, currentY);
+    doc.font('Helvetica').text(vehicleName, leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('VIN:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.vin || 'N/A', rightColumn + 100, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Container:', leftColumn, currentY);
+    doc.font('Helvetica').text(vehicle.container_number || 'Not Assigned', leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('Booking:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.booking_number || 'N/A', rightColumn + 100, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Line:', leftColumn, currentY);
+    doc.font('Helvetica').text(vehicle.line || 'N/A', leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('Loading Port:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.loading_port || 'N/A', rightColumn + 100, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Destination Port:', leftColumn, currentY);
+    const destPort = vehicle.destination_port_name ? `${vehicle.destination_port_name} (${vehicle.destination_port_code || ''})` : 'N/A';
+    doc.font('Helvetica').text(destPort, leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('Delivery Location:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.delivery_location || 'N/A', rightColumn + 100, currentY);
+
+    if (vehicle.terminal) {
+      currentY += 20;
+      doc.font('Helvetica-Bold').text('Terminal:', leftColumn, currentY);
+      doc.font('Helvetica').text(vehicle.terminal, leftColumn + 100, currentY);
+    }
+
+    doc.moveDown(2);
+
+    // Shipping Timeline
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('SHIPPING TIMELINE', leftColumn);
+    doc.moveDown(0.5);
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#000000');
+    currentY = doc.y;
+
+    doc.font('Helvetica-Bold').text('Container Loaded:', leftColumn, currentY);
+    doc.font('Helvetica').text(formatDate(vehicle.container_loaded_date), leftColumn + 130, currentY);
+
+    doc.font('Helvetica-Bold').text('Estimated Opening:', rightColumn, currentY);
+    doc.font('Helvetica').text(formatDate(vehicle.estimated_opening_date), rightColumn + 120, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Container Received:', leftColumn, currentY);
+    doc.font('Helvetica').text(formatDate(vehicle.container_receive_date), leftColumn + 130, currentY);
+
+    doc.font('Helvetica-Bold').text('Actual Opening:', rightColumn, currentY);
+    doc.font('Helvetica').text(formatDate(vehicle.opening_date), rightColumn + 120, currentY);
+
+    doc.moveDown(2);
+
+    // Transportation Costs Section
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('TRANSPORTATION COSTS', leftColumn);
+    doc.moveDown(0.5);
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    // Create pricing table
+    const tableTop = doc.y;
+    const descCol = leftColumn;
+    const amountCol = 450;
+
+    // Table header
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#FFFFFF');
+    doc.rect(descCol, tableTop, 495, 25).fillAndStroke('#0D6EFD', '#0D6EFD');
+    doc.text('Description', descCol + 10, tableTop + 8);
+    doc.text('Amount', amountCol + 10, tableTop + 8);
+
+    let rowY = tableTop + 25;
+    doc.fillColor('#000000').font('Helvetica');
+
+    // Transportation pricing items
+    const transportItems = [
+      { label: 'Shipping Cost', value: vehicle.shipping_cost || 0 },
+      { label: 'Container Fee', value: vehicle.container_cost || 0 },
+      { label: 'Port Handling Fee', value: vehicle.port_fee || 0 },
+      { label: 'Landing Cost', value: vehicle.landing_cost || 0 },
+      { label: 'Customs Clearance', value: vehicle.customs_fee || 0 },
+      { label: 'Terminal Fee', value: vehicle.terminal_fee || 0 },
+      { label: 'Documentation Fee', value: vehicle.documentation_fee || 0 },
+    ];
+
+    transportItems.forEach((item, index) => {
+      const bgColor = index % 2 === 0 ? '#F8F9FA' : '#FFFFFF';
+      doc.rect(descCol, rowY, 495, 20).fillAndStroke(bgColor, '#DEE2E6');
+      doc.fillColor('#000000').text(item.label, descCol + 10, rowY + 5);
+      doc.text(formatCurrency(item.value), amountCol + 10, rowY + 5);
+      rowY += 20;
+    });
+
+    // Calculate total transport costs
+    const totalTransport = transportItems.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+
+    // Total row
+    rowY += 5;
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.rect(descCol, rowY, 495, 30).fillAndStroke('#F0F0F0', '#0D6EFD');
+    doc.fillColor('#000000').text('TOTAL TRANSPORTATION COST', descCol + 10, rowY + 8);
+    doc.text(formatCurrency(totalTransport), amountCol + 10, rowY + 8);
+
+    // Footer
+    doc.moveDown(3);
+    const footerY = doc.y;
+    if (footerY > 700) {
+      doc.addPage();
+    }
+
+    doc.fontSize(9).font('Helvetica-Italic').fillColor('#6C757D');
+    doc.text('Thank you for choosing Royal Motors for your shipping needs!', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.text('This transportation invoice covers all shipping and logistics costs.', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.text(`Generated on ${formatDate(new Date())}`, { align: 'center' });
+
+    // Finalize PDF
+    doc.end();
+
+    // Wait for PDF to be written
+    writeStream.on('finish', () => {
+      // Send file as download
+      res.download(filePath, fileName, (err) => {
+        if (err) {
+          console.error('Error sending transport invoice:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 1, success: false, message: 'Failed to download invoice' });
+          }
+        }
+      });
+    });
+
+    writeStream.on('error', (err) => {
+      console.error('Error writing transport PDF:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 1, success: false, message: 'Failed to generate transport invoice' });
+      }
+    });
+
+  } catch (err) {
+    console.error('generateTransportInvoice error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Get invoice list for dealer dashboard
+async function getInvoicesList(req, res) {
+  try {
+    const user = req.session.user;
+    const limit = Math.max(1, parseInt(req.query.limit) || 20);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const offset = (page - 1) * limit;
+
+    const { keyword, start_date, end_date, vehicle_id, invoice_type } = req.query;
+
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    // Non-admin users can only see their own vehicles' invoices
+    if (user.role !== 'admin') {
+      conditions.push(`v.dealer_id = $${paramIndex}`);
+      params.push(user.id);
+      paramIndex++;
+    }
+
+    if (keyword) {
+      conditions.push(`(v.vin ILIKE $${paramIndex} OR v.mark ILIKE $${paramIndex} OR v.model ILIKE $${paramIndex} OR v.receiver_fullname ILIKE $${paramIndex})`);
+      params.push(`%${keyword}%`);
+      paramIndex++;
+    }
+
+    if (start_date) {
+      conditions.push(`v.purchase_date >= $${paramIndex}`);
+      params.push(start_date);
+      paramIndex++;
+    }
+
+    if (end_date) {
+      conditions.push(`v.purchase_date <= $${paramIndex}`);
+      params.push(end_date);
+      paramIndex++;
+    }
+
+    if (vehicle_id) {
+      conditions.push(`v.id = $${paramIndex}`);
+      params.push(vehicle_id);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Count total records
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM vehicles v
+      LEFT JOIN users u ON v.dealer_id = u.id
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Fetch invoice records
+    const dataQuery = `
+      SELECT
+        v.id,
+        v.vin,
+        v.mark,
+        v.model,
+        v.year,
+        v.receiver_fullname,
+        v.purchase_date,
+        v.create_date,
+        v.vehicle_price,
+        v.total_price,
+        v.payed_amount,
+        v.debt_amount,
+        v.container_number,
+        v.current_status,
+        v.auction,
+        v.line,
+        u.name as dealer_name,
+        u.surname as dealer_surname
+      FROM vehicles v
+      LEFT JOIN users u ON v.dealer_id = u.id
+      ${whereClause}
+      ORDER BY v.create_date DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(limit, offset);
+
+    const result = await pool.query(dataQuery, params);
+
+    // Format the invoice list
+    const invoices = result.rows.map(vehicle => ({
+      id: vehicle.id,
+      vin: vehicle.vin,
+      vehicle_name: `${vehicle.mark} ${vehicle.model} ${vehicle.year}`,
+      receiver: vehicle.receiver_fullname,
+      dealer: `${vehicle.dealer_name} ${vehicle.dealer_surname}`.trim(),
+      purchase_date: vehicle.purchase_date,
+      created_at: vehicle.create_date,
+      vehicle_price: vehicle.vehicle_price,
+      total_price: vehicle.total_price,
+      paid_amount: vehicle.payed_amount,
+      debt_amount: vehicle.debt_amount,
+      status: vehicle.current_status,
+      container: vehicle.container_number,
+      auction: vehicle.auction,
+      line: vehicle.line,
+      // Invoice download URLs
+      vehicle_invoice_url: `/api/vehicles/${vehicle.id}/invoice`,
+      transport_invoice_url: `/api/vehicles/${vehicle.id}/invoice/transport`
+    }));
+
+    res.json({
+      error: 0,
+      success: true,
+      data: invoices,
+      total: total,
+      page: page,
+      limit: limit
+    });
+
+  } catch (err) {
+    console.error('getInvoicesList error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Get all files for a vehicle
+async function getVehicleFiles(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Check if vehicle exists
+    const vehicleCheck = await pool.query('SELECT id, dealer_id FROM vehicles WHERE id = $1', [id]);
+    if (vehicleCheck.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const vehicle = vehicleCheck.rows[0];
+
+    // Check permissions (admin or dealer who owns the vehicle)
+    if (req.user.role !== 'admin' && vehicle.dealer_id !== req.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Get all files for this vehicle
+    const result = await pool.query(
+      `SELECT
+        vf.id,
+        vf.vehicle_id,
+        vf.file_name,
+        vf.file_url,
+        vf.file_type,
+        vf.file_size,
+        vf.uploaded_by,
+        vf.created_at,
+        u.name || ' ' || u.surname as uploader_name
+       FROM vehicle_files vf
+       LEFT JOIN users u ON vf.uploaded_by = u.id
+       WHERE vf.vehicle_id = $1
+       ORDER BY vf.created_at DESC`,
+      [id]
+    );
+
+    res.json({ error: 0, success: true, data: result.rows, total: result.rows.length });
+  } catch (err) {
+    console.error('getVehicleFiles error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Upload a file for a vehicle
+async function uploadVehicleFile(req, res) {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 1, success: false, message: 'No file uploaded' });
+    }
+
+    // Check if vehicle exists
+    const vehicleCheck = await pool.query('SELECT id, dealer_id, vin FROM vehicles WHERE id = $1', [id]);
+    if (vehicleCheck.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const vehicle = vehicleCheck.rows[0];
+
+    // Check permissions (admin can upload, dealer can upload to their own vehicles)
+    if (req.user.role !== 'admin' && vehicle.dealer_id !== req.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Validate file type
+    const allowedMimeTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      return res.status(400).json({
+        error: 1,
+        success: false,
+        message: 'Invalid file type. Allowed: PDF, images, Word, Excel'
+      });
+    }
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return res.status(400).json({
+        error: 1,
+        success: false,
+        message: 'File too large. Maximum size is 10MB'
+      });
+    }
+
+    // Upload to R2
+    const fileExtension = file.originalname.split('.').pop();
+    const timestamp = Date.now();
+    const safeFileName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `vehicle-files/${id}/${timestamp}-${safeFileName}`;
+
+    await uploadToR2(key, file.buffer, file.mimetype);
+    const publicUrl = process.env.R2_PUBLIC_URL;
+    const fileUrl = `${publicUrl}/${key}`;
+
+    // Insert into database
+    const result = await pool.query(
+      `INSERT INTO vehicle_files (vehicle_id, file_name, file_url, file_type, file_size, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [id, file.originalname, fileUrl, file.mimetype, file.size, req.user.id]
+    );
+
+    // Log audit
+    await logAudit(
+      req.user.id,
+      'vehicle',
+      id,
+      'file_upload',
+      null,
+      { file_name: file.originalname, file_id: result.rows[0].id },
+      req.ip
+    );
+
+    res.json({
+      error: 0,
+      success: true,
+      message: 'File uploaded successfully',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('uploadVehicleFile error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Delete a vehicle file
+async function deleteVehicleFile(req, res) {
+  try {
+    const { fileId } = req.params;
+
+    // Get file info and check permissions
+    const fileResult = await pool.query(
+      `SELECT vf.*, v.dealer_id
+       FROM vehicle_files vf
+       JOIN vehicles v ON vf.vehicle_id = v.id
+       WHERE vf.id = $1`,
+      [fileId]
+    );
+
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'File not found' });
+    }
+
+    const fileData = fileResult.rows[0];
+
+    // Check permissions (admin can delete, dealer can delete their own vehicle files)
+    if (req.user.role !== 'admin' && fileData.dealer_id !== req.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Delete from R2
+    const key = extractR2Key(fileData.file_url);
+    if (key) {
+      await deleteFromR2(key);
+    }
+
+    // Delete from database
+    await pool.query('DELETE FROM vehicle_files WHERE id = $1', [fileId]);
+
+    // Log audit
+    await logAudit(
+      req.user.id,
+      'vehicle',
+      fileData.vehicle_id,
+      'file_delete',
+      { file_name: fileData.file_name, file_id: fileId },
+      null,
+      req.ip
+    );
+
+    res.json({
+      error: 0,
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (err) {
+    console.error('deleteVehicleFile error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile };

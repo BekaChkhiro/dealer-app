@@ -44,7 +44,9 @@
     "clear": "Clear",
     "open": "Open",
     "close": "Close",
-    "sending": "Sending..."
+    "sending": "Sending...",
+    "apply": "Apply",
+    "reset": "Reset"
   },
   "messages": {
     "title": "Messages",
@@ -105,6 +107,28 @@
     "containers": "Containers",
     "balance": "Balance",
     "totalDebt": "Total Debt"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "vehicle": "Vehicle",
+    "receiver": "Receiver",
+    "dealer": "Dealer",
+    "purchaseDate": "Purchase Date",
+    "vehiclePrice": "Vehicle Price",
+    "total": "Total",
+    "paid": "Paid",
+    "debt": "Debt",
+    "actions": "Actions",
+    "vehicleInvoice": "Vehicle",
+    "transportInvoice": "Transport",
+    "noInvoices": "No invoices found",
+    "invoiceType": "Invoice Type",
+    "downloadSuccess": "Invoice downloaded successfully",
+    "downloadError": "Failed to download invoice"
+  },
+  "filters": {
+    "startDate": "Start Date",
+    "endDate": "End Date"
   },
   "users": {
     "title": "Users",

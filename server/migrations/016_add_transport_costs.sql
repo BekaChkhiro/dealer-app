@@ -1,0 +1,6 @@
+-- Add transportation cost fields to vehicles table
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS shipping_cost DECIMAL(10, 2) DEFAULT 0;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS port_fee DECIMAL(10, 2) DEFAULT 0;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS customs_fee DECIMAL(10, 2) DEFAULT 0;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS terminal_fee DECIMAL(10, 2) DEFAULT 0;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS documentation_fee DECIMAL(10, 2) DEFAULT 0;

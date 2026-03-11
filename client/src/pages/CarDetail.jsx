@@ -31,6 +31,10 @@ function CarDetail() {
   const [commentExpanded, setCommentExpanded] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [downloadingTransportInvoice, setDownloadingTransportInvoice] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState(null);
 
   useEffect(() => {
     async function fetchVehicle() {
@@ -64,6 +68,93 @@ function CarDetail() {
     }
     fetchVehicle();
   }, [id]);
+
+  // Fetch vehicle files
+  useEffect(() => {
+    async function fetchFiles() {
+      try {
+        const res = await api.get(`/vehicles/${id}/files`);
+        setFiles(res.data.data || []);
+      } catch (err) {
+        console.error('Error fetching files:', err);
+        setFiles([]);
+      }
+    }
+    if (id) {
+      fetchFiles();
+    }
+  }, [id]);
+
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large. Maximum size is 10MB');
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await api.post(`/vehicles/${id}/files`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.success) {
+        setFiles([res.data.data, ...files]);
+        event.target.value = '';
+        alert('File uploaded successfully');
+      }
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      alert(err.response?.data?.message || 'Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Handle file delete
+  const handleFileDelete = async (fileId) => {
+    if (!window.confirm('Are you sure you want to delete this file?')) {
+      return;
+    }
+
+    try {
+      setDeletingFileId(fileId);
+      await api.delete(`/vehicles/files/${fileId}`);
+      setFiles(files.filter(f => f.id !== fileId));
+      alert('File deleted successfully');
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      alert(err.response?.data?.message || 'Failed to delete file');
+    } finally {
+      setDeletingFileId(null);
+    }
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '—';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Get file icon based on type
+  const getFileIcon = (fileType) => {
+    if (!fileType) return '📄';
+    if (fileType.startsWith('image/')) return '🖼️';
+    if (fileType === 'application/pdf') return '📕';
+    if (fileType.includes('word')) return '📘';
+    if (fileType.includes('excel') || fileType.includes('sheet')) return '📊';
+    return '📄';
+  };
 
   if (loading) {
     return (
@@ -141,6 +232,30 @@ function CarDetail() {
     }
   };
 
+  const handleDownloadTransportInvoice = async () => {
+    try {
+      setDownloadingTransportInvoice(true);
+      const response = await api.get(`/vehicles/${id}/invoice/transport`, {
+        responseType: 'blob'
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transport_invoice_${vehicle.vin}_${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading transport invoice:', error);
+      alert('Failed to download transportation invoice. Please try again.');
+    } finally {
+      setDownloadingTransportInvoice(false);
+    }
+  };
+
   return (
     <div>
       {/* Back link */}
@@ -196,7 +311,27 @@ function CarDetail() {
                   <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
                   <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                 </svg>
-                Download Invoice
+                Vehicle Invoice
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleDownloadTransportInvoice}
+            disabled={downloadingTransportInvoice}
+            className="btn btn-sm btn-info"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            {downloadingTransportInvoice ? (
+              <>
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5v-7zm1.294 7.456A1.999 1.999 0 0 1 4.732 11h5.536a2.01 2.01 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456zM12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12v4zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+                </svg>
+                Transport Invoice
               </>
             )}
           </button>
@@ -464,6 +599,123 @@ function CarDetail() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Vehicle Files */}
+      <div className="car-detail-card">
+        <div className="car-detail-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Vehicle Files & Documents</span>
+          {(isAdmin || vehicle?.dealer_id === user?.id) && (
+            <div>
+              <input
+                type="file"
+                id="file-upload"
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+                disabled={uploadingFile}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+              />
+              <label
+                htmlFor="file-upload"
+                className="btn btn-sm btn-primary"
+                style={{
+                  cursor: uploadingFile ? 'not-allowed' : 'pointer',
+                  opacity: uploadingFile ? 0.6 : 1,
+                  marginBottom: 0
+                }}
+              >
+                {uploadingFile ? 'Uploading...' : '+ Upload File'}
+              </label>
+            </div>
+          )}
+        </div>
+        {files.length === 0 ? (
+          <div className="car-detail-empty">
+            No files uploaded yet
+            {(isAdmin || vehicle?.dealer_id === user?.id) && (
+              <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#6C757D' }}>
+                Upload documents like invoices, receipts, shipping papers, etc.
+              </div>
+            )}
+          </div>
+        ) : (
+          <table className="car-detail-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>Type</th>
+                <th>File Name</th>
+                <th style={{ width: '100px' }}>Size</th>
+                <th style={{ width: '150px' }}>Uploaded By</th>
+                <th style={{ width: '120px' }}>Date</th>
+                <th style={{ width: '150px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.map((file) => (
+                <tr key={file.id}>
+                  <td style={{ fontSize: '1.5em', textAlign: 'center' }}>
+                    {getFileIcon(file.file_type)}
+                  </td>
+                  <td>
+                    <div style={{
+                      maxWidth: '300px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {file.file_name}
+                    </div>
+                  </td>
+                  <td>{formatFileSize(file.file_size)}</td>
+                  <td>{file.uploader_name || '—'}</td>
+                  <td>{formatDate(file.created_at)}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm btn-outline-primary"
+                        style={{ fontSize: '0.85em', padding: '4px 12px' }}
+                      >
+                        View
+                      </a>
+                      <a
+                        href={file.file_url}
+                        download={file.file_name}
+                        className="btn btn-sm btn-outline-secondary"
+                        style={{ fontSize: '0.85em', padding: '4px 12px' }}
+                      >
+                        Download
+                      </a>
+                      {(isAdmin || vehicle?.dealer_id === user?.id) && (
+                        <button
+                          onClick={() => handleFileDelete(file.id)}
+                          disabled={deletingFileId === file.id}
+                          className="btn btn-sm btn-outline-danger"
+                          style={{ fontSize: '0.85em', padding: '4px 12px' }}
+                        >
+                          {deletingFileId === file.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div style={{
+          marginTop: '12px',
+          fontSize: '0.85em',
+          color: '#6C757D',
+          borderTop: '1px solid #DEE2E6',
+          paddingTop: '12px'
+        }}>
+          <strong>Allowed file types:</strong> PDF, Word (.doc, .docx), Excel (.xls, .xlsx), Images (.jpg, .png, .gif)
+          <br />
+          <strong>Maximum file size:</strong> 10 MB
+        </div>
       </div>
     </div>
   );

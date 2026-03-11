@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import './Dashboard.css';
 
 function Dashboard() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recentInvoices, setRecentInvoices] = useState([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(true);
+
+  const isDealer = user?.role !== 'admin';
 
   useEffect(() => {
     api.get('/dashboard/stats')
@@ -24,7 +31,19 @@ function Dashboard() {
         setStats({ vehicles: 0, bookings: 0, containers: 0, balance: 0, debt: 0 });
       })
       .finally(() => setLoading(false));
-  }, []);
+
+    // Fetch recent invoices for dealers
+    if (isDealer) {
+      api.get('/vehicles/invoices/list', { params: { limit: 5 } })
+        .then((res) => {
+          setRecentInvoices(res.data.data || []);
+        })
+        .catch(() => {
+          setRecentInvoices([]);
+        })
+        .finally(() => setLoadingInvoices(false));
+    }
+  }, [isDealer]);
 
   if (loading) {
     return (
@@ -123,6 +142,79 @@ function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* Recent Invoices Section for Dealers */}
+      {isDealer && (
+        <div className="mt-5">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h4>{t('invoices.title')}</h4>
+            <Link to="/invoices" className="btn btn-sm btn-outline-primary">
+              {t('common.all')} →
+            </Link>
+          </div>
+          {loadingInvoices ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : recentInvoices.length > 0 ? (
+            <div className="card">
+              <div className="table-responsive">
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>VIN</th>
+                      <th>{t('invoices.vehicle')}</th>
+                      <th>{t('invoices.purchaseDate')}</th>
+                      <th>{t('invoices.total')}</th>
+                      <th>{t('invoices.debt')}</th>
+                      <th>{t('invoices.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentInvoices.map((invoice) => (
+                      <tr key={invoice.id}>
+                        <td><small>{invoice.vin}</small></td>
+                        <td>{invoice.vehicle_name}</td>
+                        <td>{new Date(invoice.purchase_date).toLocaleDateString()}</td>
+                        <td>${Number(invoice.total_price || 0).toLocaleString()}</td>
+                        <td>
+                          <span style={{ color: invoice.debt_amount > 0 ? '#DC3545' : '#198754', fontWeight: 'bold' }}>
+                            ${Number(invoice.debt_amount || 0).toLocaleString()}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <a
+                              href={`/api/vehicles/${invoice.id}/invoice`}
+                              className="btn btn-sm btn-primary"
+                              download
+                              style={{ fontSize: '10px', padding: '2px 6px' }}
+                            >
+                              {t('invoices.vehicleInvoice')}
+                            </a>
+                            <a
+                              href={`/api/vehicles/${invoice.id}/invoice/transport`}
+                              className="btn btn-sm btn-success"
+                              download
+                              style={{ fontSize: '10px', padding: '2px 6px' }}
+                            >
+                              {t('invoices.transportInvoice')}
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="alert alert-info">{t('invoices.noInvoices')}</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

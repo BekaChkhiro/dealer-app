@@ -6,6 +6,7 @@ const upload = require('../middleware/upload');
 const uploadDocument = require('../middleware/uploadDocument');
 
 router.get('/', requireAuth, vehiclesController.getVehicles);
+router.get('/invoices/list', requireAuth, vehiclesController.getInvoicesList);
 router.post('/bulk-delete', requireAdmin, vehiclesController.bulkDeleteVehicles);
 router.get('/:id', requireAuth, vehiclesController.getVehicleById);
 router.post('/', requireAdmin, upload.single('profile_image'), vehiclesController.createVehicle);
@@ -17,5 +18,13 @@ router.post('/:id/upload-receiver-id', requireAuth, uploadDocument.single('recei
 
 // Generate vehicle invoice
 router.get('/:id/invoice', requireAuth, vehiclesController.generateVehicleInvoice);
+
+// Generate transportation invoice
+router.get('/:id/invoice/transport', requireAuth, vehiclesController.generateTransportInvoice);
+
+// Vehicle files endpoints
+router.get('/:id/files', requireAuth, vehiclesController.getVehicleFiles);
+router.post('/:id/files', requireAuth, uploadDocument.single('file'), vehiclesController.uploadVehicleFile);
+router.delete('/files/:fileId', requireAuth, vehiclesController.deleteVehicleFile);
 
 module.exports = router;

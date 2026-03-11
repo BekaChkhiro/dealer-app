@@ -44,7 +44,9 @@
     "clear": "გასუფთავება",
     "open": "გახსნა",
     "close": "დახურვა",
-    "sending": "იგზავნება..."
+    "sending": "იგზავნება...",
+    "apply": "გამოყენება",
+    "reset": "გასუფთავება"
   },
   "messages": {
     "title": "შეტყობინებები",
@@ -105,6 +107,28 @@
     "containers": "კონტეინერები",
     "balance": "ბალანსი",
     "totalDebt": "სულ ვალი"
+  },
+  "invoices": {
+    "title": "ინვოისები",
+    "vehicle": "მანქანა",
+    "receiver": "მიმღები",
+    "dealer": "დილერი",
+    "purchaseDate": "შეძენის თარიღი",
+    "vehiclePrice": "მანქანის ფასი",
+    "total": "სულ",
+    "paid": "გადახდილი",
+    "debt": "ვალი",
+    "actions": "მოქმედებები",
+    "vehicleInvoice": "მანქანა",
+    "transportInvoice": "ტრანსპორტი",
+    "noInvoices": "ინვოისები არ მოიძებნა",
+    "invoiceType": "ინვოისის ტიპი",
+    "downloadSuccess": "ინვოისი წარმატებით ჩამოიტვირთა",
+    "downloadError": "ინვოისის ჩამოტვირთვა ვერ მოხერხდა"
+  },
+  "filters": {
+    "startDate": "დაწყების თარიღი",
+    "endDate": "დასრულების თარიღი"
   },
   "users": {
     "title": "მომხმარებლები",

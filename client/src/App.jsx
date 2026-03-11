@@ -25,6 +25,7 @@ import ContainerDetail from './pages/ContainerDetail';
 import ChangePassword from './pages/ChangePassword';
 import AuditLog from './pages/AuditLog';
 import Settings from './pages/Settings';
+import Invoices from './pages/Invoices';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/global.css';
 
@@ -143,6 +144,7 @@ function ProtectedLayout() {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/ticket" element={<Ticket />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/invoices" element={<Invoices />} />
           <Route path="/audit-log" element={<AdminRoute><AuditLog /></AdminRoute>} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/settings" element={<Settings />} />
