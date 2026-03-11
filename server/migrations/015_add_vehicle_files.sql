@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS vehicle_files (
 );
 
 -- Create index on vehicle_id for faster lookups
-CREATE INDEX idx_vehicle_files_vehicle_id ON vehicle_files(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_files_vehicle_id ON vehicle_files(vehicle_id);
 
 -- Create index on uploaded_by
-CREATE INDEX idx_vehicle_files_uploaded_by ON vehicle_files(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_vehicle_files_uploaded_by ON vehicle_files(uploaded_by);
