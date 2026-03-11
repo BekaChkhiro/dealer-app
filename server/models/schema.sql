@@ -221,6 +221,20 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Add foreign key constraints after all tables are created
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'vehicles_destination_port_id_fkey'
+    AND table_name = 'vehicles'
+  ) THEN
+    ALTER TABLE vehicles
+    ADD CONSTRAINT vehicles_destination_port_id_fkey
+    FOREIGN KEY (destination_port_id) REFERENCES ports(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 -- Indexes for frequently queried columns
 CREATE INDEX IF NOT EXISTS idx_vehicles_dealer_id ON vehicles(dealer_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_vin ON vehicles(vin);
