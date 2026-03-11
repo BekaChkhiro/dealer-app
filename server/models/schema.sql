@@ -56,7 +56,6 @@ CREATE TABLE IF NOT EXISTS vehicles (
   receiver_phone VARCHAR(50),
   us_state VARCHAR(100),
   destination_port VARCHAR(100),
-  destination_port_id INTEGER,
   us_port VARCHAR(100),
   is_sublot BOOLEAN DEFAULT FALSE,
   is_fully_paid BOOLEAN DEFAULT FALSE,
@@ -227,7 +226,6 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_vin ON vehicles(vin);
 CREATE INDEX IF NOT EXISTS idx_vehicles_auction ON vehicles(auction);
 CREATE INDEX IF NOT EXISTS idx_vehicles_current_status ON vehicles(current_status);
 CREATE INDEX IF NOT EXISTS idx_vehicles_container_number ON vehicles(container_number);
-CREATE INDEX IF NOT EXISTS idx_vehicles_destination_port_id ON vehicles(destination_port_id);
 CREATE INDEX IF NOT EXISTS idx_booking_user_id ON booking(user_id);
 CREATE INDEX IF NOT EXISTS idx_booking_vin ON booking(vin);
 CREATE INDEX IF NOT EXISTS idx_containers_user_id ON containers(user_id);
