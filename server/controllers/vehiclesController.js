@@ -690,4 +690,276 @@ async function uploadReceiverIdDocument(req, res) {
   }
 }
 
-module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument };
+async function generateVehicleInvoice(req, res) {
+  try {
+    const { id } = req.params;
+    const PDFDocument = require('pdfkit');
+    const fs = require('fs');
+    const path = require('path');
+
+    // Fetch vehicle with dealer info
+    const result = await pool.query(
+      `SELECT v.*,
+              u.name AS dealer_name,
+              u.surname AS dealer_surname,
+              u.email AS dealer_email,
+              u.phone AS dealer_phone,
+              u.address AS dealer_address,
+              p.name AS destination_port_name,
+              p.code AS destination_port_code
+       FROM vehicles v
+       LEFT JOIN users u ON v.dealer_id = u.id
+       LEFT JOIN ports p ON v.destination_port_id = p.id
+       WHERE v.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const vehicle = result.rows[0];
+
+    // Non-admin users can only generate invoices for their own vehicles
+    if (req.session.user.role !== 'admin' && vehicle.dealer_id !== req.session.user.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Create PDF document
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    // Generate filename
+    const invoiceDir = path.join(__dirname, '../../static/invoices');
+    if (!fs.existsSync(invoiceDir)) {
+      fs.mkdirSync(invoiceDir, { recursive: true });
+    }
+
+    const fileName = `invoice_${vehicle.vin}_${Date.now()}.pdf`;
+    const filePath = path.join(invoiceDir, fileName);
+    const writeStream = fs.createWriteStream(filePath);
+
+    doc.pipe(writeStream);
+
+    // Helper function for formatting currency
+    const formatCurrency = (value) => {
+      if (!value && value !== 0) return '$0.00';
+      return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Helper function for formatting date
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    // Header
+    doc.fontSize(24).font('Helvetica-Bold').text('VEHICLE INVOICE', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).font('Helvetica').text(`Invoice Date: ${formatDate(new Date())}`, { align: 'center' });
+    doc.fontSize(10).text(`Invoice #: INV-${vehicle.id}-${Date.now().toString().slice(-6)}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Company Info (Left) and Dealer Info (Right)
+    const leftColumn = 50;
+    const rightColumn = 320;
+    let currentY = doc.y;
+
+    // Royal Motors Info
+    doc.fontSize(12).font('Helvetica-Bold').text('FROM:', leftColumn, currentY);
+    doc.fontSize(10).font('Helvetica');
+    doc.text('Royal Motors', leftColumn, doc.y + 5);
+    doc.text('Vehicle Import & Shipping', leftColumn, doc.y + 3);
+    doc.text('Address: [Company Address]', leftColumn, doc.y + 3);
+    doc.text('Phone: [Company Phone]', leftColumn, doc.y + 3);
+    doc.text('Email: [Company Email]', leftColumn, doc.y + 3);
+
+    // Dealer Info (reset Y to same position)
+    doc.fontSize(12).font('Helvetica-Bold').text('BILL TO:', rightColumn, currentY);
+    doc.fontSize(10).font('Helvetica');
+    const dealerName = [vehicle.dealer_name, vehicle.dealer_surname].filter(Boolean).join(' ') || 'N/A';
+    doc.text(dealerName.toUpperCase(), rightColumn, doc.y + 5);
+    if (vehicle.dealer_email) doc.text(`Email: ${vehicle.dealer_email}`, rightColumn, doc.y + 3);
+    if (vehicle.dealer_phone) doc.text(`Phone: ${vehicle.dealer_phone}`, rightColumn, doc.y + 3);
+    if (vehicle.dealer_address) doc.text(`Address: ${vehicle.dealer_address}`, rightColumn, doc.y + 3);
+
+    doc.moveDown(2);
+
+    // Vehicle Information Section
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('VEHICLE DETAILS', leftColumn);
+    doc.moveDown(0.5);
+
+    // Draw a line
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#000000');
+
+    // Vehicle info in two columns
+    currentY = doc.y;
+    const vehicleName = [vehicle.mark, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'N/A';
+
+    doc.font('Helvetica-Bold').text('Vehicle:', leftColumn, currentY);
+    doc.font('Helvetica').text(vehicleName, leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('VIN:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.vin || 'N/A', rightColumn + 100, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Lot Number:', leftColumn, currentY);
+    doc.font('Helvetica').text(vehicle.lot_number || 'N/A', leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('Auction:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.auction || 'N/A', rightColumn + 100, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Purchase Date:', leftColumn, currentY);
+    doc.font('Helvetica').text(formatDate(vehicle.purchase_date), leftColumn + 100, currentY);
+
+    doc.font('Helvetica-Bold').text('Status:', rightColumn, currentY);
+    doc.font('Helvetica').text(vehicle.current_status ? vehicle.current_status.replace('_', ' ').toUpperCase() : 'N/A', rightColumn + 100, currentY);
+
+    if (vehicle.container_number) {
+      currentY += 20;
+      doc.font('Helvetica-Bold').text('Container:', leftColumn, currentY);
+      doc.font('Helvetica').text(vehicle.container_number, leftColumn + 100, currentY);
+    }
+
+    doc.moveDown(2);
+
+    // Receiver Information (if exists)
+    if (vehicle.receiver_fullname || vehicle.receiver_identity_number || vehicle.receiver_phone) {
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('RECEIVER INFORMATION', leftColumn);
+      doc.moveDown(0.5);
+      doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.5);
+
+      doc.fontSize(10).font('Helvetica').fillColor('#000000');
+      currentY = doc.y;
+
+      if (vehicle.receiver_fullname) {
+        doc.font('Helvetica-Bold').text('Name:', leftColumn, currentY);
+        doc.font('Helvetica').text(vehicle.receiver_fullname.toUpperCase(), leftColumn + 120, currentY);
+        currentY += 20;
+      }
+
+      if (vehicle.receiver_identity_number) {
+        doc.font('Helvetica-Bold').text('Identity Number:', leftColumn, currentY);
+        doc.font('Helvetica').text(vehicle.receiver_identity_number, leftColumn + 120, currentY);
+        currentY += 20;
+      }
+
+      if (vehicle.receiver_phone) {
+        doc.font('Helvetica-Bold').text('Phone:', leftColumn, currentY);
+        doc.font('Helvetica').text(vehicle.receiver_phone, leftColumn + 120, currentY);
+      }
+
+      doc.moveDown(2);
+    }
+
+    // Pricing Breakdown Section
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('PRICING BREAKDOWN', leftColumn);
+    doc.moveDown(0.5);
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    // Create pricing table
+    const tableTop = doc.y;
+    const descCol = leftColumn;
+    const amountCol = 450;
+
+    // Table header
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#FFFFFF');
+    doc.rect(descCol, tableTop, 495, 25).fillAndStroke('#0D6EFD', '#0D6EFD');
+    doc.text('Description', descCol + 10, tableTop + 8);
+    doc.text('Amount', amountCol + 10, tableTop + 8);
+
+    let rowY = tableTop + 25;
+    doc.fillColor('#000000').font('Helvetica');
+
+    // Pricing rows
+    const pricingItems = [
+      { label: 'Vehicle Price', value: vehicle.vehicle_price },
+      { label: 'Container Cost', value: vehicle.container_cost },
+      { label: 'Landing Cost', value: vehicle.landing_cost },
+      { label: 'Dealer Fee', value: vehicle.dealer_fee },
+      { label: 'Late Car Payment', value: vehicle.late_car_payment },
+    ];
+
+    pricingItems.forEach((item, index) => {
+      const bgColor = index % 2 === 0 ? '#F8F9FA' : '#FFFFFF';
+      doc.rect(descCol, rowY, 495, 20).fillAndStroke(bgColor, '#DEE2E6');
+      doc.fillColor('#000000').text(item.label, descCol + 10, rowY + 5);
+      doc.text(formatCurrency(item.value), amountCol + 10, rowY + 5);
+      rowY += 20;
+    });
+
+    // Total row
+    rowY += 5;
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.rect(descCol, rowY, 495, 30).fillAndStroke('#F0F0F0', '#0D6EFD');
+    doc.fillColor('#000000').text('TOTAL PRICE', descCol + 10, rowY + 8);
+    doc.text(formatCurrency(vehicle.total_price), amountCol + 10, rowY + 8);
+
+    // Payment Status
+    rowY += 35;
+    doc.fontSize(10).font('Helvetica');
+
+    const paidBgColor = '#D1E7DD';
+    const debtBgColor = '#F8D7DA';
+
+    doc.rect(descCol, rowY, 495, 20).fillAndStroke(paidBgColor, '#DEE2E6');
+    doc.fillColor('#000000').text('Paid Amount', descCol + 10, rowY + 5);
+    doc.text(formatCurrency(vehicle.payed_amount), amountCol + 10, rowY + 5);
+
+    rowY += 20;
+    doc.rect(descCol, rowY, 495, 20).fillAndStroke(debtBgColor, '#DEE2E6');
+    doc.fillColor('#000000').text('Remaining Balance', descCol + 10, rowY + 5);
+    doc.text(formatCurrency(vehicle.debt_amount), amountCol + 10, rowY + 5);
+
+    // Footer
+    doc.moveDown(3);
+    const footerY = doc.y;
+    if (footerY > 700) {
+      doc.addPage();
+    }
+
+    doc.fontSize(9).font('Helvetica-Italic').fillColor('#6C757D');
+    doc.text('Thank you for your business!', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.text('This invoice was generated automatically by Royal Motors system.', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.text(`Generated on ${formatDate(new Date())}`, { align: 'center' });
+
+    // Finalize PDF
+    doc.end();
+
+    // Wait for PDF to be written
+    writeStream.on('finish', () => {
+      // Send file as download
+      res.download(filePath, fileName, (err) => {
+        if (err) {
+          console.error('Error sending invoice:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 1, success: false, message: 'Failed to download invoice' });
+          }
+        }
+
+        // Optionally delete file after sending (or keep for records)
+        // fs.unlinkSync(filePath);
+      });
+    });
+
+    writeStream.on('error', (err) => {
+      console.error('Error writing PDF:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 1, success: false, message: 'Failed to generate invoice' });
+      }
+    });
+
+  } catch (err) {
+    console.error('generateVehicleInvoice error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice };

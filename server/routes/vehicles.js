@@ -15,4 +15,7 @@ router.delete('/:id', requireAdmin, vehiclesController.deleteVehicle);
 // Receiver ID document upload
 router.post('/:id/upload-receiver-id', requireAuth, uploadDocument.single('receiver_id_document'), vehiclesController.uploadReceiverIdDocument);
 
+// Generate vehicle invoice
+router.get('/:id/invoice', requireAuth, vehiclesController.generateVehicleInvoice);
+
 module.exports = router;
