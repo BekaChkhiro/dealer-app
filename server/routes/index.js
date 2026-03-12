@@ -30,6 +30,7 @@ router.get('/dashboard/stats', requireAuth, dashboardController.getStats);
 
 router.get('/cities', requireAuth, vehiclesController.getCities);
 router.get('/search', requireAuth, vehiclesController.searchVehicles);
+router.get('/invoices', requireAuth, vehiclesController.getInvoicesList);
 
 // Dropdown data endpoints for booking/containers forms
 const bookingController = require('../controllers/bookingController');

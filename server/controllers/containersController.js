@@ -82,7 +82,7 @@ async function createContainer(req, res) {
       manufacturer_year, buyer_name, booking, delivery_location,
       container_open_date, line, personal_number, lot_number,
       loading_port, container_loaded_date, container_receive_date,
-      user_id, status, port_id
+      user_id, status, port_id, loaded_date, estimated_arrival, received_date, opened_date
     } = req.body;
 
     const result = await pool.query(
@@ -91,8 +91,8 @@ async function createContainer(req, res) {
         manufacturer_year, buyer_name, booking, delivery_location,
         container_open_date, line, personal_number, lot_number,
         loading_port, container_loaded_date, container_receive_date,
-        user_id, status, port_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        user_id, status, port_id, loaded_date, estimated_arrival, received_date, opened_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *`,
       [
         container_number || null, vin || null, purchase_date || null,
@@ -101,7 +101,8 @@ async function createContainer(req, res) {
         container_open_date || null, line || null, personal_number || null,
         lot_number || null, loading_port || null, container_loaded_date || null,
         container_receive_date || null,
-        user_id || null, status || 'booked', port_id || null
+        user_id || null, status || 'booked', port_id || null,
+        loaded_date || null, estimated_arrival || null, received_date || null, opened_date || null
       ]
     );
 
@@ -184,7 +185,7 @@ async function updateContainer(req, res) {
       manufacturer_year, buyer_name, booking, delivery_location,
       container_open_date, line, personal_number, lot_number,
       loading_port, container_loaded_date, container_receive_date,
-      user_id, status, port_id
+      user_id, status, port_id, loaded_date, estimated_arrival, received_date, opened_date
     } = req.body;
 
     const fields = [];
@@ -218,6 +219,10 @@ async function updateContainer(req, res) {
     addField('user_id', user_id);
     addField('status', status);
     addField('port_id', port_id);
+    addField('loaded_date', loaded_date);
+    addField('estimated_arrival', estimated_arrival);
+    addField('received_date', received_date);
+    addField('opened_date', opened_date);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
@@ -353,7 +358,7 @@ async function getVehiclesByContainer(req, res) {
 
     const container = containerResult.rows[0];
 
-    // Get vehicles by container_number
+    // Get vehicles by container_id
     // For dealers, only show their own vehicles
     let vehiclesResult;
     if (!isAdmin && userId) {
@@ -363,9 +368,9 @@ async function getVehiclesByContainer(req, res) {
                 u.name AS dealer_name, u.surname AS dealer_surname
          FROM vehicles v
          LEFT JOIN users u ON v.dealer_id = u.id
-         WHERE v.container_number = $1 AND v.dealer_id = $2
+         WHERE v.container_id = $1 AND v.dealer_id = $2
          ORDER BY v.id DESC`,
-        [container.container_number, userId]
+        [id, userId]
       );
     } else {
       vehiclesResult = await pool.query(
@@ -374,9 +379,9 @@ async function getVehiclesByContainer(req, res) {
                 u.name AS dealer_name, u.surname AS dealer_surname
          FROM vehicles v
          LEFT JOIN users u ON v.dealer_id = u.id
-         WHERE v.container_number = $1
+         WHERE v.container_id = $1
          ORDER BY v.id DESC`,
-        [container.container_number]
+        [id]
       );
     }
 

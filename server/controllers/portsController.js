@@ -12,7 +12,9 @@ async function getPorts(req, res) {
     const keyword = req.query.keyword || '';
     const sortBy = ALLOWED_SORT_COLUMNS.includes(req.query.sort_by) ? req.query.sort_by : 'id';
     const order = ALLOWED_ORDER.includes(req.query.asc) ? req.query.asc : 'desc';
-    const { is_active } = req.query;
+    const { is_active, active } = req.query;
+    // Support both 'active' and 'is_active' query parameters
+    const activeFilter = active !== undefined ? active : is_active;
 
     const isAdmin = req.session.user?.role === 'admin';
     const userId = req.session.user?.id;
@@ -39,9 +41,9 @@ async function getPorts(req, res) {
       paramIndex++;
     }
 
-    if (is_active !== undefined && is_active !== '') {
+    if (activeFilter !== undefined && activeFilter !== '') {
       conditions.push(`p.is_active = $${paramIndex}`);
-      params.push(is_active === 'true');
+      params.push(activeFilter === 'true');
       paramIndex++;
     }
 
@@ -78,7 +80,7 @@ async function getPorts(req, res) {
     }
 
     const dataResult = await pool.query(
-      `SELECT p.*, COALESCE(cc.container_count, 0)::int AS container_count
+      `SELECT p.*, p.is_active AS active, COALESCE(cc.container_count, 0)::int AS container_count
        FROM ports p
        ${containerCountQuery}
        ${whereClause}
@@ -98,7 +100,7 @@ async function getPortById(req, res) {
   try {
     const { id } = req.params;
 
-    const result = await pool.query('SELECT * FROM ports WHERE id = $1', [id]);
+    const result = await pool.query('SELECT *, is_active AS active FROM ports WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 1, success: false, message: 'Port not found' });
@@ -113,7 +115,9 @@ async function getPortById(req, res) {
 
 async function createPort(req, res) {
   try {
-    const { name, code, country, is_active } = req.body;
+    const { name, code, country, is_active, active } = req.body;
+    // Support both 'active' and 'is_active' field names
+    const activeValue = active !== undefined ? active : (is_active !== false);
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 1, success: false, message: 'Port name is required' });
@@ -122,8 +126,8 @@ async function createPort(req, res) {
     const result = await pool.query(
       `INSERT INTO ports (name, code, country, is_active)
        VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [name.trim(), code || null, country || null, is_active !== false]
+       RETURNING *, is_active AS active`,
+      [name.trim(), code || null, country || null, activeValue]
     );
 
     logAudit({
@@ -152,7 +156,9 @@ async function updatePort(req, res) {
       return res.status(404).json({ error: 1, success: false, message: 'Port not found' });
     }
 
-    const { name, code, country, is_active } = req.body;
+    const { name, code, country, is_active, active } = req.body;
+    // Support both 'active' and 'is_active' field names
+    const activeValue = active !== undefined ? active : is_active;
 
     const fields = [];
     const params = [];
@@ -169,7 +175,7 @@ async function updatePort(req, res) {
     addField('name', name);
     addField('code', code);
     addField('country', country);
-    addField('is_active', is_active);
+    addField('is_active', activeValue);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
@@ -177,7 +183,7 @@ async function updatePort(req, res) {
 
     params.push(id);
     const result = await pool.query(
-      `UPDATE ports SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE ports SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *, is_active AS active`,
       params
     );
 

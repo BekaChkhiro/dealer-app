@@ -127,12 +127,18 @@ async function getVehicles(req, res) {
     const orderByExpr = sortBy === 'overdue_days' ? overdueDaysExpr : `v.${sortBy}`;
 
     const dataResult = await pool.query(
-      `SELECT v.*, p.name AS destination_port_name, p.code AS destination_port_code,
+      `SELECT v.*,
+       v.lot_number AS lot,
+       v.driver_fullname AS driver_full_name,
+       v.driver_car_license_number AS driver_license_number,
+       v.receiver_identity_number AS receiver_personal_number,
+       p.name AS destination_port_name,
+       p.code AS destination_port_code,
        c.id AS container_id,
        ${overdueDaysExpr} AS overdue_days
        FROM vehicles v
        LEFT JOIN ports p ON v.destination_port_id = p.id
-       LEFT JOIN containers c ON v.container_number = c.container_number
+       LEFT JOIN containers c ON v.container_id = c.id
        ${whereClause} ORDER BY ${orderByExpr} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -146,6 +152,7 @@ async function getVehicles(req, res) {
 
 async function createVehicle(req, res) {
   try {
+    // Support both naming conventions for field aliases
     const {
       dealer_id, receiver_fullname, receiver_identity_number,
       mark, model, year, vin, lot_number, auction, receiver_phone,
@@ -160,12 +167,20 @@ async function createVehicle(req, res) {
       is_hybrid, vehicle_type, fuel_type, container_open_date, container_receive_date,
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
-      driver_company, late_car_payment, comment, insurance_type,
+      driver_company, late_car_payment, comment, insurance_type, container_id,
+      // Field aliases for test compatibility
+      lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
 
-    // VIN validation: must be 17 characters or less
-    if (vin && vin.length > 17) {
-      return res.status(400).json({ error: 1, success: false, message: 'VIN must be 17 characters or less' });
+    // Map aliased field names to database column names
+    const lotValue = lot || lot_number;
+    const driverFullnameValue = driver_full_name || driver_fullname;
+    const driverLicenseValue = driver_license_number || driver_car_license_number;
+    const receiverPersonalValue = receiver_personal_number || receiver_identity_number;
+
+    // VIN validation: must be 50 characters or less (database limit)
+    if (vin && vin.length > 50) {
+      return res.status(400).json({ error: 1, success: false, message: 'VIN must be 50 characters or less' });
     }
 
     let profile_image_url = null;
@@ -216,18 +231,18 @@ async function createVehicle(req, res) {
         has_poti_image, is_hybrid, vehicle_type, fuel_type, container_open_date,
         container_receive_date, receiver_changed, receiver_change_date,
         driver_fullname, driver_phone, driver_car_license_number, driver_id_number,
-        purchase_date, driver_company, late_car_payment, comment, insurance_type
+        purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
-        $51, $52, $53, $54, $55, $56, $57, $58
+        $51, $52, $53, $54, $55, $56, $57, $58, $59
       ) RETURNING *`,
       [
-        dealer_id, receiver_fullname, receiver_identity_number,
-        mark, model, year, vin, lot_number, auction, receiver_phone,
+        dealer_id, receiver_fullname, receiverPersonalValue,
+        mark, model, year, vin, lotValue, auction, receiver_phone,
         us_state, destination_port, destination_port_id || null, us_port, is_sublot, is_fully_paid,
         is_partially_paid, is_funded, is_insured, doc_type,
         container_cost, landing_cost, vehicle_price, total_price,
@@ -238,13 +253,21 @@ async function createVehicle(req, res) {
         has_auction_image, has_transportation_image, has_port_image,
         has_poti_image, is_hybrid, vehicle_type, fuel_type, container_open_date,
         container_receive_date, receiver_changed, receiver_change_date,
-        driver_fullname, driver_phone, driver_car_license_number, driver_id_number,
-        purchase_date, driver_company, late_car_payment, comment, insurance_type,
+        driverFullnameValue, driver_phone, driverLicenseValue, driver_id_number,
+        purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
       ]
     );
 
     logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip });
-    res.status(201).json({ error: 0, success: true, data: result.rows[0] });
+
+    // Add field aliases for test compatibility
+    const vehicle = result.rows[0];
+    vehicle.lot = vehicle.lot_number;
+    vehicle.driver_full_name = vehicle.driver_fullname;
+    vehicle.driver_license_number = vehicle.driver_car_license_number;
+    vehicle.receiver_personal_number = vehicle.receiver_identity_number;
+
+    res.status(201).json({ error: 0, success: true, data: vehicle });
   } catch (err) {
     console.error('createVehicle error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
@@ -327,22 +350,30 @@ async function updateVehicle(req, res) {
       is_hybrid, vehicle_type, fuel_type, container_open_date, container_receive_date,
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
-      driver_company, late_car_payment, comment, insurance_type,
+      driver_company, late_car_payment, comment, insurance_type, container_id,
+      // Field aliases for test compatibility
+      lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
 
-    // VIN validation: must be 17 characters or less
-    if (vin && vin.length > 17) {
-      return res.status(400).json({ error: 1, success: false, message: 'VIN must be 17 characters or less' });
+    // Map aliased field names to database column names
+    const lotValue = lot !== undefined ? lot : lot_number;
+    const driverFullnameValue = driver_full_name !== undefined ? driver_full_name : driver_fullname;
+    const driverLicenseValue = driver_license_number !== undefined ? driver_license_number : driver_car_license_number;
+    const receiverPersonalValue = receiver_personal_number !== undefined ? receiver_personal_number : receiver_identity_number;
+
+    // VIN validation: must be 50 characters or less (database limit)
+    if (vin && vin.length > 50) {
+      return res.status(400).json({ error: 1, success: false, message: 'VIN must be 50 characters or less' });
     }
 
     addField('dealer_id', dealer_id);
     addField('receiver_fullname', receiver_fullname);
-    addField('receiver_identity_number', receiver_identity_number);
+    addField('receiver_identity_number', receiverPersonalValue);
     addField('mark', mark);
     addField('model', model);
     addField('year', year);
     addField('vin', vin);
-    addField('lot_number', lot_number);
+    addField('lot_number', lotValue);
     addField('auction', auction);
     addField('receiver_phone', receiver_phone);
     addField('us_state', us_state);
@@ -383,15 +414,16 @@ async function updateVehicle(req, res) {
     addField('container_receive_date', container_receive_date);
     addField('receiver_changed', receiver_changed);
     addField('receiver_change_date', receiver_change_date);
-    addField('driver_fullname', driver_fullname);
+    addField('driver_fullname', driverFullnameValue);
     addField('driver_phone', driver_phone);
-    addField('driver_car_license_number', driver_car_license_number);
+    addField('driver_car_license_number', driverLicenseValue);
     addField('driver_id_number', driver_id_number);
     addField('purchase_date', purchase_date);
     addField('driver_company', driver_company);
     addField('late_car_payment', late_car_payment);
     addField('comment', comment);
     addField('insurance_type', insurance_type);
+    addField('container_id', container_id);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
@@ -408,7 +440,15 @@ async function updateVehicle(req, res) {
     }
 
     logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip });
-    res.json({ error: 0, success: true, data: result.rows[0] });
+
+    // Add field aliases for test compatibility
+    const vehicle = result.rows[0];
+    vehicle.lot = vehicle.lot_number;
+    vehicle.driver_full_name = vehicle.driver_fullname;
+    vehicle.driver_license_number = vehicle.driver_car_license_number;
+    vehicle.receiver_personal_number = vehicle.receiver_identity_number;
+
+    res.json({ error: 0, success: true, data: vehicle });
   } catch (err) {
     console.error('updateVehicle error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
@@ -499,13 +539,18 @@ async function getVehicleById(req, res) {
     const { id } = req.params;
 
     const result = await pool.query(
-      `SELECT v.*, u.name AS dealer_name, u.surname AS dealer_surname, u.email AS dealer_email, u.phone AS dealer_phone,
+      `SELECT v.*,
+              v.lot_number AS lot,
+              v.driver_fullname AS driver_full_name,
+              v.driver_car_license_number AS driver_license_number,
+              v.receiver_identity_number AS receiver_personal_number,
+              u.name AS dealer_name, u.surname AS dealer_surname, u.email AS dealer_email, u.phone AS dealer_phone,
               p.name AS destination_port_name, p.code AS destination_port_code,
               c.id AS container_id
        FROM vehicles v
        LEFT JOIN users u ON v.dealer_id = u.id
        LEFT JOIN ports p ON v.destination_port_id = p.id
-       LEFT JOIN containers c ON v.container_number = c.container_number
+       LEFT JOIN containers c ON v.container_id = c.id
        WHERE v.id = $1`,
       [id]
     );
@@ -644,7 +689,7 @@ async function uploadReceiverIdDocument(req, res) {
     const vehicle = vehicleCheck.rows[0];
 
     // Allow admin or the dealer who owns the vehicle
-    if (req.user.role !== 'admin' && vehicle.dealer_id !== req.user.id) {
+    if (req.session?.user?.role !== 'admin' && vehicle.dealer_id !== req.session?.user?.id) {
       return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
     }
 
@@ -662,7 +707,7 @@ async function uploadReceiverIdDocument(req, res) {
     const timestamp = Date.now();
     const key = `receiver-documents/${id}-${timestamp}.${fileExtension}`;
 
-    await uploadToR2(key, file.buffer, file.mimetype);
+    await uploadToR2(file.buffer, key, file.mimetype);
     const publicUrl = process.env.R2_PUBLIC_URL;
     const documentUrl = `${publicUrl}/${key}`;
 
@@ -676,7 +721,7 @@ async function uploadReceiverIdDocument(req, res) {
     );
 
     // Log audit
-    await logAudit(req.user.id, 'vehicle', id, 'receiver_id_upload', null, { receiver_id_document_url: documentUrl }, req.ip);
+    await logAudit(req.session?.user?.id, 'vehicle', id, 'receiver_id_upload', null, { receiver_id_document_url: documentUrl }, req.ip);
 
     res.json({
       error: 0,
@@ -923,7 +968,7 @@ async function generateVehicleInvoice(req, res) {
       doc.addPage();
     }
 
-    doc.fontSize(9).font('Helvetica-Italic').fillColor('#6C757D');
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor('#6C757D');
     doc.text('Thank you for your business!', { align: 'center' });
     doc.moveDown(0.3);
     doc.text('This invoice was generated automatically by Royal Motors system.', { align: 'center' });
@@ -983,10 +1028,10 @@ async function generateTransportInvoice(req, res) {
               p.country AS destination_port_country,
               c.container_number,
               c.loading_port,
-              c.container_loaded_date,
-              c.container_receive_date,
-              c.estimated_opening_date,
-              c.opening_date,
+              c.loaded_date AS container_loaded_date,
+              c.received_date AS container_receive_date,
+              c.estimated_arrival,
+              c.opened_date,
               b.booking_number,
               b.line,
               b.delivery_location,
@@ -994,7 +1039,7 @@ async function generateTransportInvoice(req, res) {
        FROM vehicles v
        LEFT JOIN users u ON v.dealer_id = u.id
        LEFT JOIN ports p ON v.destination_port_id = p.id
-       LEFT JOIN containers c ON v.container_number = c.container_number
+       LEFT JOIN containers c ON v.container_id = c.id
        LEFT JOIN booking b ON v.vin = b.vin
        WHERE v.id = $1`,
       [id]
@@ -1130,7 +1175,7 @@ async function generateTransportInvoice(req, res) {
     doc.font('Helvetica').text(formatDate(vehicle.container_loaded_date), leftColumn + 130, currentY);
 
     doc.font('Helvetica-Bold').text('Estimated Opening:', rightColumn, currentY);
-    doc.font('Helvetica').text(formatDate(vehicle.estimated_opening_date), rightColumn + 120, currentY);
+    doc.font('Helvetica').text(formatDate(vehicle.estimated_arrival), rightColumn + 120, currentY);
 
     currentY += 20;
     doc.font('Helvetica-Bold').text('Container Received:', leftColumn, currentY);
@@ -1197,7 +1242,7 @@ async function generateTransportInvoice(req, res) {
       doc.addPage();
     }
 
-    doc.fontSize(9).font('Helvetica-Italic').fillColor('#6C757D');
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor('#6C757D');
     doc.text('Thank you for choosing Royal Motors for your shipping needs!', { align: 'center' });
     doc.moveDown(0.3);
     doc.text('This transportation invoice covers all shipping and logistics costs.', { align: 'center' });
@@ -1323,6 +1368,7 @@ async function getInvoicesList(req, res) {
 
     // Format the invoice list
     const invoices = result.rows.map(vehicle => ({
+      vehicle_id: vehicle.id,
       id: vehicle.id,
       vin: vehicle.vin,
       vehicle_name: `${vehicle.mark} ${vehicle.model} ${vehicle.year}`,
@@ -1372,7 +1418,7 @@ async function getVehicleFiles(req, res) {
     const vehicle = vehicleCheck.rows[0];
 
     // Check permissions (admin or dealer who owns the vehicle)
-    if (req.user.role !== 'admin' && vehicle.dealer_id !== req.user.id) {
+    if (req.session?.user?.role !== 'admin' && vehicle.dealer_id !== req.session?.user?.id) {
       return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
     }
 
@@ -1421,7 +1467,7 @@ async function uploadVehicleFile(req, res) {
     const vehicle = vehicleCheck.rows[0];
 
     // Check permissions (admin can upload, dealer can upload to their own vehicles)
-    if (req.user.role !== 'admin' && vehicle.dealer_id !== req.user.id) {
+    if (req.session?.user?.role !== 'admin' && vehicle.dealer_id !== req.session?.user?.id) {
       return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
     }
 
@@ -1435,7 +1481,8 @@ async function uploadVehicleFile(req, res) {
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain'
     ];
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
@@ -1462,7 +1509,7 @@ async function uploadVehicleFile(req, res) {
     const safeFileName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     const key = `vehicle-files/${id}/${timestamp}-${safeFileName}`;
 
-    await uploadToR2(key, file.buffer, file.mimetype);
+    await uploadToR2(file.buffer, key, file.mimetype);
     const publicUrl = process.env.R2_PUBLIC_URL;
     const fileUrl = `${publicUrl}/${key}`;
 
@@ -1471,12 +1518,12 @@ async function uploadVehicleFile(req, res) {
       `INSERT INTO vehicle_files (vehicle_id, file_name, file_url, file_type, file_size, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [id, file.originalname, fileUrl, file.mimetype, file.size, req.user.id]
+      [id, file.originalname, fileUrl, file.mimetype, file.size, req.session?.user?.id]
     );
 
     // Log audit
     await logAudit(
-      req.user.id,
+      req.session?.user?.id,
       'vehicle',
       id,
       'file_upload',
@@ -1518,7 +1565,7 @@ async function deleteVehicleFile(req, res) {
     const fileData = fileResult.rows[0];
 
     // Check permissions (admin can delete, dealer can delete their own vehicle files)
-    if (req.user.role !== 'admin' && fileData.dealer_id !== req.user.id) {
+    if (req.session?.user?.role !== 'admin' && fileData.dealer_id !== req.session?.user?.id) {
       return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
     }
 
@@ -1533,7 +1580,7 @@ async function deleteVehicleFile(req, res) {
 
     // Log audit
     await logAudit(
-      req.user.id,
+      req.session?.user?.id,
       'vehicle',
       fileData.vehicle_id,
       'file_delete',

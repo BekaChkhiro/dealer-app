@@ -7,7 +7,15 @@
     "start": "node index.js",
     "migrate": "node scripts/migrate.js",
     "test": "jest --runInBand --forceExit",
-    "test:verbose": "jest --runInBand --forceExit --verbose"
+    "test:verbose": "jest --runInBand --forceExit --verbose",
+    "test:phase8-10": "jest --runInBand --forceExit tests/phase8-users.test.js tests/phase8-vehicles.test.js tests/phase9-ports-containers.test.js tests/phase10-invoices-files.test.js",
+    "test:phase8": "jest --runInBand --forceExit tests/phase8-users.test.js tests/phase8-vehicles.test.js",
+    "test:phase8-users": "jest --runInBand --forceExit tests/phase8-users.test.js",
+    "test:phase8-vehicles": "jest --runInBand --forceExit tests/phase8-vehicles.test.js",
+    "test:phase9": "jest --runInBand --forceExit tests/phase9-ports-containers.test.js",
+    "test:phase10": "jest --runInBand --forceExit tests/phase10-invoices-files.test.js",
+    "test:coverage": "jest --runInBand --forceExit --coverage tests/phase8-users.test.js tests/phase8-vehicles.test.js tests/phase9-ports-containers.test.js tests/phase10-invoices-files.test.js",
+    "test:watch": "jest --watch tests/phase8-users.test.js tests/phase8-vehicles.test.js tests/phase9-ports-containers.test.js tests/phase10-invoices-files.test.js"
   },
   "keywords": [],
   "author": "",

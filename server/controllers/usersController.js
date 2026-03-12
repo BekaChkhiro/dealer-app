@@ -115,7 +115,7 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { name, surname, email, username, password, phone, calculator_category, role, identity_number, superviser_fee, address } = req.body;
+    const { name, surname, email, username, password, phone, calculator_category, role, identity_number, superviser_fee, address, id_document_url, id_verification_status } = req.body;
 
     if (email || username) {
       const conditions = [];
@@ -170,6 +170,8 @@ async function updateUser(req, res) {
     addField('identity_number', identity_number);
     addField('superviser_fee', superviser_fee);
     addField('address', address);
+    addField('id_document_url', id_document_url);
+    addField('id_verification_status', id_verification_status);
 
     if (password) {
       const password_hash = await bcrypt.hash(password, 10);
