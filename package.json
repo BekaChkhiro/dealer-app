@@ -6,10 +6,10 @@
   "scripts": {
     "postinstall": "npm install --prefix client && npm install --prefix server",
     "build": "npm run build --prefix client",
-    "start": "node server/index.js",
+    "start": "npm run migrate && node server/index.js",
     "migrate": "node server/scripts/migrate.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   }
 }
