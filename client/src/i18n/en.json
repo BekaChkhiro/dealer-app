@@ -15,6 +15,7 @@
     "logOut": "Log Out"
   },
   "common": {
+    "actions": "Actions",
     "cancel": "Cancel",
     "update": "Update",
     "create": "Create",
