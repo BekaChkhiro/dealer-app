@@ -677,8 +677,8 @@ function Cars() {
 
       {/* Add/Edit Modal */}
       {editModal && (
-        <div className="cars-modal-overlay" onClick={() => setEditModal(false)}>
-          <div className="cars-modal cars-modal-lg" onClick={e => e.stopPropagation()}>
+        <div className="cars-modal-overlay">
+          <div className="cars-modal cars-modal-lg">
             <div className="cars-modal-header">
               <h5>{editRow ? t('cars.editVehicle') : t('cars.addNewVehicle')}</h5>
               <button className="cars-modal-close" onClick={() => setEditModal(false)}>&times;</button>
