@@ -62,6 +62,38 @@
   width: 720px;
 }
 
+.cars-modal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--border-color);
+  background: #f8f9fa;
+}
+
+.cars-modal-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.cars-modal-tab:hover {
+  color: #212529;
+}
+
+.cars-modal-tab.active {
+  color: var(--primary, #0d6efd);
+  border-bottom-color: var(--primary, #0d6efd);
+}
+
 .cars-section-heading {
   font-size: 14px;
   font-weight: 600;

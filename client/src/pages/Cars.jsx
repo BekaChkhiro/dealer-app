@@ -940,7 +940,7 @@ function Cars() {
                   </>
                 )}
 
-                {/* Upload ID Document Mode */}
+                {/* Upload ID Document Mode (within dealerReceiver tab) */}
                 {receiverEntryMode === 'upload' && (
                   <div className="receiver-id-upload-section mb-3">
                     {formData.receiver_id_document_url ? (
@@ -1024,9 +1024,9 @@ function Cars() {
                     </div>
                   </div>
                 )}
+                </>)}
 
-                <hr />
-
+                {activeTab === 'logistics' && (<>
                 {/* Section 4 — Location */}
                 <h6 className="cars-section-heading">{t('cars.location')}</h6>
                 <div className="row mb-3">
@@ -1077,9 +1077,9 @@ function Cars() {
                     </select>
                   </div>
                 </div>
+                </>)}
 
-                <hr />
-
+                {activeTab === 'pricingStatus' && (<>
                 {/* Section 6 — Pricing */}
                 <h6 className="cars-section-heading">{t('cars.pricing')}</h6>
                 <div className="row mb-3">
@@ -1175,9 +1175,9 @@ function Cars() {
                     </select>
                   </div>
                 </div>
+                </>)}
 
-                <hr />
-
+                {activeTab === 'dates' && (<>
                 {/* Section 8 — Dates */}
                 <h6 className="cars-section-heading">{t('cars.dates')}</h6>
                 <div className="row mb-3">
@@ -1220,9 +1220,9 @@ function Cars() {
                     <input type="date" className="form-control" name="container_receive_date" value={formData.container_receive_date} onChange={handleFormChange} />
                   </div>
                 </div>
+                </>)}
 
-                <hr />
-
+                {activeTab === 'additional' && (<>
                 {/* Section 9 — Additional */}
                 <h6 className="cars-section-heading">{t('cars.additional')}</h6>
                 <div className="row mb-3">
@@ -1310,6 +1310,7 @@ function Cars() {
                     />
                   </div>
                 </div>
+                </>)}
               </div>
               <div className="cars-modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setEditModal(false)}>{t('common.cancel')}</button>
