@@ -60,8 +60,9 @@
 }
 
 .dt-th-actions {
-  width: 40px;
-  min-width: 40px;
+  width: 110px;
+  min-width: 110px;
+  text-align: center;
 }
 
 /* ── Body rows ── */
@@ -127,16 +128,21 @@
   border-radius: 4px;
 }
 
-/* ── Action menu ── */
+/* ── Action icons ── */
 
 .dt-td-actions {
-  position: relative;
   text-align: center;
-  width: 40px;
-  min-width: 40px;
+  width: 110px;
+  min-width: 110px;
 }
 
-.dt-menu-btn {
+.dt-action-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dt-action-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -148,49 +154,25 @@
   border-radius: 4px;
   color: #6c757d;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.dt-menu-btn:hover {
+.dt-action-icon:hover {
   background: #f0f0f0;
   color: #212529;
 }
 
-.dt-menu-dropdown {
-  position: absolute;
-  right: 8px;
-  top: 100%;
-  z-index: 100;
-  min-width: 140px;
-  background: #fff;
-  border: 1px solid var(--border-color, #DEE2E6);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 4px 0;
+.dt-action-view:hover {
+  color: var(--primary, #0D6EFD);
 }
 
-.dt-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 14px;
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: #212529;
-  text-align: left;
-  cursor: pointer;
-  white-space: nowrap;
+.dt-action-edit:hover {
+  color: #fd7e14;
 }
 
-.dt-menu-item:hover {
-  background: #f0f0f0;
-}
-
-.dt-menu-item-icon {
-  display: inline-flex;
-  align-items: center;
-  color: #6c757d;
+.dt-action-delete:hover {
+  background: #fdecea;
+  color: #dc3545;
 }
 
 /* ── Checkbox selection ── */

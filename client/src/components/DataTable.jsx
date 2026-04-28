@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useEffect, useRef, useCallback, Fragment } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import './DataTable.css';
 
@@ -18,19 +18,7 @@ export default function DataTable({
   onRowClick,
 }) {
   const { t } = useTranslation();
-  const [openMenuRow, setOpenMenuRow] = useState(null);
-  const menuRef = useRef(null);
   const selectAllRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOpenMenuRow(null);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Update indeterminate state on the select-all checkbox
   useEffect(() => {
@@ -50,13 +38,7 @@ export default function DataTable({
     }
   }
 
-  function toggleMenu(rowIndex, e) {
-    e.stopPropagation();
-    setOpenMenuRow(openMenuRow === rowIndex ? null : rowIndex);
-  }
-
   function handleAction(action, row) {
-    setOpenMenuRow(null);
     if (onAction) onAction(action, row);
   }
 
@@ -84,7 +66,7 @@ export default function DataTable({
 
   function handleRowClick(e, row) {
     if (!onRowClick) return;
-    if (e.target.closest('button, a, input, select, textarea, label, .dt-menu-dropdown')) return;
+    if (e.target.closest('button, a, input, select, textarea, label')) return;
     onRowClick(row);
   }
 
@@ -103,6 +85,16 @@ export default function DataTable({
 
     if (value == null || value === '') return '—';
     return value;
+  }
+
+  function renderActionIcon(action) {
+    if (action.icon) return action.icon;
+    switch (action.key) {
+      case 'view': return <EyeIcon />;
+      case 'edit': return <PencilIcon />;
+      case 'delete': return <TrashIcon />;
+      default: return null;
+    }
   }
 
   const hasActions = actions && actions.length > 0;
@@ -125,6 +117,9 @@ export default function DataTable({
                     onChange={handleSelectAll}
                   />
                 </th>
+              )}
+              {hasActions && (
+                <th className="dt-th dt-th-actions">{t('common.actions')}</th>
               )}
               {columns.map((col) => (
                 <th
@@ -151,7 +146,6 @@ export default function DataTable({
                   </span>
                 </th>
               ))}
-              {hasActions && <th className="dt-th dt-th-actions" />}
             </tr>
           </thead>
           <tbody>
@@ -190,6 +184,24 @@ export default function DataTable({
                         />
                       </td>
                     )}
+                    {hasActions && (
+                      <td className="dt-td dt-td-actions">
+                        <div className="dt-action-icons">
+                          {actions.map((action) => (
+                            <button
+                              key={action.key}
+                              type="button"
+                              className={`dt-action-icon dt-action-${action.key}`}
+                              onClick={() => handleAction(action.key, row)}
+                              title={action.label}
+                              aria-label={action.label}
+                            >
+                              {renderActionIcon(action)}
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                    )}
                     {columns.map((col) => (
                       <td
                         key={col.key}
@@ -198,34 +210,6 @@ export default function DataTable({
                         {renderCell(col, row)}
                       </td>
                     ))}
-                    {hasActions && (
-                      <td className="dt-td dt-td-actions">
-                        <button
-                          className="dt-menu-btn"
-                          onClick={(e) => toggleMenu(rowIndex, e)}
-                        >
-                          <DotsIcon />
-                        </button>
-                        {openMenuRow === rowIndex && (
-                          <div className="dt-menu-dropdown" ref={menuRef}>
-                            {actions.map((action) => (
-                              <button
-                                key={action.key}
-                                className="dt-menu-item"
-                                onClick={() => handleAction(action.key, row)}
-                              >
-                                {action.icon && (
-                                  <span className="dt-menu-item-icon">
-                                    {action.icon}
-                                  </span>
-                                )}
-                                {action.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                    )}
                   </tr>
                   {renderExpandableRow && renderExpandableRow(row)}
                 </Fragment>
@@ -238,12 +222,32 @@ export default function DataTable({
   );
 }
 
-function DotsIcon() {
+function EyeIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <circle cx="9" cy="4" r="0.75" fill="currentColor" />
-      <circle cx="9" cy="9" r="0.75" fill="currentColor" />
-      <circle cx="9" cy="14" r="0.75" fill="currentColor" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
     </svg>
   );
 }
