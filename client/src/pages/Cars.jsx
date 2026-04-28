@@ -11,7 +11,7 @@ import BulkActionBar from '../components/BulkActionBar';
 import CopyButton from '../components/CopyButton';
 import VinDisplay from '../components/VinDisplay';
 import { exportToCSV } from '../utils/export';
-import { US_STATES, US_PORTS } from '../utils/usLocations';
+import { US_STATES, US_PORTS, getPortForState } from '../utils/usLocations';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import './Cars.css';
@@ -1042,6 +1042,14 @@ function Cars() {
                       inputValue={formData.us_state || ''}
                       onInputChange={(_, newValue) => {
                         setFormData(prev => ({ ...prev, us_state: newValue }));
+                      }}
+                      onChange={(_, newValue) => {
+                        if (newValue && typeof newValue === 'object' && newValue.code) {
+                          const port = getPortForState(newValue.code);
+                          if (port) {
+                            setFormData(prev => ({ ...prev, us_state: newValue.name, us_port: port.name }));
+                          }
+                        }
                       }}
                       filterOptions={(options, { inputValue }) => {
                         const s = inputValue.trim().toLowerCase();
