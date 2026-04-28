@@ -11,6 +11,7 @@ import BulkActionBar from '../components/BulkActionBar';
 import CopyButton from '../components/CopyButton';
 import VinDisplay from '../components/VinDisplay';
 import { exportToCSV } from '../utils/export';
+import { US_STATES, US_PORTS } from '../utils/usLocations';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import './Cars.css';
@@ -1032,11 +1033,99 @@ function Cars() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.usState')}</label>
-                    <input type="text" className="form-control" name="us_state" value={formData.us_state} onChange={handleFormChange} />
+                    <Autocomplete
+                      freeSolo
+                      autoHighlight
+                      selectOnFocus
+                      options={US_STATES}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                      inputValue={formData.us_state || ''}
+                      onInputChange={(_, newValue) => {
+                        setFormData(prev => ({ ...prev, us_state: newValue }));
+                      }}
+                      filterOptions={(options, { inputValue }) => {
+                        const s = inputValue.trim().toLowerCase();
+                        if (!s) return options;
+                        return options.filter(o => o.code.toLowerCase().includes(s) || o.name.toLowerCase().includes(s));
+                      }}
+                      renderOption={(props, option) => {
+                        const { key, ...rest } = props;
+                        return (
+                          <li key={option.code} {...rest}>
+                            <span className="us-option-code">{option.code}</span>
+                            <span className="us-option-name">{option.name}</span>
+                          </li>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={t('common.selectOrSearch')}
+                          size="small"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: '#fff',
+                              '& fieldset': { borderColor: '#ced4da' },
+                              '&:hover fieldset': { borderColor: '#86b7fe' },
+                              '&.Mui-focused fieldset': { borderColor: '#86b7fe', boxShadow: '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' },
+                            },
+                            '& .MuiInputBase-input': { padding: '0.375rem 0.75rem', fontSize: '0.875rem' },
+                          }}
+                        />
+                      )}
+                      noOptionsText={t('common.noResults')}
+                      clearText={t('common.clear')}
+                      openText={t('common.open')}
+                      closeText={t('common.close')}
+                    />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.usPort')}</label>
-                    <input type="text" className="form-control" name="us_port" value={formData.us_port} onChange={handleFormChange} />
+                    <Autocomplete
+                      freeSolo
+                      autoHighlight
+                      selectOnFocus
+                      options={US_PORTS}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                      inputValue={formData.us_port || ''}
+                      onInputChange={(_, newValue) => {
+                        setFormData(prev => ({ ...prev, us_port: newValue }));
+                      }}
+                      filterOptions={(options, { inputValue }) => {
+                        const s = inputValue.trim().toLowerCase();
+                        if (!s) return options;
+                        return options.filter(o => o.code.toLowerCase().includes(s) || o.name.toLowerCase().includes(s));
+                      }}
+                      renderOption={(props, option) => {
+                        const { key, ...rest } = props;
+                        return (
+                          <li key={option.code} {...rest}>
+                            <span className="us-option-code">{option.code}</span>
+                            <span className="us-option-name">{option.name}</span>
+                          </li>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={t('common.selectOrSearch')}
+                          size="small"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: '#fff',
+                              '& fieldset': { borderColor: '#ced4da' },
+                              '&:hover fieldset': { borderColor: '#86b7fe' },
+                              '&.Mui-focused fieldset': { borderColor: '#86b7fe', boxShadow: '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' },
+                            },
+                            '& .MuiInputBase-input': { padding: '0.375rem 0.75rem', fontSize: '0.875rem' },
+                          }}
+                        />
+                      )}
+                      noOptionsText={t('common.noResults')}
+                      clearText={t('common.clear')}
+                      openText={t('common.open')}
+                      closeText={t('common.close')}
+                    />
                   </div>
                 </div>
                 <div className="row mb-3">
