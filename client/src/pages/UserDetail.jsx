@@ -306,7 +306,7 @@ function UserDetail() {
           {userData.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'User'}
         </span>
         {isAdmin && (
-          <Link to="/users" className="btn btn-sm btn-outline-primary">
+          <Link to={`/users?edit=${id}`} className="btn btn-sm btn-outline-primary">
             {t('common.edit')}
           </Link>
         )}

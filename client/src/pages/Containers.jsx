@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -33,6 +33,8 @@ function Containers() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoOpenedEditRef = useRef(false);
   const isAdmin = user?.role === 'admin';
 
   const columns = [
@@ -138,6 +140,29 @@ function Containers() {
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Auto-open edit modal when ?edit=ID is in the URL
+  useEffect(() => {
+    if (autoOpenedEditRef.current) return;
+    const editId = searchParams.get('edit');
+    if (!editId) return;
+
+    autoOpenedEditRef.current = true;
+    api.get(`/containers/${editId}`)
+      .then(res => {
+        const row = res.data?.data;
+        if (row) handleAction('edit', row);
+      })
+      .catch(err => console.error('Failed to load container for editing:', err))
+      .finally(() => {
+        setSearchParams(prev => {
+          const p = new URLSearchParams(prev);
+          p.delete('edit');
+          return p;
+        }, { replace: true });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Clear selection when data parameters change
   useEffect(() => {

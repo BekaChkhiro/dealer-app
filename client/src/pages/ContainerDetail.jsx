@@ -139,7 +139,7 @@ function ContainerDetail() {
           </span>
         </div>
         {isAdmin && (
-          <Link to="/containers" className="btn btn-sm btn-outline-primary">
+          <Link to={`/containers?edit=${id}`} className="btn btn-sm btn-outline-primary">
             {t('common.edit')}
           </Link>
         )}

@@ -336,7 +336,7 @@ function CarDetail() {
             )}
           </button>
           {isAdmin && (
-            <Link to="/cars" className="btn btn-sm btn-outline-primary">
+            <Link to={`/cars?edit=${id}`} className="btn btn-sm btn-outline-primary">
               {t('common.edit')}
             </Link>
           )}
