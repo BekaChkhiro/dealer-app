@@ -1,6 +1,22 @@
-import { useEffect, useRef, useCallback, Fragment } from 'react';
+import { useEffect, useRef, useCallback, useState, Fragment } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import './DataTable.css';
+
+function TableImage({ src }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [src]);
+  if (!src || failed) return <div className="dt-thumbnail-empty" />;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="dt-thumbnail"
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 export default function DataTable({
   columns,
@@ -76,11 +92,7 @@ export default function DataTable({
     const value = row[col.key];
 
     if (col.type === 'image') {
-      return value ? (
-        <img src={value} alt="" className="dt-thumbnail" />
-      ) : (
-        <div className="dt-thumbnail-empty" />
-      );
+      return <TableImage src={value} />;
     }
 
     if (value == null || value === '') return '—';
