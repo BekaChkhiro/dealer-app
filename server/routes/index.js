@@ -17,6 +17,8 @@ router.use('/vehicles', require('./vehicles'));
 router.use('/booking', require('./booking'));
 router.use('/containers', require('./containers'));
 router.use('/ports', require('./ports'));
+router.use('/car-brands', require('./carBrands'));
+router.use('/car-models', require('./carModels'));
 router.use('/calculator', require('./calculator'));
 router.use('/transactions', require('./transactions'));
 router.use('/tickets', require('./tickets'));

@@ -114,6 +114,8 @@ function Cars() {
   const [dealers, setDealers] = useState([]);
   const [cities, setCities] = useState([]);
   const [ports, setPorts] = useState([]);
+  const [carBrands, setCarBrands] = useState([]);
+  const [carModels, setCarModels] = useState([]);
 
   const FILTER_FIELDS = [
     { type: 'date-range', label: t('cars.purchaseDate'), startKey: 'start_date', endKey: 'end_date' },
@@ -305,14 +307,18 @@ function Cars() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [usersRes, citiesRes, portsRes] = await Promise.all([
+        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes] = await Promise.all([
           api.get('/users', { params: { limit: 500 } }),
           api.get('/cities'),
           api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
+          api.get('/car-brands'),
+          api.get('/car-models'),
         ]);
         setDealers((usersRes.data.data || []).filter((u) => u.role !== 'admin'));
         setCities(citiesRes.data.data || []);
         setPorts(portsRes.data.data || []);
+        setCarBrands(brandsRes.data.data || []);
+        setCarModels(modelsRes.data.data || []);
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -548,6 +554,13 @@ function Cars() {
 
       setEditModal(false);
       fetchData();
+      Promise.all([
+        api.get('/car-brands'),
+        api.get('/car-models'),
+      ]).then(([brandsRes, modelsRes]) => {
+        setCarBrands(brandsRes.data.data || []);
+        setCarModels(modelsRes.data.data || []);
+      }).catch(err => console.error('Error refreshing brand/model lists:', err));
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to save vehicle';
       setFormError(typeof msg === 'string' ? msg : 'Failed to save vehicle');
@@ -739,11 +752,85 @@ function Cars() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.mark')} <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control" name="mark" value={formData.mark} onChange={handleFormChange} required />
+                    <Autocomplete
+                      freeSolo
+                      autoHighlight
+                      selectOnFocus
+                      options={carBrands}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || ''))}
+                      inputValue={formData.mark || ''}
+                      onInputChange={(_, newValue) => {
+                        setFormData(prev => ({ ...prev, mark: newValue }));
+                      }}
+                      filterOptions={(options, { inputValue }) => {
+                        const s = inputValue.trim().toLowerCase();
+                        if (!s) return options;
+                        return options.filter(o => o.name.toLowerCase().includes(s));
+                      }}
+                      isOptionEqualToValue={(option, value) => option?.name === value?.name}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={t('common.selectOrSearch')}
+                          size="small"
+                          required={!formData.mark}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: '#fff',
+                              '& fieldset': { borderColor: '#ced4da' },
+                              '&:hover fieldset': { borderColor: '#86b7fe' },
+                              '&.Mui-focused fieldset': { borderColor: '#86b7fe', boxShadow: '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' },
+                            },
+                            '& .MuiInputBase-input': { padding: '0.375rem 0.75rem', fontSize: '0.875rem' },
+                          }}
+                        />
+                      )}
+                      noOptionsText={t('common.noResults')}
+                      clearText={t('common.clear')}
+                      openText={t('common.open')}
+                      closeText={t('common.close')}
+                    />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.model')} <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control" name="model" value={formData.model} onChange={handleFormChange} required />
+                    <Autocomplete
+                      freeSolo
+                      autoHighlight
+                      selectOnFocus
+                      options={carModels.filter(m => !formData.mark || (m.brand_name || '').toLowerCase() === formData.mark.toLowerCase())}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || ''))}
+                      inputValue={formData.model || ''}
+                      onInputChange={(_, newValue) => {
+                        setFormData(prev => ({ ...prev, model: newValue }));
+                      }}
+                      filterOptions={(options, { inputValue }) => {
+                        const s = inputValue.trim().toLowerCase();
+                        if (!s) return options;
+                        return options.filter(o => o.name.toLowerCase().includes(s));
+                      }}
+                      isOptionEqualToValue={(option, value) => option?.name === value?.name}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={t('common.selectOrSearch')}
+                          size="small"
+                          required={!formData.model}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: '#fff',
+                              '& fieldset': { borderColor: '#ced4da' },
+                              '&:hover fieldset': { borderColor: '#86b7fe' },
+                              '&.Mui-focused fieldset': { borderColor: '#86b7fe', boxShadow: '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' },
+                            },
+                            '& .MuiInputBase-input': { padding: '0.375rem 0.75rem', fontSize: '0.875rem' },
+                          }}
+                        />
+                      )}
+                      noOptionsText={t('common.noResults')}
+                      clearText={t('common.clear')}
+                      openText={t('common.open')}
+                      closeText={t('common.close')}
+                    />
                   </div>
                 </div>
                 <div className="row mb-3">

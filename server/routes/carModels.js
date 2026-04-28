@@ -1,0 +1,9 @@
+const express = require('express');
+const router = express.Router();
+const carBrandsController = require('../controllers/carBrandsController');
+const { requireAuth } = require('../middleware/auth');
+
+router.get('/', requireAuth, carBrandsController.listModels);
+router.post('/', requireAuth, carBrandsController.createModel);
+
+module.exports = router;

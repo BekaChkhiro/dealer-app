@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const { uploadToR2, deleteFromR2 } = require('../config/r2');
 const { logAudit } = require('../helpers/auditLog');
 const { applyWatermark, applyLogoWatermark } = require('../helpers/watermark');
+const { upsertBrandAndModel } = require('./carBrandsController');
 const path = require('path');
 
 const ALLOWED_SORT_COLUMNS = [
@@ -267,6 +268,8 @@ async function createVehicle(req, res) {
 
     logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip });
 
+    upsertBrandAndModel(mark, model).catch(err => console.error('upsertBrandAndModel (create) failed:', err));
+
     // Add field aliases for test compatibility
     const vehicle = result.rows[0];
     vehicle.lot = vehicle.lot_number;
@@ -447,6 +450,8 @@ async function updateVehicle(req, res) {
     }
 
     logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip });
+
+    upsertBrandAndModel(result.rows[0].mark, result.rows[0].model).catch(err => console.error('upsertBrandAndModel (update) failed:', err));
 
     // Add field aliases for test compatibility
     const vehicle = result.rows[0];
