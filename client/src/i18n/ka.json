@@ -197,6 +197,14 @@
     "debt": "ვალი",
     "editVehicle": "მანქანის რედაქტირება",
     "addNewVehicle": "ახალი მანქანა",
+    "tabs": {
+      "vehicle": "მანქანა",
+      "dealerReceiver": "დილერი და მიმღები",
+      "logistics": "ლოგისტიკა",
+      "pricingStatus": "ფასი და სტატუსი",
+      "dates": "თარიღები",
+      "additional": "დამატებითი"
+    },
     "vehicleImage": "მანქანის ფოტო",
     "vehicleInfo": "მანქანის ინფორმაცია",
     "mark": "მარკა",

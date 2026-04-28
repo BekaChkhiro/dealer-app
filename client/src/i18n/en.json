@@ -197,6 +197,14 @@
     "debt": "Debt",
     "editVehicle": "Edit Vehicle",
     "addNewVehicle": "Add New Vehicle",
+    "tabs": {
+      "vehicle": "Vehicle",
+      "dealerReceiver": "Dealer & Receiver",
+      "logistics": "Logistics",
+      "pricingStatus": "Pricing & Status",
+      "dates": "Dates",
+      "additional": "Additional"
+    },
     "vehicleImage": "Vehicle Image",
     "vehicleInfo": "Vehicle Info",
     "mark": "Mark",

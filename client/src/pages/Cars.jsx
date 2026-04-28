@@ -100,6 +100,7 @@ function Cars() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [activeTab, setActiveTab] = useState('vehicle');
 
   // Receiver data entry mode: 'manual' or 'upload'
   const [receiverEntryMode, setReceiverEntryMode] = useState('manual');
@@ -308,7 +309,7 @@ function Cars() {
           api.get('/cities'),
           api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
         ]);
-        setDealers(usersRes.data.data || []);
+        setDealers((usersRes.data.data || []).filter((u) => u.role !== 'admin'));
         setCities(citiesRes.data.data || []);
         setPorts(portsRes.data.data || []);
       } catch (err) {
@@ -423,6 +424,7 @@ function Cars() {
     setImageFile(null);
     setImagePreview(null);
     setFormError('');
+    setActiveTab('vehicle');
     setEditModal(true);
   }
 
@@ -448,6 +450,7 @@ function Cars() {
       setImageFile(null);
       setImagePreview(row.profile_image_url || null);
       setFormError('');
+      setActiveTab('vehicle');
       setEditModal(true);
     } else if (action === 'delete') {
       setDeleteConfirm(row);
@@ -512,6 +515,13 @@ function Cars() {
   async function handleFormSubmit(e) {
     e.preventDefault();
     setFormError('');
+
+    if (!formData.mark || !formData.model || !formData.vin || formData.vin.length > 17) {
+      setActiveTab('vehicle');
+      setFormError(t('cars.requiredFieldsMissing') || 'Please fill in required fields (Mark, Model, VIN).');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -684,12 +694,34 @@ function Cars() {
               <h5>{editRow ? t('cars.editVehicle') : t('cars.addNewVehicle')}</h5>
               <button className="cars-modal-close" onClick={() => setEditModal(false)}>&times;</button>
             </div>
+            <div className="cars-modal-tabs" role="tablist">
+              {[
+                { id: 'vehicle', label: t('cars.tabs.vehicle') },
+                { id: 'dealerReceiver', label: t('cars.tabs.dealerReceiver') },
+                { id: 'logistics', label: t('cars.tabs.logistics') },
+                { id: 'pricingStatus', label: t('cars.tabs.pricingStatus') },
+                { id: 'dates', label: t('cars.tabs.dates') },
+                { id: 'additional', label: t('cars.tabs.additional') },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  className={`cars-modal-tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             <form onSubmit={handleFormSubmit}>
               <div className="cars-modal-body">
                 {formError && (
                   <div className="alert alert-danger py-2 mb-3">{formError}</div>
                 )}
 
+                {activeTab === 'vehicle' && (<>
                 {/* Section 1 — Vehicle Image */}
                 <h6 className="cars-section-heading">{t('cars.vehicleImage')}</h6>
                 <div className="mb-3">
@@ -791,9 +823,9 @@ function Cars() {
                     </div>
                   </div>
                 </div>
+                </>)}
 
-                <hr />
-
+                {activeTab === 'dealerReceiver' && (<>
                 {/* Section 3 — Dealer & Receiver */}
                 <h6 className="cars-section-heading">{t('cars.dealerReceiver')}</h6>
                 <div className="row mb-3">

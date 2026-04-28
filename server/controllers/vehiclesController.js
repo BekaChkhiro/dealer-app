@@ -22,6 +22,13 @@ function extractR2Key(url) {
   return null;
 }
 
+// Multipart form-data sends every empty field as "". PostgreSQL integer/
+// numeric/date columns reject "" with "invalid input syntax", which silently
+// fails the whole INSERT. Convert blanks to null at the boundary.
+function emptyToNull(v) {
+  return v === '' ? null : v;
+}
+
 async function getVehicles(req, res) {
   try {
     const limit = Math.max(1, parseInt(req.query.limit) || 10);
@@ -243,7 +250,7 @@ async function createVehicle(req, res) {
       [
         dealer_id, receiver_fullname, receiverPersonalValue,
         mark, model, year, vin, lotValue, auction, receiver_phone,
-        us_state, destination_port, destination_port_id || null, us_port, is_sublot, is_fully_paid,
+        us_state, destination_port, destination_port_id, us_port, is_sublot, is_fully_paid,
         is_partially_paid, is_funded, is_insured, doc_type,
         container_cost, landing_cost, vehicle_price, total_price,
         payed_amount, debt_amount, container_number, line, current_status,
@@ -255,7 +262,7 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driverFullnameValue, driver_phone, driverLicenseValue, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
-      ]
+      ].map(emptyToNull)
     );
 
     logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: result.rows[0].id, action: 'CREATE', oldValues: null, newValues: result.rows[0], ipAddress: req.ip });
@@ -285,7 +292,7 @@ async function updateVehicle(req, res) {
     const addField = (column, value) => {
       if (value !== undefined) {
         fields.push(`${column} = $${paramIndex}`);
-        params.push(value);
+        params.push(emptyToNull(value));
         paramIndex++;
       }
     };
