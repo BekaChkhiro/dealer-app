@@ -756,6 +756,7 @@ function Cars() {
                       freeSolo
                       autoHighlight
                       selectOnFocus
+                      openOnFocus
                       options={carBrands}
                       getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || ''))}
                       inputValue={formData.mark || ''}
@@ -765,7 +766,7 @@ function Cars() {
                       filterOptions={(options, { inputValue }) => {
                         const s = inputValue.trim().toLowerCase();
                         if (!s) return options;
-                        return options.filter(o => o.name.toLowerCase().includes(s));
+                        return options.filter(o => (o.name || '').toLowerCase().includes(s));
                       }}
                       isOptionEqualToValue={(option, value) => option?.name === value?.name}
                       renderInput={(params) => (
@@ -797,18 +798,43 @@ function Cars() {
                       freeSolo
                       autoHighlight
                       selectOnFocus
-                      options={carModels.filter(m => !formData.mark || (m.brand_name || '').toLowerCase() === formData.mark.toLowerCase())}
+                      openOnFocus
+                      options={carModels}
                       getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || ''))}
                       inputValue={formData.model || ''}
                       onInputChange={(_, newValue) => {
                         setFormData(prev => ({ ...prev, model: newValue }));
                       }}
                       filterOptions={(options, { inputValue }) => {
-                        const s = inputValue.trim().toLowerCase();
-                        if (!s) return options;
-                        return options.filter(o => o.name.toLowerCase().includes(s));
+                        const search = inputValue.trim().toLowerCase();
+                        const brand = (formData.mark || '').trim().toLowerCase();
+
+                        if (!search) {
+                          if (brand) {
+                            const brandMatches = options.filter(o => (o.brand_name || '').toLowerCase() === brand);
+                            return brandMatches.length ? brandMatches : options;
+                          }
+                          return options;
+                        }
+
+                        const matches = options.filter(o => (o.name || '').toLowerCase().includes(search));
+                        if (brand) {
+                          const inBrand = matches.filter(o => (o.brand_name || '').toLowerCase() === brand);
+                          const others = matches.filter(o => (o.brand_name || '').toLowerCase() !== brand);
+                          return [...inBrand, ...others];
+                        }
+                        return matches;
                       }}
-                      isOptionEqualToValue={(option, value) => option?.name === value?.name}
+                      isOptionEqualToValue={(option, value) => option?.name === value?.name && option?.brand_name === value?.brand_name}
+                      renderOption={(props, option) => {
+                        const { key, ...rest } = props;
+                        return (
+                          <li key={`${option.brand_id}-${option.id}`} {...rest}>
+                            <span className="us-option-code">{option.brand_name}</span>
+                            <span className="us-option-name">{option.name}</span>
+                          </li>
+                        );
+                      }}
                       renderInput={(params) => (
                         <TextField
                           {...params}
