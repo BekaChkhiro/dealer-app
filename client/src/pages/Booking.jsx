@@ -390,6 +390,7 @@ function Booking() {
         selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        onRowClick={(row) => navigate(`/booking/${row.id}`)}
       />
 
       <Pagination

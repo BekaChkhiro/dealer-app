@@ -208,6 +208,7 @@ function Users() {
         onSort={handleSort}
         actions={actions}
         onAction={handleAction}
+        onRowClick={(row) => navigate(`/users/${row.id}`)}
       />
 
       <Pagination

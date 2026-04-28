@@ -655,6 +655,7 @@ function Cars() {
         selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        onRowClick={(row) => navigate(`/cars/${row.id}`)}
       />
 
       <Pagination

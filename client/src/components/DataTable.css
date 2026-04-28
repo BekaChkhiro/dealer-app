@@ -88,6 +88,10 @@
   border-bottom: none;
 }
 
+.dt-row-clickable {
+  cursor: pointer;
+}
+
 .dt-td {
   font-size: 12px;
   font-weight: 400;

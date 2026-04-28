@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -32,6 +32,7 @@ function formatDate(value) {
 function Containers() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const columns = [
@@ -355,6 +356,7 @@ function Containers() {
         selectable={isAdmin}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        onRowClick={(row) => navigate(`/containers/${row.id}`)}
       />
 
       <Pagination

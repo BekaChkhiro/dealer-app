@@ -15,6 +15,7 @@ export default function DataTable({
   selectedIds = new Set(),
   onSelectionChange,
   renderExpandableRow,
+  onRowClick,
 }) {
   const { t } = useTranslation();
   const [openMenuRow, setOpenMenuRow] = useState(null);
@@ -80,6 +81,12 @@ export default function DataTable({
     }
     onSelectionChange(next);
   }, [selectedIds, onSelectionChange]);
+
+  function handleRowClick(e, row) {
+    if (!onRowClick) return;
+    if (e.target.closest('button, a, input, select, textarea, label, .dt-menu-dropdown')) return;
+    onRowClick(row);
+  }
 
   function renderCell(col, row) {
     if (col.render) return col.render(row);
@@ -169,7 +176,10 @@ export default function DataTable({
             ) : (
               data.map((row, rowIndex) => (
                 <Fragment key={row.id ?? rowIndex}>
-                  <tr className={`dt-row ${selectable && selectedIds.has(row.id) ? 'dt-row-selected' : ''}`}>
+                  <tr
+                    className={`dt-row ${selectable && selectedIds.has(row.id) ? 'dt-row-selected' : ''} ${onRowClick ? 'dt-row-clickable' : ''}`}
+                    onClick={onRowClick ? (e) => handleRowClick(e, row) : undefined}
+                  >
                     {selectable && (
                       <td className="dt-td dt-td-checkbox">
                         <input
