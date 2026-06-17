@@ -550,7 +550,12 @@
     "comment": "კომენტარი",
     "showMore": "მეტის ჩვენება",
     "showLess": "ნაკლების ჩვენება",
-    "dealerReceiver": "დილერი / მიმღები"
+    "dealerReceiver": "დილერი / მიმღები",
+    "auctionPhotos": "აუქციონის ფოტოები",
+    "portPhotos": "პორტის ფოტოები",
+    "portOpeningPhotos": "პორტის გახსნის ფოტოები",
+    "uploadPhotos": "ფოტოების ატვირთვა",
+    "noPhotos": "ფოტოები ჯერ არ არის"
   },
   "userDetail": {
     "title": "მომხმარებლის დეტალები",

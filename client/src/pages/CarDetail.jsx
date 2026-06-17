@@ -103,7 +103,7 @@ function CarDetail() {
     return () => { ignore = true; };
   }, [id]);
 
-  // Handle file upload
+  // Handle file upload (general documents — no category)
   const handleFileUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -134,6 +134,43 @@ function CarDetail() {
       alert(err.response?.data?.message || 'Failed to upload file');
     } finally {
       setUploadingFile(false);
+    }
+  };
+
+  // Upload state keyed by category
+  const [uploadingCategory, setUploadingCategory] = useState(null);
+
+  // Handle photo upload for a specific category (accepts multiple files)
+  const handlePhotoUpload = async (category, event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const oversized = selectedFiles.find(f => f.size > 10 * 1024 * 1024);
+    if (oversized) {
+      alert(`File "${oversized.name}" is too large. Maximum size is 10MB.`);
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      setUploadingCategory(category);
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', category);
+        const res = await api.post(`/vehicles/${id}/files`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (res.data.success) {
+          setFiles(prev => [res.data.data, ...prev]);
+        }
+      }
+      event.target.value = '';
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      alert(err.response?.data?.message || 'Failed to upload photo');
+    } finally {
+      setUploadingCategory(null);
     }
   };
 
@@ -640,7 +677,94 @@ function CarDetail() {
         )}
       </div>
 
-      {/* Vehicle Files */}
+      {/* Photo Sections — Auction, Port, Port Opening */}
+      {[
+        { category: 'auction', labelKey: 'auctionPhotos', inputId: 'photo-upload-auction' },
+        { category: 'port', labelKey: 'portPhotos', inputId: 'photo-upload-port' },
+        { category: 'port_opening', labelKey: 'portOpeningPhotos', inputId: 'photo-upload-port-opening' },
+      ].map(({ category, labelKey, inputId }) => {
+        const categoryPhotos = files.filter(f => f.category === category);
+        const isUploading = uploadingCategory === category;
+        const canUpload = isAdmin || vehicle?.dealer_id === user?.id;
+
+        return (
+          <div key={category} className="car-detail-card">
+            <div className="car-detail-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{t(`carDetail.${labelKey}`)}</span>
+              {canUpload && (
+                <div>
+                  <input
+                    type="file"
+                    id={inputId}
+                    style={{ display: 'none' }}
+                    multiple
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handlePhotoUpload(category, e)}
+                    disabled={isUploading}
+                  />
+                  <label
+                    htmlFor={inputId}
+                    className="btn btn-sm btn-primary"
+                    style={{
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      opacity: isUploading ? 0.6 : 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    {isUploading ? t('common.uploading') : `+ ${t('carDetail.uploadPhotos')}`}
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {categoryPhotos.length === 0 ? (
+              <div className="car-detail-empty">{t('carDetail.noPhotos')}</div>
+            ) : (
+              <div className="car-detail-photo-grid">
+                {categoryPhotos.map((photo) => {
+                  const isImage = photo.file_type?.startsWith('image/');
+                  return (
+                    <div key={photo.id} className="car-detail-photo-tile">
+                      {isImage ? (
+                        <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="car-detail-photo-link">
+                          <img
+                            src={photo.file_url}
+                            alt={photo.file_name}
+                            className="car-detail-photo-thumb"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                          />
+                          <div className="car-detail-photo-fallback" style={{ display: 'none' }}>
+                            <span>{getFileIcon(photo.file_type)}</span>
+                            <span className="car-detail-photo-name">{photo.file_name}</span>
+                          </div>
+                        </a>
+                      ) : (
+                        <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="car-detail-photo-link car-detail-photo-doc">
+                          <span style={{ fontSize: '2rem' }}>{getFileIcon(photo.file_type)}</span>
+                          <span className="car-detail-photo-name">{photo.file_name}</span>
+                        </a>
+                      )}
+                      {canUpload && (
+                        <button
+                          type="button"
+                          onClick={() => handleFileDelete(photo.id)}
+                          disabled={deletingFileId === photo.id}
+                          className="car-detail-photo-delete"
+                          aria-label={`Delete ${photo.file_name}`}
+                        >
+                          {deletingFileId === photo.id ? '…' : '×'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Vehicle Files & Documents (general — no category) */}
       <div className="car-detail-card">
         <div className="car-detail-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Vehicle Files & Documents</span>
@@ -668,7 +792,7 @@ function CarDetail() {
             </div>
           )}
         </div>
-        {files.length === 0 ? (
+        {files.filter(f => !f.category).length === 0 ? (
           <div className="car-detail-empty">
             No files uploaded yet
             {(isAdmin || vehicle?.dealer_id === user?.id) && (
@@ -690,7 +814,7 @@ function CarDetail() {
               </tr>
             </thead>
             <tbody>
-              {files.map((file) => (
+              {files.filter(f => !f.category).map((file) => (
                 <tr key={file.id}>
                   <td style={{ fontSize: '1.5em', textAlign: 'center' }}>
                     {getFileIcon(file.file_type)}

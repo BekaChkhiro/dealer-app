@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import VinDisplay from '../components/VinDisplay';
+import { useTranslation } from '../context/LanguageContext';
 import './PublicTracking.css';
 
 function formatDate(value) {
@@ -11,6 +12,7 @@ function formatDate(value) {
 
 function PublicTracking() {
   const { vin } = useParams();
+  const { t } = useTranslation();
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -181,6 +183,44 @@ function PublicTracking() {
             </div>
           </div>
         </div>
+
+        {/* Photo Galleries */}
+        {[
+          { category: 'auction', labelKey: 'auctionPhotos' },
+          { category: 'port', labelKey: 'portPhotos' },
+          { category: 'port_opening', labelKey: 'portOpeningPhotos' },
+        ].map(({ category, labelKey }) => {
+          const photos = (vehicle.photos || []).filter(p => p.category === category);
+          if (photos.length === 0) return null;
+          return (
+            <div key={category} className="public-tracking-card">
+              <h3>{t(`carDetail.${labelKey}`)}</h3>
+              <div className="public-tracking-photo-grid">
+                {photos.map((photo) => {
+                  const isImage = photo.file_type?.startsWith('image/');
+                  return (
+                    <div key={photo.id} className="public-tracking-photo-tile">
+                      {isImage ? (
+                        <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="public-tracking-photo-link">
+                          <img
+                            src={photo.file_url}
+                            alt={photo.file_name}
+                            className="public-tracking-photo-thumb"
+                          />
+                        </a>
+                      ) : (
+                        <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="public-tracking-photo-link public-tracking-photo-doc">
+                          <span style={{ fontSize: '2rem' }}>📄</span>
+                          <span className="public-tracking-photo-name">{photo.file_name}</span>
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
 
         {/* Footer */}
         <div className="public-tracking-footer">

@@ -550,7 +550,12 @@
     "comment": "Comment",
     "showMore": "Show more",
     "showLess": "Show less",
-    "dealerReceiver": "Dealer / Receiver"
+    "dealerReceiver": "Dealer / Receiver",
+    "auctionPhotos": "Auction Photos",
+    "portPhotos": "Port Photos",
+    "portOpeningPhotos": "Port Opening Photos",
+    "uploadPhotos": "Upload photos",
+    "noPhotos": "No photos yet"
   },
   "userDetail": {
     "title": "User Details",

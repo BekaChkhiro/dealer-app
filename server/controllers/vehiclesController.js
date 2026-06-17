@@ -676,6 +676,17 @@ async function getPublicTracking(req, res) {
 
     const vehicle = result.rows[0];
 
+    // Attach categorized photos (auction / port / port_opening) for the public view.
+    // General documents (category IS NULL) are NOT exposed publicly.
+    const photosResult = await pool.query(
+      `SELECT id, file_name, file_url, file_type, category, created_at
+         FROM vehicle_files
+        WHERE vehicle_id = $1 AND category IN ('auction', 'port', 'port_opening')
+        ORDER BY created_at ASC`,
+      [vehicle.id]
+    );
+    vehicle.photos = photosResult.rows;
+
     res.json({ error: 0, success: true, data: vehicle });
   } catch (err) {
     console.error('getPublicTracking error:', err);
@@ -1443,6 +1454,7 @@ async function getVehicleFiles(req, res) {
         vf.file_url,
         vf.file_type,
         vf.file_size,
+        vf.category,
         vf.uploaded_by,
         vf.created_at,
         u.name || ' ' || u.surname as uploader_name
@@ -1461,6 +1473,9 @@ async function getVehicleFiles(req, res) {
 }
 
 // Upload a file for a vehicle
+// Allowed photo categories for vehicle_files. NULL = general document.
+const VEHICLE_FILE_CATEGORIES = ['auction', 'port', 'port_opening'];
+
 async function uploadVehicleFile(req, res) {
   try {
     const { id } = req.params;
@@ -1468,6 +1483,18 @@ async function uploadVehicleFile(req, res) {
 
     if (!file) {
       return res.status(400).json({ error: 1, success: false, message: 'No file uploaded' });
+    }
+
+    // Optional category: one of the allowed photo categories, or null for a general file
+    let category = req.body?.category;
+    if (category === undefined || category === null || category === '') {
+      category = null;
+    } else if (!VEHICLE_FILE_CATEGORIES.includes(category)) {
+      return res.status(400).json({
+        error: 1,
+        success: false,
+        message: `Invalid category. Allowed: ${VEHICLE_FILE_CATEGORIES.join(', ')}`
+      });
     }
 
     // Check if vehicle exists
@@ -1527,14 +1554,14 @@ async function uploadVehicleFile(req, res) {
 
     // Insert into database
     const result = await pool.query(
-      `INSERT INTO vehicle_files (vehicle_id, file_name, file_url, file_type, file_size, uploaded_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO vehicle_files (vehicle_id, file_name, file_url, file_type, file_size, category, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [id, file.originalname, fileUrl, file.mimetype, file.size, req.session?.user?.id]
+      [id, file.originalname, fileUrl, file.mimetype, file.size, category, req.session?.user?.id]
     );
 
     // Log audit
-    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: id, action: 'file_upload', oldValues: null, newValues: { file_name: file.originalname, file_id: result.rows[0].id }, ipAddress: req.ip });
+    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: id, action: 'file_upload', oldValues: null, newValues: { file_name: file.originalname, file_id: result.rows[0].id, category }, ipAddress: req.ip });
 
     res.json({
       error: 0,
