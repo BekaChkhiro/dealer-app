@@ -102,9 +102,11 @@ async function main() {
         const portId = String(leg.point2);
         const landPrice = num(leg.price);
         if (landPrice <= 0 || !PORTS[portId]) continue;
+        // Mirror srl.ge: total = inland + ocean, each leg independent.
+        // Emit a row for ALL 3 destinations (ocean = 0 where no sea route),
+        // so every city with an inland route appears, exactly like srl.ge.
         for (const destId of Object.keys(DESTS)) {
-          const oc = ocean[`${portId}|${destId}`];
-          if (!oc) continue;
+          const oc = ocean[`${portId}|${destId}`] || 0;
           rows.push({
             auction: auc.name, city, state,
             port: PORTS[portId], destination: DESTS[destId],
