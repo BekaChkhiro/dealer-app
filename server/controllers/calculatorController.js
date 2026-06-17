@@ -226,4 +226,26 @@ async function getPublicQuote(req, res) {
   }
 }
 
-module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote };
+// Returns the full priced matrix so the public calculator can cascade its
+// dropdowns (auction -> location -> port -> destination) like srl.ge and
+// compute the price client-side. Only rows with a usable total are returned.
+async function getPublicMatrix(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT auction, city, state, port, destination,
+              land_price, container_price, total_price
+         FROM calculator
+        WHERE auction IS NOT NULL AND auction <> ''
+          AND city IS NOT NULL AND city <> ''
+          AND port IS NOT NULL AND port <> ''
+          AND destination IS NOT NULL AND destination <> ''
+        ORDER BY auction, city, state, port, destination`
+    );
+    res.json({ error: 0, success: true, data: result.rows });
+  } catch (err) {
+    console.error('getPublicMatrix error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix };
