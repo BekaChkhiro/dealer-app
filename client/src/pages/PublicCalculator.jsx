@@ -524,20 +524,20 @@ export default function PublicCalculator() {
                         options={auctionOptions}
                       />
                     </Field>
-                    <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
-                      <Select
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        options={destOptions}
-                        disabled={!port}
-                      />
-                    </Field>
                     <Field label="აუქციონის ლოკაცია" icon={<IconPin className="h-3.5 w-3.5" />}>
                       <Select
                         value={location}
                         onChange={(e) => onLocationChange(e.target.value)}
                         options={locationOptions}
                         disabled={!auction}
+                      />
+                    </Field>
+                    <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
+                      <Select
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        options={destOptions}
+                        disabled={!port}
                       />
                     </Field>
                     <Field label="ჩატვირთვის პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
