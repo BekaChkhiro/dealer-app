@@ -113,7 +113,31 @@ function AuditLog() {
     }
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const params = { limit, page, asc: sortDir, sort_by: sortBy };
+        if (keyword) params.keyword = keyword;
+        if (filters.entity_type) params.entity_type = filters.entity_type;
+        if (filters.action) params.action = filters.action;
+        if (filters.start_date) params.start_date = filters.start_date;
+        if (filters.end_date) params.end_date = filters.end_date;
+        const res = await api.get('/audit-logs', { params });
+        if (!ignore) {
+          setData(res.data.data || []);
+          setTotal(res.data.total || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching audit logs:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   const columns = [
     { key: 'id', label: t('auditLog.id'), sortable: true },

@@ -32,9 +32,15 @@ async function login(req, res) {
 
     // Build session user object (exclude password_hash)
     const { password_hash, ...userObj } = dbUser;
-    req.session.user = userObj;
 
-    res.json({ error: 0, success: true, data: userObj });
+    req.session.regenerate((err) => {
+      if (err) return res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+      req.session.user = userObj;
+      req.session.save((err2) => {
+        if (err2) return res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+        res.json({ error: 0, success: true, data: userObj });
+      });
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
@@ -64,8 +70,8 @@ async function changePassword(req, res) {
     return res.status(400).json({ error: 1, success: false, message: 'Old password and new password are required' });
   }
 
-  if (new_password.length < 4) {
-    return res.status(400).json({ error: 1, success: false, message: 'New password must be at least 4 characters' });
+  if (new_password.length < 6) {
+    return res.status(400).json({ error: 1, success: false, message: 'New password must be at least 6 characters' });
   }
 
   try {
@@ -162,8 +168,8 @@ async function resetPassword(req, res) {
     return res.status(400).json({ error: 1, success: false, message: 'Token and new password are required' });
   }
 
-  if (new_password.length < 4) {
-    return res.status(400).json({ error: 1, success: false, message: 'New password must be at least 4 characters' });
+  if (new_password.length < 6) {
+    return res.status(400).json({ error: 1, success: false, message: 'New password must be at least 6 characters' });
   }
 
   try {

@@ -733,7 +733,7 @@ async function uploadReceiverIdDocument(req, res) {
     );
 
     // Log audit
-    await logAudit(req.session?.user?.id, 'vehicle', id, 'receiver_id_upload', null, { receiver_id_document_url: documentUrl }, req.ip);
+    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: id, action: 'receiver_id_upload', oldValues: null, newValues: { receiver_id_document_url: documentUrl }, ipAddress: req.ip });
 
     res.json({
       error: 0,
@@ -1534,15 +1534,7 @@ async function uploadVehicleFile(req, res) {
     );
 
     // Log audit
-    await logAudit(
-      req.session?.user?.id,
-      'vehicle',
-      id,
-      'file_upload',
-      null,
-      { file_name: file.originalname, file_id: result.rows[0].id },
-      req.ip
-    );
+    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: id, action: 'file_upload', oldValues: null, newValues: { file_name: file.originalname, file_id: result.rows[0].id }, ipAddress: req.ip });
 
     res.json({
       error: 0,
@@ -1591,15 +1583,7 @@ async function deleteVehicleFile(req, res) {
     await pool.query('DELETE FROM vehicle_files WHERE id = $1', [fileId]);
 
     // Log audit
-    await logAudit(
-      req.session?.user?.id,
-      'vehicle',
-      fileData.vehicle_id,
-      'file_delete',
-      { file_name: fileData.file_name, file_id: fileId },
-      null,
-      req.ip
-    );
+    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: fileData.vehicle_id, action: 'file_delete', oldValues: { file_name: fileData.file_name, file_id: fileId }, newValues: null, ipAddress: req.ip });
 
     res.json({
       error: 0,

@@ -31,11 +31,18 @@ function ContainerDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let ignore = false;
+
+    // Reset secondary state before fetching so stale data from prior id is cleared
+    setVehicles([]);
+    setRelatedBooking(null);
+
     async function fetchContainer() {
       try {
         setLoading(true);
         setError(null);
         const res = await api.get(`/containers/${id}`);
+        if (ignore) return;
         const c = res.data.data;
         setContainer(c);
 
@@ -45,7 +52,7 @@ function ContainerDetail() {
         if (c.container_number) {
           promises.push(
             api.get('/vehicles', { params: { keyword: c.container_number, limit: 100 } })
-              .then(r => setVehicles(r.data.data || []))
+              .then(r => { if (!ignore) setVehicles(r.data.data || []); })
               .catch(() => {})
           );
         }
@@ -55,6 +62,7 @@ function ContainerDetail() {
           promises.push(
             api.get('/booking', { params: { keyword: c.booking, limit: 1 } })
               .then(r => {
+                if (ignore) return;
                 const bookings = r.data.data || [];
                 if (bookings.length > 0) setRelatedBooking(bookings[0]);
               })
@@ -64,6 +72,7 @@ function ContainerDetail() {
 
         await Promise.all(promises);
       } catch (err) {
+        if (ignore) return;
         if (err.response?.status === 404) {
           setError('notFound');
         } else if (err.response?.status === 403) {
@@ -72,10 +81,12 @@ function ContainerDetail() {
           setError('loadError');
         }
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     fetchContainer();
+
+    return () => { ignore = true; };
   }, [id]);
 
   if (loading) {

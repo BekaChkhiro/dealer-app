@@ -24,6 +24,7 @@ export default function Settings() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [totalUsers, setTotalUsers] = useState(null);
+  const [totalUsersError, setTotalUsersError] = useState(false);
 
   // Initialize form from user
   useEffect(() => {
@@ -40,9 +41,10 @@ export default function Settings() {
   // Fetch user count for admin section
   useEffect(() => {
     if (isAdmin) {
+      setTotalUsersError(false);
       api.get('/users', { params: { limit: 1 } })
         .then(res => setTotalUsers(res.data.total || 0))
-        .catch(() => {});
+        .catch(() => { setTotalUsersError(true); });
     }
   }, [isAdmin]);
 
@@ -184,7 +186,9 @@ export default function Settings() {
             </div>
             <div className="settings-info-item">
               <span className="settings-info-label">{t('settings.totalUsers')}</span>
-              <span className="settings-info-value">{totalUsers != null ? totalUsers : '...'}</span>
+              <span className="settings-info-value">
+                {totalUsersError ? '—' : totalUsers != null ? totalUsers : '...'}
+              </span>
             </div>
           </div>
         </div>

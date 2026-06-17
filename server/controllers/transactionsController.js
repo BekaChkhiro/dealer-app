@@ -79,6 +79,20 @@ async function createTransaction(req, res) {
       return res.status(400).json({ error: 1, success: false, message: 'Payment type is required' });
     }
 
+    const paidNum = Number(paid_amount);
+    if (!Number.isFinite(paidNum) || paidNum < 0) {
+      client.release();
+      return res.status(400).json({ error: 1, success: false, message: 'paid_amount must be a valid number >= 0' });
+    }
+
+    if (payment_type === 'balance') {
+      const balanceNum = Number(addToBalanseAmount);
+      if (!Number.isFinite(balanceNum) || balanceNum < 0) {
+        client.release();
+        return res.status(400).json({ error: 1, success: false, message: 'addToBalanseAmount must be a valid number >= 0' });
+      }
+    }
+
     await client.query('BEGIN');
 
     const result = await client.query(
@@ -87,8 +101,6 @@ async function createTransaction(req, res) {
        RETURNING *`,
       [payer || null, vin || null, mark || null, model || null, year || null, buyer || null, personal_number || null, paid_amount || 0, payment_type, addToBalanseAmount || 0]
     );
-
-    const paidNum = Number(paid_amount) || 0;
 
     // Auto-update vehicle debt/paid when paying for a vehicle
     if (['car_amount', 'shipping', 'customs'].includes(payment_type) && vin) {
@@ -132,9 +144,16 @@ async function createTransaction(req, res) {
 }
 
 async function updateTransaction(req, res) {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const oldRecord = await pool.query('SELECT * FROM transactions WHERE id = $1', [id]);
+
+    if (oldRecord.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ error: 1, success: false, message: 'Transaction not found' });
+    }
+
     const { payer, vin, mark, model, year, buyer, personal_number, paid_amount, payment_type, addToBalanseAmount } = req.body;
 
     const fields = [];
@@ -166,42 +185,156 @@ async function updateTransaction(req, res) {
     }
 
     if (fields.length === 0) {
+      client.release();
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
     }
 
+    await client.query('BEGIN');
+
+    // --- Reverse the OLD transaction's side-effects ---
+    const old = oldRecord.rows[0];
+    const oldPaidNum = Number(old.paid_amount) || 0;
+    const oldPaymentType = old.payment_type;
+    const oldVin = old.vin;
+    const oldPayer = old.payer;
+    const oldAddToBalance = Number(old.addToBalanseAmount) || 0;
+
+    if (['car_amount', 'shipping', 'customs'].includes(oldPaymentType) && oldVin) {
+      await client.query(
+        `UPDATE vehicles SET payed_amount = GREATEST(0, COALESCE(payed_amount, 0) - $1),
+                             debt_amount = COALESCE(debt_amount, 0) + $1
+         WHERE vin = $2`,
+        [oldPaidNum, oldVin]
+      );
+      if (oldPayer) {
+        await client.query(
+          `UPDATE users SET debt = COALESCE((
+             SELECT SUM(v.debt_amount) FROM vehicles v WHERE v.dealer_id = users.id
+           ), 0)
+           WHERE username = $1`,
+          [oldPayer]
+        );
+      }
+    }
+
+    if (oldPaymentType === 'balance' && oldAddToBalance && oldPayer) {
+      await client.query(
+        `UPDATE users SET balance = COALESCE(balance, 0) - $1 WHERE username = $2`,
+        [oldAddToBalance, oldPayer]
+      );
+    }
+
+    // --- Apply the UPDATE ---
     params.push(id);
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE transactions SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       params
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 1, success: false, message: 'Transaction not found' });
+    // --- Apply the NEW transaction's side-effects ---
+    const newRow = result.rows[0];
+    const newPaidNum = Number(newRow.paid_amount) || 0;
+    const newPaymentType = newRow.payment_type;
+    const newVin = newRow.vin;
+    const newPayer = newRow.payer;
+    const newAddToBalance = Number(newRow.addToBalanseAmount) || 0;
+
+    if (['car_amount', 'shipping', 'customs'].includes(newPaymentType) && newVin) {
+      await client.query(
+        `UPDATE vehicles SET debt_amount = GREATEST(0, COALESCE(debt_amount, 0) - $1),
+                             payed_amount = COALESCE(payed_amount, 0) + $1
+         WHERE vin = $2`,
+        [newPaidNum, newVin]
+      );
+      if (newPayer) {
+        await client.query(
+          `UPDATE users SET debt = COALESCE((
+             SELECT SUM(v.debt_amount) FROM vehicles v WHERE v.dealer_id = users.id
+           ), 0)
+           WHERE username = $1`,
+          [newPayer]
+        );
+      }
     }
 
-    logAudit({ userId: req.session.user.id, entityType: 'transaction', entityId: parseInt(id), action: 'UPDATE', oldValues: oldRecord.rows[0], newValues: result.rows[0], ipAddress: req.ip });
-    res.json({ error: 0, success: true, data: result.rows[0] });
+    if (newPaymentType === 'balance' && newAddToBalance && newPayer) {
+      await client.query(
+        `UPDATE users SET balance = COALESCE(balance, 0) + $1 WHERE username = $2`,
+        [newAddToBalance, newPayer]
+      );
+    }
+
+    await client.query('COMMIT');
+    logAudit({ userId: req.session.user.id, entityType: 'transaction', entityId: parseInt(id), action: 'UPDATE', oldValues: old, newValues: newRow, ipAddress: req.ip });
+    res.json({ error: 0, success: true, data: newRow });
   } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (rbErr) { console.error('updateTransaction rollback error:', rbErr); }
     console.error('updateTransaction error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  } finally {
+    client.release();
   }
 }
 
 async function deleteTransaction(req, res) {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
 
-    const result = await pool.query('DELETE FROM transactions WHERE id = $1 RETURNING *', [id]);
-
-    if (result.rows.length === 0) {
+    const existing = await pool.query('SELECT * FROM transactions WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      client.release();
       return res.status(404).json({ error: 1, success: false, message: 'Transaction not found' });
     }
 
-    logAudit({ userId: req.session.user.id, entityType: 'transaction', entityId: parseInt(id), action: 'DELETE', oldValues: result.rows[0], newValues: null, ipAddress: req.ip });
+    const old = existing.rows[0];
+    const oldPaidNum = Number(old.paid_amount) || 0;
+    const oldPaymentType = old.payment_type;
+    const oldVin = old.vin;
+    const oldPayer = old.payer;
+    const oldAddToBalance = Number(old.addToBalanseAmount) || 0;
+
+    await client.query('BEGIN');
+
+    // Reverse vehicle debt/paid effects
+    if (['car_amount', 'shipping', 'customs'].includes(oldPaymentType) && oldVin) {
+      await client.query(
+        `UPDATE vehicles SET payed_amount = GREATEST(0, COALESCE(payed_amount, 0) - $1),
+                             debt_amount = COALESCE(debt_amount, 0) + $1
+         WHERE vin = $2`,
+        [oldPaidNum, oldVin]
+      );
+      // Recalculate user debt as SUM of their vehicles' debt_amount
+      if (oldPayer) {
+        await client.query(
+          `UPDATE users SET debt = COALESCE((
+             SELECT SUM(v.debt_amount) FROM vehicles v WHERE v.dealer_id = users.id
+           ), 0)
+           WHERE username = $1`,
+          [oldPayer]
+        );
+      }
+    }
+
+    // Reverse balance effect
+    if (oldPaymentType === 'balance' && oldAddToBalance && oldPayer) {
+      await client.query(
+        `UPDATE users SET balance = COALESCE(balance, 0) - $1 WHERE username = $2`,
+        [oldAddToBalance, oldPayer]
+      );
+    }
+
+    await client.query('DELETE FROM transactions WHERE id = $1', [id]);
+    await client.query('COMMIT');
+
+    logAudit({ userId: req.session.user.id, entityType: 'transaction', entityId: parseInt(id), action: 'DELETE', oldValues: old, newValues: null, ipAddress: req.ip });
     res.json({ error: 0, success: true, message: 'Transaction deleted' });
   } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (rbErr) { console.error('deleteTransaction rollback error:', rbErr); }
     console.error('deleteTransaction error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  } finally {
+    client.release();
   }
 }
 

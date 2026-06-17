@@ -200,6 +200,11 @@ async function markAsRead(req, res) {
 
 async function deleteMessage(req, res) {
   try {
+    // Only admins can delete messages
+    if (req.session.user.role !== 'admin') {
+      return res.status(403).json({ error: 1, success: false, message: 'Only admins can delete messages' });
+    }
+
     const { id } = req.params;
 
     const result = await pool.query('DELETE FROM messages WHERE id = $1 RETURNING *', [id]);

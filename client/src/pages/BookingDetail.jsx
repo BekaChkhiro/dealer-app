@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -13,6 +13,7 @@ function formatDate(value) {
 
 function BookingDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation();
   const isAdmin = user?.role === 'admin';
@@ -23,11 +24,17 @@ function BookingDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let ignore = false;
+
+    // Reset secondary state before fetching so stale data from prior id is cleared
+    setRelatedVehicle(null);
+
     async function fetchBooking() {
       try {
         setLoading(true);
         setError(null);
         const res = await api.get(`/booking/${id}`);
+        if (ignore) return;
         const b = res.data.data;
         setBooking(b);
 
@@ -35,6 +42,7 @@ function BookingDetail() {
         if (b.vin) {
           try {
             const vRes = await api.get('/vehicles', { params: { keyword: b.vin, limit: 1 } });
+            if (ignore) return;
             const vehicles = vRes.data.data || [];
             if (vehicles.length > 0) {
               setRelatedVehicle(vehicles[0]);
@@ -44,16 +52,19 @@ function BookingDetail() {
           }
         }
       } catch (err) {
+        if (ignore) return;
         if (err.response?.status === 404) {
           setError('notFound');
         } else {
           setError('loadError');
         }
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     fetchBooking();
+
+    return () => { ignore = true; };
   }, [id]);
 
   if (loading) {
@@ -109,9 +120,13 @@ function BookingDetail() {
           <h2>{title}</h2>
         </div>
         {isAdmin && (
-          <Link to="/booking" className="btn btn-sm btn-outline-primary">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={() => navigate(`/booking?edit=${id}`)}
+          >
             {t('common.edit')}
-          </Link>
+          </button>
         )}
       </div>
 
@@ -218,8 +233,8 @@ function BookingDetail() {
                 <span className="booking-detail-info-label">{t('cars.vin')}</span>
                 <VinDisplay vin={relatedVehicle.vin} className="booking-detail-info-value" />
               </div>
-              <InfoItem label={t('cars.buyer')} value={relatedVehicle.buyer_fullname} className="uppercase" />
-              <InfoItem label={t('cars.status')} value={relatedVehicle.status} />
+              <InfoItem label={t('cars.buyer')} value={relatedVehicle.buyer} className="uppercase" />
+              <InfoItem label={t('cars.status')} value={relatedVehicle.current_status} />
             </div>
             <Link to={`/cars/${relatedVehicle.id}`} className="booking-detail-related-link">
               {t('bookingDetail.viewVehicle')} &rarr;

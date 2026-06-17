@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -37,6 +37,7 @@ function Booking() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const isAdmin = user?.role === 'admin';
 
   const [data, setData] = useState([]);
@@ -62,6 +63,7 @@ function Booking() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   const [exporting, setExporting] = useState(false);
 
@@ -93,6 +95,42 @@ function Booking() {
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Open edit modal when navigated to with ?edit=<id> (e.g. from BookingDetail)
+  useEffect(() => {
+    if (!isAdmin) return;
+    const params = new URLSearchParams(location.search);
+    const editId = params.get('edit');
+    if (!editId) return;
+
+    async function openEditFromUrl() {
+      try {
+        const res = await api.get(`/booking/${editId}`);
+        const row = res.data.data;
+        if (!row) return;
+        const populated = { ...EMPTY_FORM };
+        for (const key of Object.keys(EMPTY_FORM)) {
+          if (BOOLEAN_FIELDS.includes(key)) {
+            populated[key] = !!row[key];
+          } else if (DATE_FIELDS.includes(key)) {
+            populated[key] = row[key] ? String(row[key]).slice(0, 10) : '';
+          } else {
+            populated[key] = row[key] != null ? String(row[key]) : '';
+          }
+        }
+        setEditRow(row);
+        setFormData(populated);
+        setFormError('');
+        setEditModal(true);
+        // Remove ?edit param from URL without re-navigating
+        navigate('/booking', { replace: true });
+      } catch {
+        // If the booking isn't found, silently ignore
+      }
+    }
+    openEditFromUrl();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, isAdmin]);
 
   // Clear selection when data parameters change
   useEffect(() => {
@@ -304,17 +342,20 @@ function Booking() {
 
   async function handleDelete() {
     if (!deleteConfirm) return;
+    setDeleteError('');
     try {
       await api.delete(`/booking/${deleteConfirm.id}`);
       setDeleteConfirm(null);
       fetchData();
     } catch (err) {
       console.error('Delete error:', err);
+      setDeleteError(err.response?.data?.message || err.response?.data?.error || t('booking.deleteFailed') || 'Failed to delete booking');
     }
   }
 
   async function handleBulkDelete() {
     if (selectedIds.size === 0) return;
+    setDeleteError('');
     setBulkDeleting(true);
     try {
       await api.post('/booking/bulk-delete', { ids: [...selectedIds] });
@@ -323,6 +364,8 @@ function Booking() {
       fetchData();
     } catch (err) {
       console.error('Bulk delete error:', err);
+      setDeleteError(err.response?.data?.message || err.response?.data?.error || t('booking.deleteFailed') || 'Failed to delete bookings');
+      setBulkDeleteConfirm(false);
     } finally {
       setBulkDeleting(false);
     }
@@ -430,8 +473,12 @@ function Booking() {
                     <label className="form-label">{t('booking.vin')}</label>
                     <select className="form-select" name="vin" value={formData.vin} onChange={handleFormChange}>
                       <option value="">— Select VIN —</option>
+                      {/* When editing, ensure the current value appears even if not in the available list */}
+                      {formData.vin && !vinCodes.some(v => (v.vin || v) === formData.vin) && (
+                        <option key={`current-vin-${formData.vin}`} value={formData.vin}>{formData.vin}</option>
+                      )}
                       {vinCodes.map(v => (
-                        <option key={v.vin || v} value={v.vin || v}>{v.vin || v}</option>
+                        <option key={`vin-${v.vin || v}`} value={v.vin || v}>{v.vin || v}</option>
                       ))}
                     </select>
                   </div>
@@ -462,8 +509,12 @@ function Booking() {
                     <label className="form-label">{t('booking.container')}</label>
                     <select className="form-select" name="container" value={formData.container} onChange={handleFormChange}>
                       <option value="">— Select Container —</option>
+                      {/* When editing, ensure the current value appears even if not in the available list */}
+                      {formData.container && !containersList.some(c => (c.container || c) === formData.container) && (
+                        <option key={`current-container-${formData.container}`} value={formData.container}>{formData.container}</option>
+                      )}
                       {containersList.map(c => (
-                        <option key={c.container || c} value={c.container || c}>{c.container || c}</option>
+                        <option key={`container-${c.container || c}`} value={c.container || c}>{c.container || c}</option>
                       ))}
                     </select>
                   </div>
@@ -564,13 +615,21 @@ function Booking() {
         </div>
       )}
 
+      {/* Delete error toast */}
+      {deleteError && (
+        <div className="alert alert-danger alert-dismissible" role="alert" style={{ marginTop: '16px' }}>
+          {deleteError}
+          <button type="button" className="btn-close" aria-label="Close" onClick={() => setDeleteError('')} />
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
-        <div className="booking-modal-overlay" onClick={() => setDeleteConfirm(null)}>
+        <div className="booking-modal-overlay" onClick={() => { setDeleteConfirm(null); setDeleteError(''); }}>
           <div className="booking-modal booking-modal-sm" onClick={e => e.stopPropagation()}>
             <div className="booking-modal-header">
               <h5>{t('booking.deleteBooking')}</h5>
-              <button className="booking-modal-close" onClick={() => setDeleteConfirm(null)}>&times;</button>
+              <button className="booking-modal-close" onClick={() => { setDeleteConfirm(null); setDeleteError(''); }}>&times;</button>
             </div>
             <div className="booking-modal-body">
               <p>{t('booking.confirmDeleteBooking')}</p>
@@ -580,7 +639,7 @@ function Booking() {
               </p>
             </div>
             <div className="booking-modal-footer">
-              <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</button>
+              <button className="btn btn-secondary" onClick={() => { setDeleteConfirm(null); setDeleteError(''); }}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={handleDelete}>{t('common.delete')}</button>
             </div>
           </div>
@@ -589,18 +648,18 @@ function Booking() {
 
       {/* Bulk Delete Confirmation Modal */}
       {bulkDeleteConfirm && (
-        <div className="booking-modal-overlay" onClick={() => setBulkDeleteConfirm(false)}>
+        <div className="booking-modal-overlay" onClick={() => { setBulkDeleteConfirm(false); setDeleteError(''); }}>
           <div className="booking-modal booking-modal-sm" onClick={e => e.stopPropagation()}>
             <div className="booking-modal-header">
               <h5>{t('bulk.bulkDelete')}</h5>
-              <button className="booking-modal-close" onClick={() => setBulkDeleteConfirm(false)}>&times;</button>
+              <button className="booking-modal-close" onClick={() => { setBulkDeleteConfirm(false); setDeleteError(''); }}>&times;</button>
             </div>
             <div className="booking-modal-body">
               <p>{t('bulk.confirmBulkDelete')}</p>
               <p className="text-muted mb-0">{selectedIds.size} {t('bulk.selected')} — {t('bulk.cannotUndo')}</p>
             </div>
             <div className="booking-modal-footer">
-              <button className="btn btn-secondary" onClick={() => setBulkDeleteConfirm(false)}>{t('common.cancel')}</button>
+              <button className="btn btn-secondary" onClick={() => { setBulkDeleteConfirm(false); setDeleteError(''); }}>{t('common.cancel')}</button>
               <button className="btn btn-danger" onClick={handleBulkDelete} disabled={bulkDeleting}>
                 {bulkDeleting ? t('bulk.deleting') : t('bulk.deleteItems')}
               </button>

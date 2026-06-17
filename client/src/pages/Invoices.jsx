@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -38,33 +38,49 @@ function Invoices() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+  const keywordDebounceRef = useRef(null);
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
 
-  const fetchInvoices = () => {
+  // Debounce keyword changes by 300 ms
+  useEffect(() => {
+    clearTimeout(keywordDebounceRef.current);
+    keywordDebounceRef.current = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+      setPage(1);
+    }, 300);
+    return () => { clearTimeout(keywordDebounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyword]);
+
+  useEffect(() => {
+    let ignore = false;
     setLoading(true);
     const params = {
       page,
       limit,
-      keyword,
+      keyword: debouncedKeyword,
       ...filters,
     };
 
     api.get('/vehicles/invoices/list', { params })
       .then((res) => {
-        const d = res.data;
-        setData(d.data || []);
-        setTotal(d.total || 0);
+        if (!ignore) {
+          const d = res.data;
+          setData(d.data || []);
+          setTotal(d.total || 0);
+        }
       })
       .catch((err) => {
         console.error('Fetch invoices error:', err);
-        setData([]);
-        setTotal(0);
+        if (!ignore) {
+          setData([]);
+          setTotal(0);
+        }
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => { if (!ignore) setLoading(false); });
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [page, limit, keyword, filters]);
+    return () => { ignore = true; };
+  }, [page, limit, debouncedKeyword, filters]);
 
   const handleDownloadInvoice = async (vehicleId, type) => {
     try {
@@ -96,7 +112,6 @@ function Invoices() {
 
   const handleApplyFilters = () => {
     setPage(1);
-    fetchInvoices();
   };
 
   const handleResetFilters = () => {

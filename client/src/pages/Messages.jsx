@@ -72,7 +72,7 @@ function Messages() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm(t.messages?.confirmDelete || 'Are you sure you want to delete this message?')) {
+    if (!window.confirm(t('messages.confirmDelete'))) {
       return;
     }
 
@@ -81,7 +81,7 @@ function Messages() {
       fetchMessages();
     } catch (err) {
       console.error('Delete message error:', err);
-      alert(t.messages?.deleteError || 'Failed to delete message');
+      alert(t('messages.deleteError'));
     }
   };
 
@@ -89,57 +89,56 @@ function Messages() {
     {
       key: 'id',
       label: 'ID',
-      render: (val) => `#${val}`
+      render: (row) => `#${row.id}`
     },
     {
       key: 'from_user_name',
-      label: t.messages?.from || 'From',
-      render: (val, row) => `${row.from_user_name || ''} ${row.from_user_surname || ''}`
+      label: t('messages.from'),
+      render: (row) => `${row.from_user_name || ''} ${row.from_user_surname || ''}`
     },
     {
       key: 'subject',
-      label: t.messages?.subject || 'Subject',
-      render: (val, row) => (
+      label: t('messages.subject'),
+      render: (row) => (
         <span style={{ fontWeight: row.read_at ? 'normal' : 'bold' }}>
-          {val}
+          {row.subject}
           {!row.read_at && <span className="unread-badge">New</span>}
         </span>
       )
     },
     {
       key: 'created_at',
-      label: t.messages?.date || 'Date',
-      render: formatDate
+      label: t('messages.date'),
+      render: (row) => formatDate(row.created_at)
     },
     {
       key: 'read_at',
-      label: t.messages?.status || 'Status',
-      render: (val) => (
-        <span className={`status-badge ${val ? 'read' : 'unread'}`}>
-          {val ? (t.messages?.read || 'Read') : (t.messages?.unread || 'Unread')}
+      label: t('messages.status'),
+      render: (row) => (
+        <span className={`status-badge ${row.read_at ? 'read' : 'unread'}`}>
+          {row.read_at ? t('messages.read') : t('messages.unread')}
         </span>
       )
     }
   ];
 
   const actions = [
-    {
-      label: t.messages?.view || 'View',
-      handler: (row) => handleViewMessage(row)
-    }
+    { key: 'view', label: t('messages.view') }
   ];
 
   if (isAdmin) {
-    actions.push({
-      label: t.common?.delete || 'Delete',
-      handler: (row) => handleDelete(row.id)
-    });
+    actions.push({ key: 'delete', label: t('common.delete') });
   }
+
+  const handleAction = (action, row) => {
+    if (action === 'view') handleViewMessage(row);
+    else if (action === 'delete') handleDelete(row.id);
+  };
 
   return (
     <div className="messages-page">
       <div className="page-header">
-        <h2>{t.messages?.title || 'Messages'}</h2>
+        <h2>{t('messages.title')}</h2>
       </div>
 
       <div className="action-bar">
@@ -153,31 +152,31 @@ function Messages() {
                 setPage(1);
               }}
             />
-            <span>{t.messages?.showUnreadOnly || 'Show unread only'}</span>
+            <span>{t('messages.showUnreadOnly')}</span>
           </label>
         </div>
         <div className="right-actions">
           <input
             type="text"
             className="search-input"
-            placeholder={t.messages?.searchPlaceholder || 'Search messages...'}
+            placeholder={t('messages.searchPlaceholder')}
             value={keyword}
             onChange={handleSearch}
           />
         </div>
       </div>
 
-      {loading && <div className="loading">{t.common?.loading || 'Loading...'}</div>}
+      {loading && <div className="loading">{t('common.loading')}</div>}
 
       {!loading && messages.length === 0 && (
         <div className="no-data">
-          {t.messages?.noMessages || 'No messages found'}
+          {t('messages.noMessages')}
         </div>
       )}
 
       {!loading && messages.length > 0 && (
         <>
-          <DataTable columns={columns} data={messages} actions={actions} />
+          <DataTable columns={columns} data={messages} actions={actions} onAction={handleAction} />
           <Pagination
             total={total}
             page={page}
@@ -201,27 +200,27 @@ function Messages() {
             <div className="modal-body">
               <div className="message-meta">
                 <div className="meta-item">
-                  <strong>{t.messages?.from || 'From'}:</strong>
+                  <strong>{t('messages.from')}:</strong>
                   <span>{selectedMessage.from_user_name} {selectedMessage.from_user_surname}</span>
                 </div>
                 <div className="meta-item">
-                  <strong>{t.messages?.date || 'Date'}:</strong>
+                  <strong>{t('messages.date')}:</strong>
                   <span>{formatDate(selectedMessage.created_at)}</span>
                 </div>
                 {selectedMessage.read_at && (
                   <div className="meta-item">
-                    <strong>{t.messages?.readAt || 'Read at'}:</strong>
+                    <strong>{t('messages.readAt')}:</strong>
                     <span>{formatDate(selectedMessage.read_at)}</span>
                   </div>
                 )}
               </div>
               <div className="message-body">
-                {selectedMessage.body || <em>{t.messages?.noContent || 'No message content'}</em>}
+                {selectedMessage.body || <em>{t('messages.noContent')}</em>}
               </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={handleCloseModal}>
-                {t.common?.close || 'Close'}
+                {t('common.close')}
               </button>
             </div>
           </div>

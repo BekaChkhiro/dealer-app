@@ -151,7 +151,7 @@ const NAV_ITEMS = [
   { labelKey: 'nav.booking', path: '/booking', icon: BookingIcon },
   { labelKey: 'nav.cars', path: '/cars', icon: CarsIcon },
   { labelKey: 'nav.containers', path: '/containers', icon: ContainersIcon },
-  { labelKey: 'nav.ports', path: '/ports', icon: PortsIcon },
+  { labelKey: 'nav.ports', path: '/ports', icon: PortsIcon, adminOnly: true },
   { labelKey: 'nav.calculator', path: '/calculator', icon: CalculatorIcon },
   { labelKey: 'nav.transactions', path: '/transactions', icon: TransactionsIcon },
   { labelKey: 'nav.ticket', path: '/ticket', icon: TicketIcon },

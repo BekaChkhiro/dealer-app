@@ -63,23 +63,36 @@ function UserDetail() {
 
   // Fetch user
   useEffect(() => {
+    let ignore = false;
+
+    // Reset secondary state so navigating to a new user doesn't show the old one's data
+    setVehicles([]);
+    setVehiclesTotal(0);
+    setVehiclesPage(1);
+    setTransactions([]);
+    setTransactionsTotal(0);
+    setTransactionsPage(1);
+
     async function fetchUser() {
       try {
         setLoading(true);
         setError(null);
         const res = await api.get(`/users/${id}`);
-        setUserData(res.data.data);
+        if (!ignore) setUserData(res.data.data);
       } catch (err) {
+        if (ignore) return;
         if (err.response?.status === 404) {
           setError('notFound');
         } else {
           setError('loadError');
         }
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     fetchUser();
+
+    return () => { ignore = true; };
   }, [id]);
 
   // Fetch vehicles

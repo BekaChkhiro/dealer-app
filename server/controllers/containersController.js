@@ -142,30 +142,41 @@ async function updateVehiclesForContainerStatus(containerNumber, oldStatus, newS
   if (vehiclesResult.rows.length === 0) return { updated: 0, vehicles: [] };
 
   const updatedVehicles = [];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  for (const vehicle of vehiclesResult.rows) {
-    const oldVehicleStatus = vehicle.current_status;
+    for (const vehicle of vehiclesResult.rows) {
+      const oldVehicleStatus = vehicle.current_status;
 
-    // Update the vehicle status
-    const updateResult = await pool.query(
-      'UPDATE vehicles SET current_status = $1 WHERE id = $2 RETURNING *',
-      [vehicleStatus, vehicle.id]
-    );
+      // Update the vehicle status
+      const updateResult = await client.query(
+        'UPDATE vehicles SET current_status = $1 WHERE id = $2 RETURNING *',
+        [vehicleStatus, vehicle.id]
+      );
 
-    if (updateResult.rows.length > 0) {
-      updatedVehicles.push(updateResult.rows[0]);
+      if (updateResult.rows.length > 0) {
+        updatedVehicles.push(updateResult.rows[0]);
 
-      // Log the audit for each vehicle
-      logAudit({
-        userId,
-        entityType: 'vehicle',
-        entityId: vehicle.id,
-        action: 'UPDATE',
-        oldValues: { current_status: oldVehicleStatus },
-        newValues: { current_status: vehicleStatus, updated_by_container: containerNumber },
-        ipAddress
-      });
+        // Log the audit for each vehicle
+        logAudit({
+          userId,
+          entityType: 'vehicle',
+          entityId: vehicle.id,
+          action: 'UPDATE',
+          oldValues: { current_status: oldVehicleStatus },
+          newValues: { current_status: vehicleStatus, updated_by_container: containerNumber },
+          ipAddress
+        });
+      }
     }
+
+    await client.query('COMMIT');
+  } catch (txErr) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    throw txErr;
+  } finally {
+    client.release();
   }
 
   return { updated: updatedVehicles.length, vehicles: updatedVehicles };
@@ -412,7 +423,7 @@ async function getAvailableVehicles(req, res) {
              u.name AS dealer_name, u.surname AS dealer_surname
       FROM vehicles v
       LEFT JOIN users u ON v.dealer_id = u.id
-      WHERE (v.container_number IS NULL OR v.container_number = '')
+      WHERE v.container_id IS NULL
     `;
 
     const params = [];
@@ -476,26 +487,39 @@ async function assignVehiclesToContainer(req, res) {
     // Map container status to vehicle status
     const vehicleStatus = CONTAINER_TO_VEHICLE_STATUS[container.status] || container.status;
 
-    // Update vehicles with the container number and sync status
-    const updateResult = await pool.query(
-      `UPDATE vehicles
-       SET container_number = $1, current_status = $2
-       WHERE id = ANY($3::int[])
-       RETURNING id, vin`,
-      [container.container_number, vehicleStatus, vehicleIds]
-    );
+    const client = await pool.connect();
+    let updateResult;
+    try {
+      await client.query('BEGIN');
 
-    // Log audit for each vehicle
-    for (const vehicle of updateResult.rows) {
-      logAudit({
-        userId: req.session.user.id,
-        entityType: 'vehicle',
-        entityId: vehicle.id,
-        action: 'UPDATE',
-        oldValues: { container_number: null },
-        newValues: { container_number: container.container_number, assigned_to_container_id: id },
-        ipAddress: req.ip
-      });
+      // Update vehicles with the container id, container number, and sync status
+      updateResult = await client.query(
+        `UPDATE vehicles
+         SET container_id = $1, container_number = $2, current_status = $3
+         WHERE id = ANY($4::int[])
+         RETURNING id, vin`,
+        [container.id, container.container_number, vehicleStatus, vehicleIds]
+      );
+
+      // Log audit for each vehicle
+      for (const vehicle of updateResult.rows) {
+        logAudit({
+          userId: req.session.user.id,
+          entityType: 'vehicle',
+          entityId: vehicle.id,
+          action: 'UPDATE',
+          oldValues: { container_number: null, container_id: null },
+          newValues: { container_number: container.container_number, container_id: container.id, assigned_to_container_id: id },
+          ipAddress: req.ip
+        });
+      }
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+      throw txErr;
+    } finally {
+      client.release();
     }
 
     res.json({
@@ -532,7 +556,7 @@ async function removeVehicleFromContainer(req, res) {
 
     // Get vehicle current state
     const vehicleResult = await pool.query(
-      'SELECT id, vin, container_number FROM vehicles WHERE id = $1',
+      'SELECT id, vin, container_id, container_number FROM vehicles WHERE id = $1',
       [vehicleId]
     );
 
@@ -543,14 +567,14 @@ async function removeVehicleFromContainer(req, res) {
     const vehicle = vehicleResult.rows[0];
 
     // Verify vehicle is actually in this container
-    if (vehicle.container_number !== container.container_number) {
+    if (parseInt(vehicle.container_id) !== parseInt(id)) {
       return res.status(400).json({ error: 1, success: false, message: 'Vehicle is not in this container' });
     }
 
     // Remove vehicle from container
     const updateResult = await pool.query(
       `UPDATE vehicles
-       SET container_number = NULL, current_status = 'pending'
+       SET container_id = NULL, container_number = NULL, current_status = 'pending'
        WHERE id = $1
        RETURNING id, vin`,
       [vehicleId]
@@ -562,8 +586,8 @@ async function removeVehicleFromContainer(req, res) {
       entityType: 'vehicle',
       entityId: parseInt(vehicleId),
       action: 'UPDATE',
-      oldValues: { container_number: container.container_number },
-      newValues: { container_number: null, removed_from_container_id: id },
+      oldValues: { container_id: container.id, container_number: container.container_number },
+      newValues: { container_id: null, container_number: null, removed_from_container_id: id },
       ipAddress: req.ip
     });
 

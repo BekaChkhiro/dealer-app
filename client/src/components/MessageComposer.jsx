@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
 import './MessageComposer.css';
@@ -11,6 +11,15 @@ function MessageComposer({ userId, userName }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  const successTimerRef = useRef(null);
+
+  // Clear the success-dismiss timer on unmount to avoid state updates after unmount
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -21,10 +30,16 @@ function MessageComposer({ userId, userName }) {
       return;
     }
 
+    const recipientId = parseInt(userId, 10);
+    if (isNaN(recipientId)) {
+      setError(t('messages.invalidRecipient') || 'Invalid recipient');
+      return;
+    }
+
     try {
       setLoading(true);
       await api.post('/messages', {
-        to_user_id: parseInt(userId),
+        to_user_id: recipientId,
         subject: subject.trim(),
         body: body.trim() || null
       });
@@ -34,7 +49,8 @@ function MessageComposer({ userId, userName }) {
       setBody('');
 
       // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Send message error:', err);
       setError(err.response?.data?.message || t('messages.sendError') || 'Failed to send message');

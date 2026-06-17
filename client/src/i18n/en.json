@@ -47,7 +47,8 @@
     "close": "Close",
     "sending": "Sending...",
     "apply": "Apply",
-    "reset": "Reset"
+    "reset": "Reset",
+    "uploading": "Uploading..."
   },
   "messages": {
     "title": "Messages",
@@ -176,7 +177,8 @@
     "confirmVerifyId": "Are you sure you want to verify this ID document?",
     "confirmRejectId": "Are you sure you want to reject this ID document?",
     "confirmDeleteId": "Are you sure you want to delete this ID document?",
-    "selectIdDocument": "Select an image or PDF file (max 10MB)"
+    "selectIdDocument": "Select an image or PDF file (max 10MB)",
+    "saveVehicleFirst": "Save the vehicle first before uploading a document"
   },
   "cars": {
     "title": "Cars",

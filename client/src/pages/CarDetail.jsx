@@ -37,11 +37,18 @@ function CarDetail() {
   const [deletingFileId, setDeletingFileId] = useState(null);
 
   useEffect(() => {
+    let ignore = false;
+
     async function fetchVehicle() {
+      // Reset secondary state before fetching so stale data from prior id is cleared
+      setTransactions([]);
+      setBookings([]);
+
       try {
         setLoading(true);
         setError(null);
         const res = await api.get(`/vehicles/${id}`);
+        if (ignore) return;
         const v = res.data.data;
         setVehicle(v);
 
@@ -51,10 +58,12 @@ function CarDetail() {
             api.get('/transactions', { params: { keyword: v.vin, limit: 100 } }).catch(() => ({ data: { data: [] } })),
             api.get('/booking', { params: { keyword: v.vin, limit: 100 } }).catch(() => ({ data: { data: [] } })),
           ]);
+          if (ignore) return;
           setTransactions(txRes.data.data || []);
           setBookings(bkRes.data.data || []);
         }
       } catch (err) {
+        if (ignore) return;
         if (err.response?.status === 404) {
           setError('notFound');
         } else if (err.response?.status === 403) {
@@ -63,26 +72,35 @@ function CarDetail() {
           setError('loadError');
         }
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     }
     fetchVehicle();
+
+    return () => { ignore = true; };
   }, [id]);
 
   // Fetch vehicle files
   useEffect(() => {
+    let ignore = false;
+
     async function fetchFiles() {
+      setFiles([]);
       try {
         const res = await api.get(`/vehicles/${id}/files`);
-        setFiles(res.data.data || []);
+        if (!ignore) setFiles(res.data.data || []);
       } catch (err) {
-        console.error('Error fetching files:', err);
-        setFiles([]);
+        if (!ignore) {
+          console.error('Error fetching files:', err);
+          setFiles([]);
+        }
       }
     }
     if (id) {
       fetchFiles();
     }
+
+    return () => { ignore = true; };
   }, [id]);
 
   // Handle file upload
@@ -107,7 +125,7 @@ function CarDetail() {
       });
 
       if (res.data.success) {
-        setFiles([res.data.data, ...files]);
+        setFiles(prev => [res.data.data, ...prev]);
         event.target.value = '';
         alert('File uploaded successfully');
       }
@@ -128,7 +146,7 @@ function CarDetail() {
     try {
       setDeletingFileId(fileId);
       await api.delete(`/vehicles/files/${fileId}`);
-      setFiles(files.filter(f => f.id !== fileId));
+      setFiles(prev => prev.filter(f => f.id !== fileId));
       alert('File deleted successfully');
     } catch (err) {
       console.error('Error deleting file:', err);
@@ -202,9 +220,30 @@ function CarDetail() {
 
   const handleCopyTrackingLink = () => {
     const trackingUrl = `${window.location.origin}/track/${vehicle.vin}`;
+    if (!navigator.clipboard) {
+      // Fallback for insecure origins: use execCommand
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = trackingUrl;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+      } catch {
+        // Copy not supported — do not show "Copied!"
+      }
+      return;
+    }
     navigator.clipboard.writeText(trackingUrl).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
+    }).catch(() => {
+      // Copy failed — do not show "Copied!"
     });
   };
 

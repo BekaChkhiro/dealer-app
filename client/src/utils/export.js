@@ -1,6 +1,11 @@
 function escapeCSVValue(value) {
   if (value == null) return '';
-  const str = String(value);
+  let str = String(value);
+  // Neutralize CSV formula injection: a leading =, +, -, @, tab or CR can be
+  // interpreted as a formula by Excel/Sheets. Prefix with a single quote.
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = "'" + str;
+  }
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return '"' + str.replace(/"/g, '""') + '"';
   }
@@ -10,7 +15,7 @@ function escapeCSVValue(value) {
 export function exportToCSV(data, columns, filename) {
   const headerRow = columns.map((col) => escapeCSVValue(col.label)).join(',');
 
-  const dataRows = data.map((row) =>
+  const dataRows = (data || []).map((row) =>
     columns
       .map((col) => {
         const value = col.render ? col.render(row) : row[col.key];

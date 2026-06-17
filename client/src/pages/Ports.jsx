@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -132,6 +132,8 @@ function Ports() {
   // Remove vehicle confirm state
   const [removeVehicleConfirm, setRemoveVehicleConfirm] = useState(null);
 
+  const vehicleSearchTimeoutRef = useRef(null);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -147,7 +149,27 @@ function Ports() {
     }
   }, [limit, page, keyword, sortBy, sortDir]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const params = { limit, page, asc: sortDir, sort_by: sortBy };
+        if (keyword) params.keyword = keyword;
+        const res = await api.get('/ports', { params });
+        if (!ignore) {
+          setData(res.data.data || []);
+          setTotal(res.data.total || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching ports:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, page, keyword, sortBy, sortDir]);
 
   const fetchContainersForPort = useCallback(async (portId) => {
     try {
@@ -387,11 +409,15 @@ function Ports() {
     const value = e.target.value;
     setVehicleSearchKeyword(value);
     // Debounce search
-    clearTimeout(window.vehicleSearchTimeout);
-    window.vehicleSearchTimeout = setTimeout(() => {
+    clearTimeout(vehicleSearchTimeoutRef.current);
+    vehicleSearchTimeoutRef.current = setTimeout(() => {
       fetchAvailableVehicles(value);
     }, 300);
   }
+
+  useEffect(() => {
+    return () => { clearTimeout(vehicleSearchTimeoutRef.current); };
+  }, []);
 
   function toggleVehicleSelection(vehicleId) {
     setSelectedVehicleIds(prev => {

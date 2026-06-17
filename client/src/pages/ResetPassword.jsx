@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
@@ -16,6 +16,15 @@ export default function ResetPassword() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const redirectTimerRef = useRef(null);
+
+  // Clear redirect timer on unmount to avoid acting on an unmounted component
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +48,7 @@ export default function ResetPassword() {
       });
       if (res.data.success) {
         setSuccess(true);
-        setTimeout(() => navigate('/login', { replace: true }), 3000);
+        redirectTimerRef.current = setTimeout(() => navigate('/login', { replace: true }), 3000);
       } else {
         setError(res.data.message || t('resetPassword.error'));
       }

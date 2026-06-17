@@ -107,7 +107,27 @@ function Transactions() {
     }
   }, [limit, page, keyword, sortBy, sortDir]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const params = { limit, page, asc: sortDir, sort_by: sortBy };
+        if (keyword) params.keyword = keyword;
+        const res = await api.get('/transactions', { params });
+        if (!ignore) {
+          setData(res.data.data || []);
+          setTotal(res.data.total || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, page, keyword, sortBy, sortDir]);
 
   useEffect(() => {
     async function fetchVinCodes() {

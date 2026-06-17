@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import VinDisplay from '../components/VinDisplay';
 import './PublicTracking.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -22,7 +20,7 @@ function PublicTracking() {
       try {
         setLoading(true);
         setError(null);
-        const res = await axios.get(`${API_BASE_URL}/public/track/${vin}`);
+        const res = await api.get(`/public/track/${vin}`);
         setVehicle(res.data.data);
       } catch (err) {
         if (err.response?.status === 404) {

@@ -139,7 +139,30 @@ function Containers() {
     }
   }, [limit, page, keyword, sortBy, sortDir, filters]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const params = { limit, page, asc: sortDir, sort_by: sortBy };
+        if (keyword) params.keyword = keyword;
+        if (filters.start_date) params.start_date = filters.start_date;
+        if (filters.end_date) params.end_date = filters.end_date;
+        if (filters.status) params.status = filters.status;
+        const res = await api.get('/containers', { params });
+        if (!ignore) {
+          setData(res.data.data || []);
+          setTotal(res.data.total || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching containers:', err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, page, keyword, sortBy, sortDir, filters]);
 
   // Auto-open edit modal when ?edit=ID is in the URL
   useEffect(() => {
