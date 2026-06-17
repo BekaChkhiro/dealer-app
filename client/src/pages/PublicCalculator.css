@@ -286,3 +286,95 @@
     padding: 24px 16px 40px;
   }
 }
+
+/* ---- Tabs ----------------------------------------------- */
+.pub-calc-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.pub-calc-tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6c757d;
+  cursor: pointer;
+  margin-bottom: -2px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.pub-calc-tab:hover {
+  color: #313a46;
+}
+
+.pub-calc-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+/* ---- Text input (lot number) --------------------------- */
+.pub-calc-field input[type="text"] {
+  background-color: #f8f9fa;
+  border: 1.5px solid #dee2e6;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #212529;
+  min-height: 44px;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pub-calc-field input[type="text"]:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* button sits inline as a field; align to bottom of the row */
+.pub-calc-field--btn {
+  justify-content: flex-end;
+}
+
+.pub-calc-field--btn .pub-calc-btn {
+  min-width: 100%;
+}
+
+/* ---- Lot search result --------------------------------- */
+.pub-calc-lot-result {
+  border-top: 2px solid #f0f0f0;
+  padding-top: 24px;
+}
+
+.pub-calc-lot-vehicle {
+  margin-bottom: 20px;
+}
+
+.pub-calc-lot-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #313a46;
+  margin-bottom: 10px;
+}
+
+.pub-calc-lot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.pub-calc-lot-meta strong {
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.pub-calc-lot-result .pub-calc-field {
+  margin-bottom: 20px;
+}

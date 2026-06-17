@@ -1,8 +1,9 @@
-// Server-side bid.cars lot scraper (Cloudflare-protected -> needs a real browser).
-// Copart lots are "1-<lot>", IAAI lots are "0-<lot>".
-const { chromium } = require('playwright');
-
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+// Server-side bid.cars lot lookup. bid.cars is Cloudflare-protected and blocks
+// datacenter IPs, so we fetch the rendered HTML through a scraping API
+// (ScraperAPI free tier) which uses residential IPs + solves the challenge,
+// then parse the lot's location/vehicle from the og/JSON-LD structured data.
+//
+// Requires env SCRAPER_API_KEY. Copart lots are "1-<lot>", IAAI lots are "0-<lot>".
 
 function lotUrl(auction, lot) {
   const prefix = auction === 'Copart' ? '1' : auction === 'IAAI' ? '0' : null;
@@ -12,74 +13,85 @@ function lotUrl(auction, lot) {
   return `https://bid.cars/en/lot/${prefix}-${clean}`;
 }
 
-// Scrape a single lot. Returns structured vehicle data or { ok:false }.
+// Pull "content" of a meta tag by property/name from raw HTML.
+function metaContent(html, key) {
+  const re = new RegExp(
+    `<meta[^>]+(?:property|name)=["']${key}["'][^>]*content=["']([^"']*)["']`,
+    'i'
+  );
+  let m = html.match(re);
+  if (m) return m[1];
+  // attribute order can be reversed (content before property)
+  const re2 = new RegExp(
+    `<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${key}["']`,
+    'i'
+  );
+  m = html.match(re2);
+  return m ? m[1] : '';
+}
+
+function decodeEntities(s) {
+  return (s || '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&#x27;/gi, "'");
+}
+
+// Parse the structured data out of a bid.cars lot HTML page.
+function parseLotHtml(html) {
+  const desc = decodeEntities(metaContent(html, 'og:description') || metaContent(html, 'description'));
+  const title = decodeEntities(metaContent(html, 'og:title'));
+
+  const locM = desc.match(/Location:\s*([A-Za-z .'\-]+?)\s*\(([A-Z]{2})\)/i);
+  const vinM = desc.match(/VIN:\s*([A-HJ-NPR-Z0-9]{11,17})/i);
+  const lotM = desc.match(/Lot:\s*(\d-\d+)/i);
+  const odoM = desc.match(/Odometer:\s*([\d  ,]+mi)/i);
+  const titleM = title.match(/^([^|]+?)\s*\|/);
+  const shipM = decodeEntities(html).match(/Shipping from:\s*([A-Za-z .'\-]+?)\s*\(([A-Z]{2})\)/i);
+
+  if (!desc || !locM) return null;
+  return {
+    vehicle: titleM ? titleM[1].trim() : '',
+    vin: vinM ? vinM[1] : null,
+    lot: lotM ? lotM[1] : null,
+    odometer: odoM ? odoM[1].replace(/\s+/g, ' ').trim() : null,
+    location: { city: locM[1].trim(), state: locM[2] },
+    bidcarsPort: shipM ? `${shipM[1].trim()} (${shipM[2]})` : null,
+  };
+}
+
+async function fetchViaScraperApi(targetUrl) {
+  const key = process.env.SCRAPER_API_KEY;
+  if (!key) return { ok: false, error: 'no-key' };
+  const api = `https://api.scraperapi.com/?api_key=${key}` +
+    `&url=${encodeURIComponent(targetUrl)}&render=true&country_code=us`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 70000);
+  try {
+    const res = await fetch(api, { signal: ctrl.signal });
+    if (!res.ok) return { ok: false, error: `scraperapi-${res.status}` };
+    const html = await res.text();
+    return { ok: true, html };
+  } catch (err) {
+    return { ok: false, error: err.name === 'AbortError' ? 'timeout' : err.message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Public: scrape a lot and return structured data or { ok:false, error }.
 async function scrapeLot(auction, lot) {
   const url = lotUrl(auction, lot);
   if (!url) return { ok: false, error: 'invalid auction or lot' };
 
-  let browser;
-  try {
-    browser = await chromium.launch({
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-      ],
-    });
-    const ctx = await browser.newContext({ userAgent: UA, locale: 'en-US', viewport: { width: 1366, height: 900 } });
-    const page = await ctx.newPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  const fetched = await fetchViaScraperApi(url);
+  if (!fetched.ok) return { ok: false, error: fetched.error, url };
 
-    // Wait out the Cloudflare "Just a moment…" interstitial.
-    for (let i = 0; i < 20; i++) {
-      const t = await page.title().catch(() => '');
-      if (!/just a moment|attention required/i.test(t)) break;
-      await page.waitForTimeout(1500);
-    }
-    await page.waitForTimeout(1500);
-
-    const meta = await page.evaluate(() => {
-      const get = (sel) => document.querySelector(sel)?.getAttribute('content') || '';
-      const ld = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
-        .map((s) => { try { return JSON.parse(s.textContent); } catch { return null; } })
-        .filter(Boolean).find((x) => x['@type'] === 'Vehicle') || null;
-      return {
-        desc: get('meta[property="og:description"]') || get('meta[name="description"]'),
-        title: get('meta[property="og:title"]'),
-        bodyText: document.body.innerText,
-        ld,
-      };
-    });
-
-    const desc = meta.desc || '';
-    const blocked = /just a moment|attention required|cf-chl|cloudflare/i.test(meta.bodyText || '') && !desc;
-    if (blocked) return { ok: false, error: 'blocked', url };
-
-    const locM = desc.match(/Location:\s*([A-Za-z .'\-]+?)\s*\(([A-Z]{2})\)/i);
-    const vinM = desc.match(/VIN:\s*([A-HJ-NPR-Z0-9]{11,17})/i);
-    const lotM = desc.match(/Lot:\s*(\d-\d+)/i);
-    const odoM = desc.match(/Odometer:\s*([\d  ,]+mi)/i);
-    const titleM = (meta.title || '').match(/^([^|]+?)\s*\|/);
-    const shipM = (meta.bodyText || '').match(/Shipping from:\s*([A-Za-z .'\-]+?)\s*\(([A-Z]{2})\)/i);
-
-    if (!desc || !locM) return { ok: false, error: 'no-data', url };
-
-    return {
-      ok: true,
-      url,
-      vehicle: titleM ? titleM[1].trim() : (meta.ld?.name || '').replace(/\s*\|.*/, '').trim(),
-      vin: vinM ? vinM[1] : meta.ld?.vehicleIdentificationNumber || null,
-      lot: lotM ? lotM[1] : null,
-      odometer: odoM ? odoM[1].replace(/\s+/g, ' ').trim() : null,
-      location: { city: locM[1].trim(), state: locM[2] },
-      bidcarsPort: shipM ? `${shipM[1].trim()} (${shipM[2]})` : null,
-    };
-  } catch (err) {
-    return { ok: false, error: err.message, url };
-  } finally {
-    if (browser) await browser.close().catch(() => {});
+  const parsed = parseLotHtml(fetched.html);
+  if (!parsed) {
+    const blocked = /just a moment|attention required|cf-chl|cloudflare/i.test(fetched.html);
+    return { ok: false, error: blocked ? 'blocked' : 'no-data', url };
   }
+  return { ok: true, url, ...parsed };
 }
 
-module.exports = { scrapeLot, lotUrl };
+module.exports = { scrapeLot, lotUrl, parseLotHtml };
