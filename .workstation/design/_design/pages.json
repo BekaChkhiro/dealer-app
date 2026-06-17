@@ -1,0 +1,24 @@
+{
+  "pages": [
+    {
+      "id": "pb8xl4fm",
+      "name": "Page 1"
+    },
+    {
+      "id": "pz4s6akj",
+      "name": "Landing"
+    },
+    {
+      "id": "pllzmrqz",
+      "name": "Auth"
+    }
+  ],
+  "assign": {
+    "landing.tsx": "pz4s6akj",
+    "login.tsx": "pllzmrqz"
+  },
+  "lastHint": {
+    "landing.tsx": "Landing",
+    "login.tsx": "Auth"
+  }
+}
