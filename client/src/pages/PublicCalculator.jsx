@@ -319,11 +319,15 @@ export default function PublicCalculator() {
   }, [vehicleTypes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Cascading option lists ───────────────────────────────────────────────────
-  const auctions = useMemo(() => uniq(matrix.map((r) => r.auction)).sort(), [matrix]);
+  // Only offer routes that actually have an ocean leg (container_price > 0), so
+  // every full selection computes a real sea-freight cost.
+  const usable = useMemo(() => matrix.filter((r) => parseFloat(r.container_price) > 0), [matrix]);
+
+  const auctions = useMemo(() => uniq(usable.map((r) => r.auction)).sort(), [usable]);
 
   const locations = useMemo(() => {
     const seen = new Map();
-    for (const r of matrix) {
+    for (const r of usable) {
       if (r.auction !== auction) continue;
       const k = locKey(r.city, r.state);
       if (!seen.has(k)) seen.set(k, { city: r.city, state: r.state });
@@ -331,23 +335,23 @@ export default function PublicCalculator() {
     return Array.from(seen.values()).sort((a, b) =>
       (a.city + a.state).localeCompare(b.city + b.state)
     );
-  }, [matrix, auction]);
+  }, [usable, auction]);
 
   const ports = useMemo(() => {
     if (!auction || !location) return [];
     const [city, state] = location.split('|');
     return uniq(
-      matrix
+      usable
         .filter((r) => r.auction === auction && r.city === city && (r.state || '') === state)
         .map((r) => r.port)
     ).sort();
-  }, [matrix, auction, location]);
+  }, [usable, auction, location]);
 
   const destinations = useMemo(() => {
     if (!auction || !location || !port) return [];
     const [city, state] = location.split('|');
     return uniq(
-      matrix
+      usable
         .filter(
           (r) =>
             r.auction === auction &&
@@ -357,13 +361,13 @@ export default function PublicCalculator() {
         )
         .map((r) => r.destination)
     ).sort();
-  }, [matrix, auction, location, port]);
+  }, [usable, auction, location, port]);
 
   const matchedRow = useMemo(() => {
     if (!auction || !location || !port || !destination) return null;
     const [city, state] = location.split('|');
     return (
-      matrix.find(
+      usable.find(
         (r) =>
           r.auction === auction &&
           r.city === city &&
@@ -372,7 +376,7 @@ export default function PublicCalculator() {
           r.destination === destination
       ) || null
     );
-  }, [matrix, auction, location, port, destination]);
+  }, [usable, auction, location, port, destination]);
 
   const containerPrice = matchedRow ? parseFloat(matchedRow.container_price) || 0 : 0;
   // vehicle type adjusts the inland cost (Sedan = 0)
@@ -387,7 +391,7 @@ export default function PublicCalculator() {
   const onLocationChange = (v) => { setLocation(v); setPort(''); setDestination(''); };
   const onPortChange = (v) => { setPort(v); setDestination(''); };
 
-  const hasOptions = matrix.length > 0;
+  const hasOptions = usable.length > 0;
 
   // Derive display labels for the route map
   const originLabel = location ? location.split('|')[0] : '';
