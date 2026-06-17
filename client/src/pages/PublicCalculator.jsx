@@ -1,13 +1,15 @@
+// @page: Landing
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { useTranslation } from '../context/LanguageContext';
 
-// ─── Formatting ───────────────────────────────────────────────────────────────
-function formatUSD(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return '$0';
-  return '$' + num.toLocaleString('en-US');
+/* ===========================================================
+   CAUCASUS AUTO — Landing (Phase 1: hero + calculator)
+   =========================================================== */
+
+// ─── Formatting ────────────────────────────────────────────────────────────────
+function formatUSD(v) {
+  return '$' + Number(v).toLocaleString('en-US');
 }
 
 // distinct preserving first-seen order
@@ -16,251 +18,115 @@ function uniq(arr) {
 }
 const locKey = (city, state) => `${city}|${state || ''}`;
 
-// ─── Inline SVG Icons ─────────────────────────────────────────────────────────
-function IconTruck({ className = '' }) {
+/* ---------- small inline icons ---------- */
+const IconTruck = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M5 17a2 2 0 1 0 4 0a2 2 0 1 0-4 0m10 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0" />
+    <path d="M5 17H3V6a1 1 0 0 1 1-1h9v12m-4 0h6m4 0h2v-6h-8m0-5h5l3 5" />
+  </svg>
+);
+const IconShip = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M2 21c1.3.1 2.4-1 3.3-1s2.5 1 3.4 1c1 0 2.2-1 3.3-1s2.3 1 3.3 1c1.3.1 2.4-1 3.4-1s2.5 1 3.3 1" />
+    <path d="M6 20.5c-1.4-1.8-2.4-4-2.8-5.2c-.2-.5 0-.7.5-.9l7.5-3.3c.4-.2.6-.3.8-.3s.4.1.8.3l7.5 3.3c.5.2.6.4.5.9c-.4 1.2-1.4 3.4-2.8 5.2" />
+    <path d="m6 13l.2-2.8c.1-1.7.2-2.6.8-3.2c.6-.5 1.4-.5 3.2-.5h3.6c1.8 0 2.6 0 3.2.5c.6.6.6 1.5.8 3.2L21 13" />
+    <path d="M12 3v8" />
+  </svg>
+);
+const IconPin = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+const IconChevron = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="m6 9 6 6 6-6" /></svg>
+);
+const IconArrow = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14m-6-7 7 7-7 7" /></svg>
+);
+const IconShield = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="m9 12 2 2 4-4" /></svg>
+);
+
+/* ---------- reusable bits ---------- */
+function Mark({ className }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
-      <rect x="9" y="11" width="14" height="10" rx="2"/>
-      <circle cx="12" cy="21" r="1"/>
-      <circle cx="20" cy="21" r="1"/>
+    <svg viewBox="0 0 48 28" className={className} fill="none">
+      <path className="fill-brand-600" d="M24 24C15 23 6 18 1 8c8 5 16 7 23 8z" />
+      <path className="fill-brand-700" d="M24 24c9-1 18-6 23-16-8 5-16 7-23 8z" />
+      <path className="fill-brand-400" d="M24 15C17 14 10 11 6 4c6 4 12 6 18 6z" />
+      <path className="fill-brand-500" d="M24 15c7-1 14-4 18-11-4 5-11 7-18 6z" />
     </svg>
   );
 }
-
-function IconShip({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 21c.6.5 1.2 1 2.5 1C7 22 7 20 9.5 20c2.4 0 2.4 2 4.9 2 2.4 0 2.4-2 4.8-2 1.2 0 1.8.5 2.3 1"/>
-      <path d="M19 10H5l-1 6h16l-1-6z"/>
-      <path d="M12 3v7M8 10V6l4-3 4 3v4"/>
-    </svg>
-  );
-}
-
-function IconPin({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-      <circle cx="12" cy="9" r="2.5"/>
-    </svg>
-  );
-}
-
-function IconChevron({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
-  );
-}
-
-function IconArrow({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="5" y1="12" x2="19" y2="12"/>
-      <polyline points="12 5 19 12 12 19"/>
-    </svg>
-  );
-}
-
-function IconShield({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      <polyline points="9 12 11 14 15 10"/>
-    </svg>
-  );
-}
-
-function IconCheck({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  );
-}
-
-function IconPlus({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19"/>
-      <line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  );
-}
-
-function IconMinus({ className = '' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  );
-}
-
-// ─── Logo ─────────────────────────────────────────────────────────────────────
-function Mark() {
-  return (
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#f9700b"/>
-      <path d="M8 22 L16 10 L24 22" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-      <path d="M10.5 18h11" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  );
-}
-
 function Logo() {
   return (
-    <span className="flex items-center gap-2.5">
-      <Mark />
-      <span className="font-display font-700 text-xl tracking-wide text-white">SRL</span>
-    </span>
-  );
-}
-
-// ─── Field wrapper + styled select ───────────────────────────────────────────
-function Field({ label, id, children }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-xs font-600 uppercase tracking-widest text-ink-400">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function SelectField({ id, value, onChange, disabled, children }) {
-  return (
-    <div className="relative">
-      <select
-        id={id}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        className="w-full appearance-none bg-ink-900 border border-ink-700 rounded-field px-4 py-3 pr-10 text-sm text-ink-100 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        {children}
-      </select>
-      <IconChevron className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
-    </div>
-  );
-}
-
-// ─── FAQ Accordion Item ────────────────────────────────────────────────────────
-function FaqItem({ question, answer }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border-b border-ink-800 last:border-0">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        className="w-full flex items-center justify-between gap-4 py-5 text-left text-sm font-600 text-ink-100 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
-      >
-        <span>{question}</span>
-        <span className="shrink-0 w-6 h-6 rounded-pill bg-ink-800 flex items-center justify-center text-ink-300">
-          {open ? <IconMinus className="w-3 h-3" /> : <IconPlus className="w-3 h-3" />}
-        </span>
-      </button>
-      {open && (
-        <p className="pb-5 text-sm text-ink-400 leading-relaxed">
-          {answer}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ─── Route Map Visual ─────────────────────────────────────────────────────────
-function RouteMap({ origin, midPort, dest, landPrice, containerPrice }) {
-  const hasData = origin && midPort && dest;
-  return (
-    <div className="bg-ink-900 rounded-card p-5 mt-6">
-      <div className="flex items-center gap-0 overflow-x-auto">
-        {/* Origin */}
-        <div className="flex flex-col items-center shrink-0 min-w-[80px]">
-          <div className="w-9 h-9 rounded-pill bg-brand-500/20 border border-brand-500/40 flex items-center justify-center mb-1">
-            <IconPin className="w-4 h-4 text-brand-400" />
-          </div>
-          <span className="text-[11px] text-center text-ink-300 max-w-[80px] leading-tight">
-            {hasData ? origin : 'Origin'}
-          </span>
-        </div>
-
-        {/* Inland leg */}
-        <div className="flex-1 flex flex-col items-center min-w-[80px]">
-          <div className="flex items-center w-full">
-            <div className="flex-1 h-px bg-ink-700 border-t border-dashed border-ink-600" />
-            <div className="mx-1 shrink-0 bg-ink-800 border border-ink-700 rounded-pill px-2 py-0.5 text-[10px] font-600 text-ink-300 whitespace-nowrap">
-              <IconTruck className="inline w-3 h-3 mr-0.5 -mt-0.5" />
-              {landPrice > 0 ? formatUSD(landPrice) : '—'}
-            </div>
-            <div className="flex-1 h-px bg-ink-700 border-t border-dashed border-ink-600" />
-          </div>
-          <span className="text-[10px] text-ink-500 mt-1">შიდა</span>
-        </div>
-
-        {/* Port */}
-        <div className="flex flex-col items-center shrink-0 min-w-[80px]">
-          <div className="w-9 h-9 rounded-pill bg-accent-500/20 border border-accent-500/40 flex items-center justify-center mb-1">
-            <IconShip className="w-4 h-4 text-accent-400" />
-          </div>
-          <span className="text-[11px] text-center text-ink-300 max-w-[80px] leading-tight">
-            {hasData ? midPort : 'Port'}
-          </span>
-        </div>
-
-        {/* Ocean leg */}
-        <div className="flex-1 flex flex-col items-center min-w-[80px]">
-          <div className="flex items-center w-full">
-            <div className="flex-1 h-px bg-ink-700 border-t border-dashed border-ink-600" />
-            <div className="mx-1 shrink-0 bg-ink-800 border border-ink-700 rounded-pill px-2 py-0.5 text-[10px] font-600 text-ink-300 whitespace-nowrap">
-              <IconShip className="inline w-3 h-3 mr-0.5 -mt-0.5" />
-              {containerPrice > 0 ? formatUSD(containerPrice) : '—'}
-            </div>
-            <div className="flex-1 h-px bg-ink-700 border-t border-dashed border-ink-600" />
-          </div>
-          <span className="text-[10px] text-ink-500 mt-1">საზღვაო</span>
-        </div>
-
-        {/* Destination */}
-        <div className="flex flex-col items-center shrink-0 min-w-[80px]">
-          <div className="w-9 h-9 rounded-pill bg-success-500/20 border border-success-500/40 flex items-center justify-center mb-1">
-            <IconPin className="w-4 h-4 text-success-400" />
-          </div>
-          <span className="text-[11px] text-center text-ink-300 max-w-[80px] leading-tight">
-            {hasData ? dest : 'Destination'}
-          </span>
-        </div>
+    <div className="flex items-center gap-2.5">
+      <Mark className="h-8 w-12 shrink-0" />
+      <div className="flex flex-col leading-none">
+        <span className="font-display text-xl font-800 tracking-[0.04em] text-ink-50">SRL</span>
+        <span className="mt-1 font-mono text-[9px] font-500 tracking-[0.4em] text-ink-400">SORELI</span>
       </div>
     </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-function PublicCalculator() {
-  const { t } = useTranslation();
+function Field({ label, icon, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-ink-400">
+        {icon}{label}
+      </span>
+      {children}
+    </label>
+  );
+}
 
-  // Full priced matrix (rows: auction, city, state, port, destination, prices).
+function Select({ value, onChange, options, disabled }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        className="h-11 w-full appearance-none rounded-field border border-ink-700 bg-ink-950 px-3.5 pr-9 text-sm font-500 text-ink-100 outline-none transition-colors hover:border-ink-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {options.map((o) => (
+          <option key={o.value !== undefined ? o.value : o} value={o.value !== undefined ? o.value : o} className="bg-ink-900">
+            {o.label !== undefined ? o.label : o}
+          </option>
+        ))}
+      </select>
+      <IconChevron className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+    </div>
+  );
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
+export default function PublicCalculator() {
+  // ── Matrix state ─────────────────────────────────────────────────────────────
   const [matrix, setMatrix] = useState([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [optionsError, setOptionsError] = useState(false);
 
-  // ---- Calculator form state — location stored as composite "city|state"
+  // ── Calculator form state ─────────────────────────────────────────────────────
   const [auction, setAuction] = useState('');
-  const [location, setLocation] = useState('');
+  const [location, setLocation] = useState('');   // "city|state"
   const [port, setPort] = useState('');
   const [destination, setDestination] = useState('');
 
-  // ---- Fetch the full matrix on mount (ignore-flag pattern) --------
+  // ── FAQ accordion ─────────────────────────────────────────────────────────────
+  const [faq, setFaq] = useState(null);
+
+  // ── Fetch matrix on mount ────────────────────────────────────────────────────
   useEffect(() => {
     let ignore = false;
     setOptionsLoading(true);
     setOptionsError(false);
 
     api.get('/public/calculator/matrix')
-      .then(res => {
+      .then((res) => {
         if (ignore) return;
         const rows = Array.isArray(res.data?.data) ? res.data.data : [];
         setMatrix(rows);
@@ -275,8 +141,8 @@ function PublicCalculator() {
     return () => { ignore = true; };
   }, []);
 
-  // ---- Cascading option lists derived from the matrix --------
-  const auctions = useMemo(() => uniq(matrix.map(r => r.auction)).sort(), [matrix]);
+  // ── Cascading option lists ───────────────────────────────────────────────────
+  const auctions = useMemo(() => uniq(matrix.map((r) => r.auction)).sort(), [matrix]);
 
   const locations = useMemo(() => {
     const seen = new Map();
@@ -286,38 +152,54 @@ function PublicCalculator() {
       if (!seen.has(k)) seen.set(k, { city: r.city, state: r.state });
     }
     return Array.from(seen.values()).sort((a, b) =>
-      (a.city + a.state).localeCompare(b.city + b.state));
+      (a.city + a.state).localeCompare(b.city + b.state)
+    );
   }, [matrix, auction]);
 
   const ports = useMemo(() => {
     if (!auction || !location) return [];
     const [city, state] = location.split('|');
-    return uniq(matrix
-      .filter(r => r.auction === auction && r.city === city && (r.state || '') === state)
-      .map(r => r.port)).sort();
+    return uniq(
+      matrix
+        .filter((r) => r.auction === auction && r.city === city && (r.state || '') === state)
+        .map((r) => r.port)
+    ).sort();
   }, [matrix, auction, location]);
 
   const destinations = useMemo(() => {
     if (!auction || !location || !port) return [];
     const [city, state] = location.split('|');
-    return uniq(matrix
-      .filter(r => r.auction === auction && r.city === city && (r.state || '') === state && r.port === port)
-      .map(r => r.destination)).sort();
+    return uniq(
+      matrix
+        .filter(
+          (r) =>
+            r.auction === auction &&
+            r.city === city &&
+            (r.state || '') === state &&
+            r.port === port
+        )
+        .map((r) => r.destination)
+    ).sort();
   }, [matrix, auction, location, port]);
 
   const matchedRow = useMemo(() => {
     if (!auction || !location || !port || !destination) return null;
     const [city, state] = location.split('|');
-    return matrix.find(r =>
-      r.auction === auction && r.city === city && (r.state || '') === state &&
-      r.port === port && r.destination === destination) || null;
+    return (
+      matrix.find(
+        (r) =>
+          r.auction === auction &&
+          r.city === city &&
+          (r.state || '') === state &&
+          r.port === port &&
+          r.destination === destination
+      ) || null
+    );
   }, [matrix, auction, location, port, destination]);
 
   const landPrice = matchedRow ? parseFloat(matchedRow.land_price) || 0 : 0;
   const containerPrice = matchedRow ? parseFloat(matchedRow.container_price) || 0 : 0;
   const totalPrice = matchedRow ? parseFloat(matchedRow.total_price) || 0 : 0;
-  const allSelected = !!(auction && location && port && destination);
-  const notAvailable = allSelected && !matchedRow;
 
   const onAuctionChange = (v) => { setAuction(v); setLocation(''); setPort(''); setDestination(''); };
   const onLocationChange = (v) => { setLocation(v); setPort(''); setDestination(''); };
@@ -325,447 +207,471 @@ function PublicCalculator() {
 
   const hasOptions = matrix.length > 0;
 
-  // Derive origin city label for route map
+  // Derive display labels for the route map
   const originLabel = location ? location.split('|')[0] : '';
 
-  // ─── FAQ data ──────────────────────────────────────────────────────────────
-  const faqs = [
-    {
-      question: 'რა ღირს მანქანის ჩამოყვანა ამერიკიდან?',
-      answer: 'ფასი დამოკიდებულია აუქციონის ლოკაციაზე, ჩატვირთვის პორტსა და დანიშნულებაზე. ჩვენი კალკულატორი გაჩვენებთ ზუსტ ფასს — შიდა ტრანსპორტირება + საზღვაო კონტეინერი.',
-    },
-    {
-      question: 'რამდენი ხანი სჭირდება მანქანის ჩამოყვანას?',
-      answer: 'ამერიკიდან საქართველომდე გადაზიდვა სულ დაახლოებით 4-8 კვირა სჭირდება — შიდა ტრანსპორტიდან პორტამდე და საზღვაო მარშრუტის ჩათვლით.',
-    },
-    {
-      question: 'Copart-სა და IAAI-ს შორის რა განსხვავებაა?',
-      answer: 'ორივე ამერიკული სადილერო აუქციონია. Copart ძირითადად სადაზღვევო და განახლებულ მანქანებს ყიდის, IAAI კი უფრო ფართო ასორტიმენტს. ორივეს ფასები ჩვენი პლატფორმის კალკულატორში ასახულია.',
-    },
-    {
-      question: 'საჭიროა თუ არა სადილერო ლიცენზია?',
-      answer: 'კი — ჩვენი სერვისი განკუთვნილია ლიცენზირებული ავტოდილერებისთვის. დარეგისტრირებისთვის გაიარეთ ვერიფიკაცია.',
-    },
-    {
-      question: 'რა დოკუმენტებია საჭირო იმპორტისთვის?',
-      answer: 'Title (US), Bill of Lading, კომერციული ინვოისი და ტექნიკური ინსპექციის ცნობა. ჩვენი გუნდი მთელ პროცესს განაახლებს და დაგეხმარებათ.',
-    },
+  // Select option arrays
+  const auctionOptions = [{ value: '', label: 'აირჩიეთ...' }, ...auctions.map((a) => ({ value: a, label: a }))];
+  const locationOptions = [
+    { value: '', label: 'აირჩიეთ...' },
+    ...locations.map((loc) => ({
+      value: locKey(loc.city, loc.state),
+      label: loc.state ? `${loc.city}, ${loc.state}` : loc.city,
+    })),
   ];
+  const portOptions = [{ value: '', label: 'აირჩიეთ...' }, ...ports.map((p) => ({ value: p, label: p }))];
+  const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
 
-  // ─── Why Us cards ──────────────────────────────────────────────────────────
-  const whyCards = [
-    {
-      icon: <IconShield className="w-6 h-6 text-brand-400" />,
-      title: 'გამჭვირვალე ფასები',
-      body: 'კალკულატორი ყველა ფარულ გადასახადს ამოიღებს — ფასი ჩამოყვანამდე ზუსტია.',
-    },
-    {
-      icon: <IconTruck className="w-6 h-6 text-brand-400" />,
-      title: 'ენდ-ტუ-ენდ ლოჯისტიკა',
-      body: 'აუქციონიდან კარამდე — ერთი ოპერატორი, ერთი ინვოისი, ნულოვანი სიურპრიზი.',
-    },
-    {
-      icon: <IconCheck className="w-6 h-6 text-brand-400" />,
-      title: 'სადილერო პლატფორმა',
-      body: 'ფლოტის ტრეკინგი, ბუქინგი და ინვოისინგი — ერთ სისტემაში, 24/7.',
-    },
-  ];
-
-  // ─── How it works steps ────────────────────────────────────────────────────
-  const steps = [
-    { num: '01', title: 'შეარჩიე მანქანა', body: 'Copart ან IAAI-ზე მოძებნეთ სასურველი ავტო.' },
-    { num: '02', title: 'გამოთვალე ფასი', body: 'კალკულატორი ზუსტ ღირებულებას გიჩვენებთ სეკუნდებში.' },
-    { num: '03', title: 'მოგვმართე', body: 'ჩვენი გუნდი გაამარტივებს ბიდინგს, გადახდასა და დოკუმენტაციას.' },
-    { num: '04', title: 'მიიღე ქართულ ბაზარზე', body: 'ჩვენ კონტეინერიდან გამოვიყვანთ და ადგილამდე მიგვიყვანთ.' },
-  ];
-
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-ink-950 font-sans text-ink-100 min-h-screen">
+    <div className="w-full bg-ink-950 font-sans text-ink-100 antialiased">
 
-      {/* ── NAV ─────────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-ink-950/90 backdrop-blur-md border-b border-ink-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Logo />
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#calculator" className="text-sm text-ink-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">
-                კალკულატორი
-              </a>
-              <a href="#how-it-works" className="text-sm text-ink-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">
-                როგორ მუშაობს
-              </a>
-              <a href="#faq" className="text-sm text-ink-300 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">
-                FAQ
-              </a>
-            </div>
+      {/* ============ NAV ============ */}
+      <header className="sticky top-0 z-30 border-b border-ink-800/80 bg-ink-950/85 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+          <Logo />
+          <nav className="hidden items-center gap-8 lg:flex">
+            {[['ლოტები', '#'], ['კალკულატორი', '#calc'], ['როგორ მუშაობს', '#how'], ['ბლოგი', '#'], ['კონტაქტი', '#']].map(([n, h], i) => (
+              <a key={n} href={h}
+                className={`text-sm font-500 transition-colors ${i === 1 ? 'text-ink-50' : 'text-ink-400 hover:text-ink-100'}`}>{n}</a>
+            ))}
+          </nav>
+          <div className="flex items-center gap-3">
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-btn bg-brand-500 hover:bg-brand-600 text-white text-sm font-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
+              className="inline-flex h-10 items-center rounded-btn border border-ink-700 px-4 text-sm font-display font-600 uppercase tracking-wide text-ink-100 transition-colors hover:border-ink-500 hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               შესვლა
-              <IconArrow className="w-4 h-4" />
             </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-ink-950 via-ink-900 to-ink-950" aria-hidden="true" />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-500/5 via-transparent to-transparent" aria-hidden="true" />
+      {/* ============ HERO ============ */}
+      <section className="relative overflow-hidden border-b border-ink-800">
+        {/* dark base */}
+        <div className="absolute inset-0 bg-ink-950" />
+        {/* container photo — right half */}
+        <div className="absolute inset-y-0 right-0 w-full lg:w-[58%]">
+          <img
+            src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1200&q=80"
+            alt="კონტეინერები პორტში"
+            className="h-full w-full object-cover object-center"
+          />
+          {/* fade left edge into dark */}
+          <div className="absolute inset-0 bg-gradient-to-r from-ink-950 via-ink-950/70 to-transparent" />
+          {/* fade top & bottom */}
+          <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-transparent to-ink-950/60" />
+        </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left: copy */}
+        {/* floating container badge */}
+        <div className="pointer-events-none absolute bottom-20 right-[8%] hidden lg:flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 rounded-card border border-ink-700/60 bg-ink-900/80 px-4 py-3 backdrop-blur-md shadow-pop">
+            <svg className="h-5 w-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <rect x="2" y="7" width="20" height="14" rx="1" />
+              <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+              <line x1="12" y1="12" x2="12" y2="16" />
+              <line x1="10" y1="14" x2="14" y2="14" />
+            </svg>
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-pill bg-brand-500/15 border border-brand-500/30 text-brand-400 text-xs font-600 uppercase tracking-widest mb-6">
-                <span className="w-1.5 h-1.5 rounded-pill bg-brand-400 animate-pulse" />
-                ამერიკიდან საქართველომდე
-              </div>
-              <h1 className="font-display font-700 text-4xl sm:text-5xl lg:text-6xl leading-tight text-white mb-4">
-                შენი მანქანა{' '}
-                <span className="text-brand-500">/ ამერიკიდან</span>
-              </h1>
-              <p className="text-ink-300 text-lg leading-relaxed mb-8 max-w-xl">
-                ამ პლატფორმით ლიცენზირებული დილერები ყიდულობენ, ტრეკავენ და ჩამოიყვანენ მანქანებს Copart &#38; IAAI-დან — გამჭვირვალე ფასებით, ყოველგვარი სიურპრიზის გარეშე.
+              <div className="font-mono text-[10px] uppercase tracking-widest text-ink-400">კონტეინერი</div>
+              <div className="font-display text-sm font-700 text-ink-100">40HC · Savannah → Poti</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-card border border-ink-700/60 bg-ink-900/80 px-4 py-3 backdrop-blur-md shadow-pop">
+            <svg className="h-5 w-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-ink-400">ჩამოსვლა</div>
+              <div className="font-display text-sm font-700 text-success-400">ETA: 18 დღე</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-6 py-8 lg:px-10 lg:py-12">
+          <div className="max-w-xl">
+            <h1 className="mt-6 font-display text-4xl font-900 uppercase leading-[0.92] tracking-tight text-ink-50 sm:text-5xl lg:text-[3.75rem]">
+              შენი მანქანა<br />
+              <span className="text-brand-500">ამერიკიდან</span>
+            </h1>
+
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-ink-300">
+              ვყიდულობთ, ვაზიდავთ და გავაბაჟებთ ავტომობილებს Copart-სა და IAAI-დან — ლოტის შერჩევიდან ფოთის პორტამდე, ერთ სივრცეში.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a
+                href="#calc"
+                className="inline-flex h-14 items-center gap-2 rounded-btn bg-brand-600 px-8 font-display text-sm font-700 uppercase tracking-widest text-white shadow-[0_10px_30px_-8px_rgba(226,96,9,0.7)] transition-colors hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                გამოთვალე ღირებულება <IconArrow className="h-5 w-5" />
+              </a>
+              <button
+                type="button"
+                className="inline-flex h-14 items-center gap-2 rounded-btn border border-ink-600 bg-ink-900/60 px-8 font-display text-sm font-700 uppercase tracking-widest text-ink-100 backdrop-blur transition-colors hover:border-ink-400 hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                ნახე ლოტები
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CALCULATOR ============ */}
+      <section id="calc" className="relative border-b border-ink-800 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-brand-500">ტრანსპორტირების კალკულატორი</span>
+              <h2 className="mt-2 font-display text-4xl font-800 uppercase tracking-tight text-ink-50 sm:text-5xl">
+                გამოთვალე მიწოდება<br className="hidden sm:block" /> პორტამდე
+              </h2>
+            </div>
+            <p className="max-w-xs text-sm text-ink-400">
+              აირჩიე აუქციონი და ლოკაცია — ვაჩვენებთ სრულ ღირებულებას და სავარაუდო ვადას ფოთამდე.
+            </p>
+          </div>
+
+          {/* Loading state */}
+          {optionsLoading && (
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 py-20" role="status" aria-live="polite">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-ink-700 border-t-brand-500" />
+              <p className="text-sm text-ink-400">იტვირთება...</p>
+            </div>
+          )}
+
+          {/* Error / empty state — shows message but preserves layout */}
+          {!optionsLoading && (optionsError || !hasOptions) && (
+            <div className="mt-10 rounded-card border border-ink-800 bg-ink-900 p-10 text-center" role="alert">
+              <svg className="mx-auto mb-4 h-10 w-10 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p className="text-sm text-ink-400">
+                {optionsError ? 'კალკულატორის ჩატვირთვა ვერ მოხერხდა. სცადეთ თავიდან.' : 'ფასები ვერ მოიძებნა.'}
               </p>
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="#calculator"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-btn bg-brand-500 hover:bg-brand-600 text-white font-600 transition-colors shadow-pop focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
-                >
-                  ფასი გამოთვალე
-                  <IconArrow className="w-4 h-4" />
-                </a>
+            </div>
+          )}
+
+          {/* Calculator content */}
+          {!optionsLoading && hasOptions && (
+            <div className="mt-10 grid gap-6 lg:grid-cols-12">
+              {/* ---- form ---- */}
+              <div className="rounded-card border border-ink-800 bg-ink-900 p-6 lg:col-span-5">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <Field label="აუქციონი" icon={<IconShield className="h-3.5 w-3.5" />}>
+                    <Select
+                      value={auction}
+                      onChange={(e) => onAuctionChange(e.target.value)}
+                      options={auctionOptions}
+                    />
+                  </Field>
+                  <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
+                    <Select
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                      options={destOptions}
+                      disabled={!port}
+                    />
+                  </Field>
+                  <Field label="აუქციონის ლოკაცია" icon={<IconPin className="h-3.5 w-3.5" />}>
+                    <Select
+                      value={location}
+                      onChange={(e) => onLocationChange(e.target.value)}
+                      options={locationOptions}
+                      disabled={!auction}
+                    />
+                  </Field>
+                  <Field label="ჩატვირთვის პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
+                    <Select
+                      value={port}
+                      onChange={(e) => onPortChange(e.target.value)}
+                      options={portOptions}
+                      disabled={!location}
+                    />
+                  </Field>
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-800 bg-ink-950 px-4 py-3">
+                  <IconShield className="h-5 w-5 shrink-0 text-brand-500" />
+                  <p className="text-xs leading-snug text-ink-400">ფასი მოიცავს დაზღვევას და ლოტის გატანას. საბაჟო/აქციზი იანგარიშება ცალკე.</p>
+                </div>
+              </div>
+
+              {/* ---- route + breakdown ---- */}
+              <div className="grid gap-6 lg:col-span-7">
+                {/* route map */}
+                <div className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-950 p-6">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle,#252529_1px,transparent_1.5px)] bg-[length:20px_20px] opacity-60" />
+                  <div className="relative flex items-center justify-between">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">მარშრუტი</span>
+                  </div>
+
+                  {/* route line */}
+                  <div className="relative mt-10 mb-2">
+                    <div className="flex items-center">
+                      {/* origin */}
+                      <div className="flex flex-col items-center">
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 ring-4 ring-brand-600/20">
+                          <IconPin className="h-4 w-4 text-white" />
+                        </span>
+                      </div>
+                      {/* inland leg */}
+                      <div className="relative flex-1 px-2">
+                        <div className="h-0.5 w-full bg-gradient-to-r from-brand-500 to-ink-600" />
+                        <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
+                          <IconTruck className="h-3 w-3 text-brand-400" /> {landPrice > 0 ? formatUSD(landPrice) : '—'}
+                        </span>
+                      </div>
+                      {/* port */}
+                      <div className="flex flex-col items-center">
+                        <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-ink-500 bg-ink-900">
+                          <span className="h-2 w-2 rounded-full bg-ink-300" />
+                        </span>
+                      </div>
+                      {/* ocean leg */}
+                      <div className="relative flex-[1.4] px-2">
+                        <div className="h-0.5 w-full border-t-2 border-dashed border-accent-500/70" />
+                        <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
+                          <IconShip className="h-3 w-3 text-accent-400" /> {containerPrice > 0 ? formatUSD(containerPrice) : '—'}
+                        </span>
+                      </div>
+                      {/* dest */}
+                      <div className="flex flex-col items-center">
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-600 ring-4 ring-accent-600/20">
+                          <IconShip className="h-5 w-5 text-white" />
+                        </span>
+                      </div>
+                    </div>
+                    {/* labels */}
+                    <div className="mt-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-wide">
+                      <span className="text-ink-100">{originLabel || '—'}</span>
+                      <span className="text-ink-500">{port || '—'}</span>
+                      <span className="text-ink-100">{destination ? `${destination}, GEO` : '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* breakdown */}
+                <div className="rounded-card border border-ink-800 bg-ink-900 p-6">
+                  <div className="grid gap-y-1" aria-live="polite">
+                    {[
+                      ['შიდა', landPrice],
+                      ['საზღვაო', containerPrice],
+                      ['სულ', totalPrice],
+                    ].map(([l, v]) => (
+                      <div key={l} className="flex items-center justify-between border-b border-dashed border-ink-800 py-2.5">
+                        <span className="text-sm text-ink-400">{l}</span>
+                        <span className="font-mono text-sm font-600 tabular-nums text-ink-100">{formatUSD(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 flex flex-col gap-4 rounded-btn bg-ink-950 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-display text-4xl font-700 tabular-nums text-brand-500">{formatUSD(totalPrice)}</div>
+                    </div>
+                    <Link
+                      to="/login"
+                      className="inline-flex h-12 items-center justify-center gap-2 rounded-btn bg-brand-600 px-6 font-display text-sm font-600 uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(226,96,9,0.7)] transition-colors hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    >
+                      შეუკვეთე გადაზიდვა <IconArrow className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ============ HOW IT WORKS ============ */}
+      <section id="how" className="border-b border-ink-800 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10">
+          <div className="grid gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-brand-500">როგორ მუშაობს</span>
+              <h2 className="mt-2 font-display text-4xl font-800 uppercase tracking-tight text-ink-50 sm:text-5xl">
+                იმპორტი<br />4 ნაბიჯად
+              </h2>
+              <p className="mt-5 max-w-sm text-ink-300">
+                ლოტის შერჩევიდან ეზოში მიყვანამდე — ყველა ეტაპს ჩვენ ვუძღვებით. შენ მხოლოდ აკონტროლებ პროცესს ერთი ანგარიშიდან.
+              </p>
+              <Link
+                to="/login"
+                className="mt-7 inline-flex h-12 items-center gap-2 rounded-btn border border-ink-700 px-6 font-display text-sm font-600 uppercase tracking-wide text-ink-100 transition-colors hover:border-ink-500 hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                დაიწყე იმპორტი <IconArrow className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="lg:col-span-8">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  ['01', 'აირჩიე ლოტი', 'იპოვე მანქანა Copart-სა და IAAI-ზე ან გამოგვიგზავნე ლოტის ნომერი — ჩვენ შევამოწმებთ ისტორიას.', true],
+                  ['02', 'ჩვენ ვყიდულობთ', 'ვაბრუნებთ ფსონს შენი ლიმიტით და ვიხდით აუქციონზე ლიცენზირებული დილერის სტატუსით.', false],
+                  ['03', 'ტრანსპორტი პორტამდე', 'სახმელეთო გადაზიდვა აუქციონიდან პორტამდე, შემდეგ კონტეინერით ფოთის ან ბათუმის ტერმინალამდე.', false],
+                  ['04', 'გაბაჟება და მიწოდება', 'ვაფორმებთ საბაჟო პროცედურებს და მანქანას მზად, დარეგისტრირებულს გადმოგცემთ.', false],
+                ].map(([n, t, d, hot]) => (
+                  <div key={n} className={`rounded-card border p-6 transition-colors ${hot ? 'border-brand-500/40 bg-brand-600/[0.07]' : 'border-ink-800 bg-ink-900 hover:border-ink-600'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`font-display text-3xl font-800 tabular-nums ${hot ? 'text-brand-500' : 'text-ink-600'}`}>{n}</span>
+                      {hot && <span className="rounded-pill bg-brand-600/15 px-2.5 py-1 font-mono text-[10px] font-600 uppercase tracking-wider text-brand-400 ring-1 ring-brand-500/25">აქ იწყება</span>}
+                    </div>
+                    <h3 className="mt-4 font-display text-lg font-700 uppercase tracking-wide text-ink-50">{t}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-ink-400">{d}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ WHY US ============ */}
+      <section className="border-b border-ink-800 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {[
+              [<IconShield key="s" className="h-6 w-6" />, 'ლიცენზირებული დილერი', 'პირდაპირი წვდომა Copart-სა და IAAI-ზე — ვაჭრობ რეალურ დილერულ ფასებში, შუამავლის ზედნადებ გარეშე.'],
+              [<IconShip key="h" className="h-6 w-6" />, 'გამჭვირვალე ლოგისტიკა', 'ფიქსირებული ფრახტი და რეალური ETA. ყველა ეტაპი თვალყურის დევნებით — აუქციონიდან ფოთამდე.'],
+              [<IconTruck key="t" className="h-6 w-6" />, 'სრული მომსახურება', 'შემოწმება, ყიდვა, ტრანსპორტი, დაზღვევა და გაბაჟება — ერთ ხელშეკრულებაში, ერთ გუნდთან.'],
+            ].map(([ic, t, d]) => (
+              <div key={t} className="rounded-card border border-ink-800 bg-ink-900 p-7">
+                <span className="grid h-12 w-12 place-items-center rounded-btn bg-brand-600/15 text-brand-500">{ic}</span>
+                <h3 className="mt-5 font-display text-lg font-700 uppercase tracking-wide text-ink-50">{t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-400">{d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ FAQ ============ */}
+      <section className="border-b border-ink-800 py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10">
+          <div className="grid gap-12 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-brand-500">ხშირი კითხვები</span>
+              <h2 className="mt-2 font-display text-4xl font-800 uppercase tracking-tight text-ink-50 sm:text-5xl">გაქვს კითხვა?</h2>
+              <p className="mt-5 max-w-sm text-ink-300">ვერ იპოვე პასუხი? დაგვიკავშირდი — ჩვენი გუნდი ორ საათში გიპასუხებს.</p>
+              <button
+                type="button"
+                className="mt-7 inline-flex h-12 items-center gap-2 rounded-btn bg-brand-600 px-6 font-display text-sm font-600 uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(226,96,9,0.7)] transition-colors hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                დაგვიკავშირდი
+              </button>
+            </div>
+
+            <div className="lg:col-span-8">
+              <div className="divide-y divide-ink-800 overflow-hidden rounded-card border border-ink-800 bg-ink-900">
+                {[
+                  ['რა შედის ტრანსპორტირების ფასში?', 'ფასი მოიცავს სახმელეთო გადაზიდვას აუქციონიდან პორტამდე, საზღვაო ფრახტს, დაზღვევას და ლოტის გატანას. საბაჟო და აქციზი იანგარიშება ცალკე, ავტომობილის ასაკისა და ძრავის მიხედვით.'],
+                  ['რამდენი ხანი სჭირდება მიწოდებას?', 'საშუალოდ 30-45 დღე აუქციონზე ყიდვიდან ფოთის პორტამდე. ზუსტი ETA დამოკიდებულია გასვლის პორტსა და კონტეინერის გრაფიკზე.'],
+                  ['შემიძლია თვითონ ვაჭრო აუქციონზე?', 'დიახ. ჩვენი პლატფორმიდან აყენებ ლიმიტს და ჩვენ ვაბრუნებთ ფსონს შენი სახელით ლიცენზირებული დილერის სტატუსით.'],
+                  ['როგორ ხდება გადახდა?', 'დეპოზიტი ლოტის მოგების შემდეგ, დანარჩენი — ტრანსპორტირების ეტაპებზე. ყველა გადარიცხვა ფიქსირდება შენს ანგარიშზე.'],
+                ].map(([q, a], i) => (
+                  <div key={q}>
+                    <button
+                      type="button"
+                      onClick={() => setFaq(faq === i ? null : i)}
+                      aria-expanded={faq === i}
+                      className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-ink-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
+                    >
+                      <span className="font-display text-base font-600 uppercase tracking-wide text-ink-50">{q}</span>
+                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-all ${faq === i ? 'rotate-180 border-brand-500 bg-brand-600/15 text-brand-500' : 'border-ink-700 text-ink-400'}`}>
+                        <IconChevron className="h-4 w-4" />
+                      </span>
+                    </button>
+                    {faq === i && (
+                      <div className="px-6 pb-6 pr-16">
+                        <p className="text-sm leading-relaxed text-ink-400">{a}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CTA BAND ============ */}
+      <section className="border-b border-ink-800 py-20 lg:py-24">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10">
+          <div className="relative overflow-hidden rounded-card border border-brand-500/30 bg-gradient-to-br from-brand-600 to-brand-800 px-8 py-14 lg:px-16 lg:py-16">
+            <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(0,0,0,0.25)_1px,transparent_1.5px)] bg-[length:22px_22px] opacity-40" />
+            <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+              <div className="max-w-2xl">
+                <h2 className="font-display text-4xl font-800 uppercase leading-[0.95] tracking-tight text-white sm:text-5xl">
+                  მზად ხარ შენი მანქანის<br />იმპორტისთვის?
+                </h2>
+                <p className="mt-4 max-w-lg text-base text-brand-50">
+                  დაარეგისტრირდი წუთებში და მიიღე წვდომა მილიონ ლოტზე დილერულ ფასებში.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-3">
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-btn border border-ink-700 hover:border-ink-500 text-ink-200 hover:text-white font-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950"
+                  className="inline-flex h-14 items-center gap-2 rounded-btn bg-ink-950 px-8 font-display text-sm font-700 uppercase tracking-widest text-white transition-colors hover:bg-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
-                  დილერის შესვლა
+                  დაიწყე ახლა <IconArrow className="h-5 w-5" />
                 </Link>
-              </div>
-            </div>
-
-            {/* Right: container illustration */}
-            <div className="relative hidden lg:block">
-              <div className="relative rounded-card overflow-hidden shadow-float bg-ink-800 aspect-[4/3]">
-                {/* Gradient fades */}
-                <div className="absolute inset-0 bg-gradient-to-t from-ink-950/60 to-transparent z-10 pointer-events-none" />
-                <div className="absolute inset-0 bg-gradient-to-l from-transparent to-ink-950/30 z-10 pointer-events-none" />
-                {/* Placeholder graphic */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="flex justify-center mb-4">
-                      <IconShip className="w-24 h-24 text-ink-600" />
-                    </div>
-                    <p className="text-ink-500 text-sm font-500">კონტეინერული გადაზიდვა</p>
-                  </div>
-                </div>
-              </div>
-              {/* Floating badge */}
-              <div className="absolute -bottom-4 -left-4 bg-ink-800 border border-ink-700 rounded-card p-4 shadow-pop">
-                <p className="text-[10px] text-ink-400 uppercase tracking-widest mb-1">საშუალო დრო</p>
-                <p className="text-xl font-display font-700 text-white">4–8 <span className="text-sm font-sans font-500 text-ink-300">კვირა</span></p>
+                <button
+                  type="button"
+                  className="inline-flex h-14 items-center gap-2 rounded-btn border border-white/30 bg-white/10 px-8 font-display text-sm font-700 uppercase tracking-widest text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  დაგვირეკე
+                </button>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── CALCULATOR ───────────────────────────────────────────────────────── */}
-      <section id="calculator" className="py-16 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section header */}
-          <div className="text-center mb-12">
-            <p className="text-xs font-600 uppercase tracking-widest text-brand-500 mb-3">ტრანსპორტირების ფასი</p>
-            <h2 className="font-display font-700 text-3xl sm:text-4xl text-white mb-4">
-              გამოთვალე ღირებულება
-            </h2>
-            <p className="text-ink-400 max-w-lg mx-auto">
-              შეარჩიე აუქციონი, ლოკაცია და დანიშნულება — ზუსტი ფასი გამოჩნდება მყისიერად.
-            </p>
-          </div>
-
-          {/* Card */}
-          <div className="max-w-4xl mx-auto bg-ink-900 border border-ink-800 rounded-card shadow-card overflow-hidden">
-
-            {/* Loading state */}
-            {optionsLoading && (
-              <div className="flex flex-col items-center justify-center py-20 gap-4" role="status" aria-live="polite">
-                <div className="w-10 h-10 rounded-pill border-2 border-ink-700 border-t-brand-500 animate-spin" />
-                <p className="text-sm text-ink-400">იტვირთება...</p>
-              </div>
-            )}
-
-            {/* Error / empty state */}
-            {!optionsLoading && (optionsError || !hasOptions) && (
-              <div className="flex flex-col items-center justify-center py-20 gap-4" role="alert">
-                <div className="w-14 h-14 rounded-pill bg-ink-800 border border-ink-700 flex items-center justify-center">
-                  <svg className="w-7 h-7 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                </div>
-                <p className="text-sm text-ink-400">{t('calculator.noOptions')}</p>
-              </div>
-            )}
-
-            {/* Calculator content */}
-            {!optionsLoading && hasOptions && (
-              <div className="p-6 lg:p-8">
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  {/* 1 - Auction */}
-                  <Field label="აუქციონი" id="pc-auction">
-                    <SelectField
-                      id="pc-auction"
-                      value={auction}
-                      onChange={e => onAuctionChange(e.target.value)}
-                    >
-                      <option value="" disabled>აირჩიეთ...</option>
-                      {auctions.map(a => <option key={a} value={a}>{a}</option>)}
-                    </SelectField>
-                  </Field>
-
-                  {/* 2 - Location */}
-                  <Field label="აუქციონის ლოკაცია" id="pc-location">
-                    <SelectField
-                      id="pc-location"
-                      value={location}
-                      onChange={e => onLocationChange(e.target.value)}
-                      disabled={!auction}
-                    >
-                      <option value="" disabled>აირჩიეთ...</option>
-                      {locations.map(loc => (
-                        <option key={locKey(loc.city, loc.state)} value={locKey(loc.city, loc.state)}>
-                          {loc.state ? `${loc.city}, ${loc.state}` : loc.city}
-                        </option>
-                      ))}
-                    </SelectField>
-                  </Field>
-
-                  {/* 3 - Loading port */}
-                  <Field label="ჩატვირთვის პორტი" id="pc-port">
-                    <SelectField
-                      id="pc-port"
-                      value={port}
-                      onChange={e => onPortChange(e.target.value)}
-                      disabled={!location}
-                    >
-                      <option value="" disabled>აირჩიეთ...</option>
-                      {ports.map(p => <option key={p} value={p}>{p}</option>)}
-                    </SelectField>
-                  </Field>
-
-                  {/* 4 - Destination */}
-                  <Field label="დანიშნულების პორტი" id="pc-destination">
-                    <SelectField
-                      id="pc-destination"
-                      value={destination}
-                      onChange={e => setDestination(e.target.value)}
-                      disabled={!port}
-                    >
-                      <option value="" disabled>აირჩიეთ...</option>
-                      {destinations.map(d => <option key={d} value={d}>{d}</option>)}
-                    </SelectField>
-                  </Field>
-                </div>
-
-                {/* Route map */}
-                <RouteMap
-                  origin={originLabel}
-                  midPort={port}
-                  dest={destination}
-                  landPrice={landPrice}
-                  containerPrice={containerPrice}
-                />
-
-                {/* Price breakdown */}
-                <div className="mt-6 grid sm:grid-cols-3 gap-4" aria-live="polite">
-                  {/* Land */}
-                  <div className="bg-ink-800 border border-ink-700 rounded-card p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <IconTruck className="w-4 h-4 text-ink-400" />
-                      <span className="text-xs font-600 uppercase tracking-widest text-ink-400">შიდა</span>
-                    </div>
-                    <p className="text-2xl font-display font-700 text-white">{formatUSD(landPrice)}</p>
-                  </div>
-                  {/* Ocean */}
-                  <div className="bg-ink-800 border border-ink-700 rounded-card p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <IconShip className="w-4 h-4 text-ink-400" />
-                      <span className="text-xs font-600 uppercase tracking-widest text-ink-400">საზღვაო</span>
-                    </div>
-                    <p className="text-2xl font-display font-700 text-white">{formatUSD(containerPrice)}</p>
-                  </div>
-                  {/* Total */}
-                  <div className="bg-brand-500/10 border border-brand-500/30 rounded-card p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-600 uppercase tracking-widest text-brand-400">სულ</span>
-                    </div>
-                    <p className="text-2xl font-display font-700 text-brand-400">{formatUSD(totalPrice)}</p>
-                  </div>
-                </div>
-
-                {notAvailable && (
-                  <div className="mt-4 p-3 rounded-field bg-warning-500/10 border border-warning-500/30 text-warning-400 text-sm" role="alert">
-                    {t('calculator.notAvailable')}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Dealer login note */}
-          <p className="text-center mt-6 text-sm text-ink-500">
-            ხართ ლიცენზირებული დილერი?{' '}
-            <Link to="/login" className="text-brand-400 hover:text-brand-300 font-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">
-              შედით პლატფორმაში
-            </Link>
-          </p>
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-16 lg:py-24 bg-ink-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-xs font-600 uppercase tracking-widest text-brand-500 mb-3">პროცესი</p>
-            <h2 className="font-display font-700 text-3xl sm:text-4xl text-white">
-              როგორ მუშაობს
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {steps.map((step) => (
-              <div key={step.num} className="relative bg-ink-800/50 border border-ink-700 rounded-card p-6 hover:border-brand-500/40 transition-colors">
-                <div className="font-display font-900 text-4xl text-ink-700 mb-4 leading-none">{step.num}</div>
-                <h3 className="font-600 text-white mb-2">{step.title}</h3>
-                <p className="text-sm text-ink-400 leading-relaxed">{step.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── WHY US ────────────────────────────────────────────────────────────── */}
-      <section className="py-16 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-xs font-600 uppercase tracking-widest text-brand-500 mb-3">უპირატესობები</p>
-            <h2 className="font-display font-700 text-3xl sm:text-4xl text-white">
-              რატომ SRL?
-            </h2>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {whyCards.map((card) => (
-              <div key={card.title} className="bg-ink-900 border border-ink-800 rounded-card p-6 hover:border-brand-500/30 transition-colors">
-                <div className="w-12 h-12 rounded-card bg-brand-500/15 border border-brand-500/20 flex items-center justify-center mb-5">
-                  {card.icon}
-                </div>
-                <h3 className="font-700 text-white mb-2">{card.title}</h3>
-                <p className="text-sm text-ink-400 leading-relaxed">{card.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FAQ ───────────────────────────────────────────────────────────────── */}
-      <section id="faq" className="py-16 lg:py-24 bg-ink-900/50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-xs font-600 uppercase tracking-widest text-brand-500 mb-3">კითხვები</p>
-            <h2 className="font-display font-700 text-3xl sm:text-4xl text-white">
-              ხშირად დასმული კითხვები
-            </h2>
-          </div>
-          <div className="bg-ink-900 border border-ink-800 rounded-card px-6">
-            {faqs.map((faq) => (
-              <FaqItem key={faq.question} question={faq.question} answer={faq.answer} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA BAND ──────────────────────────────────────────────────────────── */}
-      <section className="py-16 lg:py-20 bg-gradient-to-r from-brand-600 via-brand-500 to-brand-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="font-display font-700 text-3xl sm:text-4xl text-white mb-4">
-            მზად ხართ ბიზნესის გასაფართოებლად?
-          </h2>
-          <p className="text-brand-100 mb-8 max-w-xl mx-auto">
-            შეუერთდით ასობით ლიცენზირებულ დილერს, რომლებიც ყოველდღე ჩამოიყვანენ ამერიკული ავტომობილები.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-btn bg-white hover:bg-brand-50 text-brand-600 font-700 transition-colors shadow-pop focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-500"
-            >
-              სადილერო პანელი
-              <IconArrow className="w-4 h-4" />
-            </Link>
-            <a
-              href="#calculator"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-btn border-2 border-white/40 hover:border-white text-white font-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-500"
-            >
-              ფასი გამოთვალე
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ────────────────────────────────────────────────────────────── */}
-      <footer className="bg-ink-950 border-t border-ink-800 pt-12 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
-            {/* Brand */}
-            <div className="lg:col-span-1">
+      {/* ============ FOOTER ============ */}
+      <footer className="bg-ink-950 pt-16">
+        <div className="mx-auto max-w-7xl px-6 lg:px-10">
+          <div className="grid gap-10 pb-14 lg:grid-cols-12">
+            <div className="lg:col-span-4">
               <Logo />
-              <p className="text-sm text-ink-500 mt-4 leading-relaxed">
-                ამერიკული ავტომობილების ლოჯისტიკა — Copart &#38; IAAI-დან საქართველომდე.
+              <p className="mt-4 max-w-xs text-sm text-ink-400">
+                ამერიკული აუქციონებიდან ავტომობილების იმპორტი და ტრანსპორტირება საქართველოში. 2004 წლიდან.
               </p>
+              <div className="mt-6 flex gap-3">
+                {['IN', 'FB', 'TG'].map((s) => (
+                  <button key={s} type="button" className="grid h-10 w-10 place-items-center rounded-btn border border-ink-800 font-mono text-[11px] text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">{s}</button>
+                ))}
+              </div>
             </div>
-
-            {/* Links col 1 */}
-            <div>
-              <p className="text-xs font-600 uppercase tracking-widest text-ink-500 mb-4">სერვისი</p>
-              <ul className="space-y-2">
-                <li><a href="#calculator" className="text-sm text-ink-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">კალკულატორი</a></li>
-                <li><a href="#how-it-works" className="text-sm text-ink-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">როგორ მუშაობს</a></li>
-                <li><a href="#faq" className="text-sm text-ink-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">FAQ</a></li>
-              </ul>
-            </div>
-
-            {/* Links col 2 */}
-            <div>
-              <p className="text-xs font-600 uppercase tracking-widest text-ink-500 mb-4">პლატფორმა</p>
-              <ul className="space-y-2">
-                <li><Link to="/login" className="text-sm text-ink-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">დილერის შესვლა</Link></li>
-              </ul>
-            </div>
-
-            {/* Contact */}
-            <div>
-              <p className="text-xs font-600 uppercase tracking-widest text-ink-500 mb-4">კონტაქტი</p>
-              <ul className="space-y-2">
-                <li>
-                  <a href="mailto:info@srl.ge" className="text-sm text-ink-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">
-                    info@srl.ge
-                  </a>
-                </li>
+            {[
+              ['პლატფორმა', ['ლოტების ძებნა', 'კალკულატორი', 'როგორ მუშაობს', 'ფასები']],
+              ['კომპანია', ['ჩვენ შესახებ', 'ბლოგი', 'კარიერა', 'კონტაქტი']],
+              ['დახმარება', ['ხშირი კითხვები', 'გაბაჟება', 'პირობები', 'კონფიდენციალურობა']],
+            ].map(([title, links]) => (
+              <div key={title} className="lg:col-span-2">
+                <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-500">{title}</div>
+                <ul className="mt-4 space-y-3">
+                  {links.map((l) => (
+                    <li key={l}><a href="#" className="text-sm text-ink-300 transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-sm">{l}</a></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <div className="lg:col-span-2">
+              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-500">კონტაქტი</div>
+              <ul className="mt-4 space-y-3 text-sm text-ink-300">
+                <li className="font-mono tabular-nums">+995 32 2 00 00 00</li>
+                <li>info@soreli.ge</li>
+                <li className="text-ink-400">თბილისი, დ. აღმაშენებლის 154</li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-ink-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-ink-600">
-              &copy; {new Date().getFullYear()} SRL. ყველა უფლება დაცულია.
-            </p>
-            <p className="text-xs text-ink-600">
-              სადილერო სერვისი · ლიცენზირებული ოპერატორებისთვის
-            </p>
+          <div className="flex flex-col gap-3 border-t border-ink-800 py-6 sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-ink-500">© 2026 SRL Soreli. ყველა უფლება დაცულია.</span>
+            <span className="font-mono text-[11px] uppercase tracking-wider text-ink-500">Copart · IAAI · Manheim ოფიციალური წვდომა</span>
           </div>
         </div>
       </footer>
@@ -773,5 +679,3 @@ function PublicCalculator() {
     </div>
   );
 }
-
-export default PublicCalculator;

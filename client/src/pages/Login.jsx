@@ -322,7 +322,7 @@ export default function Login() {
       <div className="relative hidden overflow-hidden border-r border-ink-800 lg:block">
         {/* Background image */}
         <img
-          src="https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?auto=format&fit=crop&w=1200&q=80"
+          src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1200&q=80"
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-40"
         />
@@ -355,16 +355,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Bottom tagline */}
-        <div className="absolute bottom-12 left-12 right-12">
-          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-500">
-            Vehicle Logistics Platform
-          </p>
-          <p className="mt-3 font-display text-3xl font-800 uppercase leading-tight tracking-tight text-ink-100">
-            Global Auto<br />Delivery
-          </p>
-          <div className="mt-6 h-px w-16 bg-brand-600" />
-        </div>
       </div>
 
       {/* ── RIGHT PANEL ───────────────────────────────────────────────────── */}
