@@ -176,22 +176,82 @@ function Field({ label, icon, children }) {
   );
 }
 
+// Custom searchable single-select. Same props/contract as a native select:
+// onChange is called with an event-like { target: { value } }.
 function Select({ value, onChange, options, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef(null);
+
+  const norm = (o) => (typeof o === 'object' ? o : { value: o, label: o });
+  const all = options.map(norm);
+  const placeholder = (all.find((o) => o.value === '')?.label) || 'აირჩიეთ...';
+  const real = all.filter((o) => o.value !== '');
+  const current = real.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const filtered = query
+    ? real.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : real;
+
+  const pick = (v) => { onChange({ target: { value: v } }); setOpen(false); setQuery(''); };
+
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={onChange}
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
         disabled={disabled}
-        className="h-11 w-full appearance-none rounded-field border border-ink-700 bg-ink-900 px-3.5 pr-9 text-sm font-500 text-ink-100 outline-none transition-colors hover:border-ink-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex h-11 w-full items-center justify-between rounded-field border bg-ink-900 px-3.5 text-sm font-500 outline-none transition-colors ${disabled ? 'cursor-not-allowed border-ink-700 opacity-40' : 'border-ink-700 hover:border-ink-500'} ${open ? 'border-brand-500 ring-2 ring-brand-500/30' : ''} ${current ? 'text-ink-100' : 'text-ink-500'}`}
       >
-        {options.map((o) => (
-          <option key={o.value !== undefined ? o.value : o} value={o.value !== undefined ? o.value : o} className="bg-ink-800">
-            {o.label !== undefined ? o.label : o}
-          </option>
-        ))}
-      </select>
-      <IconChevron className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+        <span className="truncate">{current ? current.label : placeholder}</span>
+        <IconChevron className={`ml-2 h-4 w-4 shrink-0 text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && !disabled && (
+        <div className="absolute z-[1000] mt-1.5 w-full overflow-hidden rounded-field border border-ink-700 bg-ink-900 shadow-pop">
+          <div className="border-b border-ink-800 p-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ძებნა..."
+              className="h-9 w-full rounded-[6px] border border-ink-700 bg-ink-950 px-3 text-sm text-ink-100 placeholder:text-ink-500 outline-none focus:border-brand-500"
+            />
+          </div>
+          <ul className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3.5 py-2.5 text-sm text-ink-500">ვერ მოიძებნა</li>
+            ) : (
+              filtered.map((o) => {
+                const sel = o.value === value;
+                return (
+                  <li key={o.value}>
+                    <button
+                      type="button"
+                      onClick={() => pick(o.value)}
+                      className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-sm transition-colors ${sel ? 'bg-brand-600/15 text-brand-400' : 'text-ink-200 hover:bg-ink-800'}`}
+                    >
+                      <span className="truncate">{o.label}</span>
+                      {sel && (
+                        <svg viewBox="0 0 24 24" className="ml-2 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
+                      )}
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
