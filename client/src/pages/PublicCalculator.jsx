@@ -60,6 +60,19 @@ const STATE_COORDS = {
   ON: [50.0, -85.0], BC: [53.7, -125.0], QC: [52.0, -72.0], AB: [55.0, -115.0],
   MB: [56.4, -98.7], NS: [45.0, -63.0], NB: [46.5, -66.0], SK: [54.0, -106.0],
 };
+// Vehicle types (from the design) — each adjusts the inland cost.
+const VEHICLES = {
+  'Sedan': 0,
+  'Medium Duty Truck': 150,
+  'Quadrocycle': -150,
+  'Motorcycles': -180,
+  'Bob Cat': 120,
+  '3 Cars Cont. (SUV)': 90,
+  'Van': 100,
+  'Boat': 80,
+  'Truck': 200,
+  'Heavy Equipment': 300,
+};
 
 /* ---------- small inline icons ---------- */
 const IconTruck = (p) => (
@@ -158,6 +171,7 @@ export default function PublicCalculator() {
   const [location, setLocation] = useState('');   // "city|state"
   const [port, setPort] = useState('');
   const [destination, setDestination] = useState('');
+  const [vehicle, setVehicle] = useState('Sedan');
 
   // ── FAQ accordion ─────────────────────────────────────────────────────────────
   const [faq, setFaq] = useState(null);
@@ -240,9 +254,10 @@ export default function PublicCalculator() {
     );
   }, [matrix, auction, location, port, destination]);
 
-  const landPrice = matchedRow ? parseFloat(matchedRow.land_price) || 0 : 0;
   const containerPrice = matchedRow ? parseFloat(matchedRow.container_price) || 0 : 0;
-  const totalPrice = matchedRow ? parseFloat(matchedRow.total_price) || 0 : 0;
+  // vehicle type adjusts the inland cost (Sedan = 0)
+  const landPrice = matchedRow ? Math.max(0, (parseFloat(matchedRow.land_price) || 0) + (VEHICLES[vehicle] || 0)) : 0;
+  const totalPrice = matchedRow ? landPrice + containerPrice : 0;
 
   const onAuctionChange = (v) => { setAuction(v); setLocation(''); setPort(''); setDestination(''); };
   const onLocationChange = (v) => { setLocation(v); setPort(''); setDestination(''); };
@@ -323,6 +338,7 @@ export default function PublicCalculator() {
   ];
   const portOptions = [{ value: '', label: 'აირჩიეთ...' }, ...ports.map((p) => ({ value: p, label: p }))];
   const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
+  const vehicleOptions = Object.keys(VEHICLES).map((v) => ({ value: v, label: v }));
 
   return (
     <div className="w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
@@ -496,6 +512,15 @@ export default function PublicCalculator() {
                         disabled={!location}
                       />
                     </Field>
+                    <div className="sm:col-span-2">
+                      <Field label="ავტომობილის ტიპი" icon={<IconTruck className="h-3.5 w-3.5" />}>
+                        <Select
+                          value={vehicle}
+                          onChange={(e) => setVehicle(e.target.value)}
+                          options={vehicleOptions}
+                        />
+                      </Field>
+                    </div>
                   </div>
 
                   <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-700 bg-ink-900 px-4 py-3">
