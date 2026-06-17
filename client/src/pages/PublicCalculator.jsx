@@ -834,12 +834,10 @@ export default function PublicCalculator() {
             <div className="lg:col-span-4">
               <Logo />
               <p className="mt-4 max-w-xs text-sm text-ink-400">
-                ამერიკული აუქციონებიდან ავტომობილების იმპორტი და ტრანსპორტირება საქართველოში. 2004 წლიდან.
+                ამერიკული აუქციონებიდან ავტომობილების იმპორტი და ტრანსპორტირება საქართველოში.
               </p>
               <div className="mt-6 flex gap-3">
-                {['IN', 'FB', 'TG'].map((s) => (
-                  <button key={s} type="button" className="grid h-10 w-10 place-items-center rounded-btn border border-ink-700 font-mono text-[11px] text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">{s}</button>
-                ))}
+                <a href="https://www.facebook.com/Soreli-cars-1015492411848230" target="_blank" rel="noopener noreferrer" className="grid h-10 w-10 place-items-center rounded-btn border border-ink-700 font-mono text-[11px] text-ink-400 transition-colors hover:border-brand-500 hover:text-ink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">FB</a>
               </div>
             </div>
             {[
@@ -859,9 +857,11 @@ export default function PublicCalculator() {
             <div className="lg:col-span-2">
               <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-500">კონტაქტი</div>
               <ul className="mt-4 space-y-3 text-sm text-ink-300">
-                <li className="font-mono tabular-nums">+995 32 2 00 00 00</li>
-                <li>info@soreli.ge</li>
-                <li className="text-ink-400">თბილისი, დ. აღმაშენებლის 154</li>
+                <li><span className="text-ink-500">საქართველო:</span> <a href="tel:+995597100389" className="font-mono hover:text-brand-500">+995 597 100 389</a></li>
+                <li><span className="text-ink-500">აშშ:</span> <a href="tel:+19084943909" className="font-mono hover:text-brand-500">+1 908 494 3909</a></li>
+                <li className="font-mono"><a href="tel:+19083333383" className="hover:text-brand-500">+1 908 333 3383</a></li>
+                <li><span className="text-ink-500">უკრაინა:</span> <a href="tel:+380956048877" className="font-mono hover:text-brand-500">+38 095 604 88 77</a></li>
+                <li><a href="mailto:infosoreli@gmail.com" className="hover:text-brand-500">infosoreli@gmail.com</a></li>
               </ul>
             </div>
           </div>
