@@ -15,6 +15,7 @@ router.get('/public/calculator/options', calculatorPublicController.getPublicOpt
 router.get('/public/calculator/quote', calculatorPublicController.getPublicQuote);
 router.get('/public/calculator/matrix', calculatorPublicController.getPublicMatrix);
 router.get('/public/calculator/lot-quote', calculatorPublicController.getLotQuote);
+router.get('/public/calculator/vehicle-types', calculatorPublicController.getVehicleTypes);
 
 // Route modules will be added here as they are built:
 router.use('/', require('./auth'));
@@ -32,9 +33,15 @@ router.use('/messages', require('./messages'));
 router.use('/audit-logs', require('./auditLogs'));
 
 // Top-level endpoints
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const dashboardController = require('../controllers/dashboardController');
 router.get('/dashboard/stats', requireAuth, dashboardController.getStats);
+
+// Vehicle types (admin-managed calculator price modifiers)
+router.get('/vehicle-types', requireAuth, calculatorPublicController.getVehicleTypes);
+router.post('/vehicle-types', requireAdmin, calculatorPublicController.createVehicleType);
+router.put('/vehicle-types/:id', requireAdmin, calculatorPublicController.updateVehicleType);
+router.delete('/vehicle-types/:id', requireAdmin, calculatorPublicController.deleteVehicleType);
 
 router.get('/cities', requireAuth, vehiclesController.getCities);
 router.get('/search', requireAuth, vehiclesController.searchVehicles);

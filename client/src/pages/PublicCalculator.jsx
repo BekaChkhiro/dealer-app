@@ -275,6 +275,7 @@ export default function PublicCalculator() {
   const [port, setPort] = useState('');
   const [destination, setDestination] = useState('');
   const [vehicle, setVehicle] = useState('Sedan');
+  const [vehicleTypes, setVehicleTypes] = useState([]); // admin-managed types
 
   // ── FAQ accordion ─────────────────────────────────────────────────────────────
   const [faq, setFaq] = useState(null);
@@ -300,6 +301,22 @@ export default function PublicCalculator() {
 
     return () => { ignore = true; };
   }, []);
+
+  // ── Fetch admin-managed vehicle types ────────────────────────────────────────
+  useEffect(() => {
+    let ignore = false;
+    api.get('/public/calculator/vehicle-types')
+      .then((res) => { if (!ignore) setVehicleTypes(Array.isArray(res.data?.data) ? res.data.data : []); })
+      .catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+
+  // keep the selected vehicle valid for the loaded types
+  useEffect(() => {
+    if (vehicleTypes.length && !vehicleTypes.some((t) => t.name === vehicle)) {
+      setVehicle(vehicleTypes[0].name);
+    }
+  }, [vehicleTypes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Cascading option lists ───────────────────────────────────────────────────
   const auctions = useMemo(() => uniq(matrix.map((r) => r.auction)).sort(), [matrix]);
@@ -359,7 +376,11 @@ export default function PublicCalculator() {
 
   const containerPrice = matchedRow ? parseFloat(matchedRow.container_price) || 0 : 0;
   // vehicle type adjusts the inland cost (Sedan = 0)
-  const landPrice = matchedRow ? Math.max(0, (parseFloat(matchedRow.land_price) || 0) + (VEHICLES[vehicle] || 0)) : 0;
+  // vehicle modifiers come from admin-managed types (fallback to defaults)
+  const vehMods = vehicleTypes.length
+    ? Object.fromEntries(vehicleTypes.map((t) => [t.name, parseFloat(t.price_modifier) || 0]))
+    : VEHICLES;
+  const landPrice = matchedRow ? Math.max(0, (parseFloat(matchedRow.land_price) || 0) + (vehMods[vehicle] || 0)) : 0;
   const totalPrice = matchedRow ? landPrice + containerPrice : 0;
 
   const onAuctionChange = (v) => { setAuction(v); setLocation(''); setPort(''); setDestination(''); };
@@ -441,7 +462,8 @@ export default function PublicCalculator() {
   ];
   const portOptions = [{ value: '', label: 'აირჩიეთ...' }, ...ports.map((p) => ({ value: p, label: p }))];
   const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
-  const vehicleOptions = Object.keys(VEHICLES).map((v) => ({ value: v, label: v, Icon: VEHICLE_ICONS[v] || IconCar }));
+  const vehicleNames = vehicleTypes.length ? vehicleTypes.map((t) => t.name) : Object.keys(VEHICLES);
+  const vehicleOptions = vehicleNames.map((v) => ({ value: v, label: v, Icon: VEHICLE_ICONS[v] || IconCar }));
 
   return (
     <div className="srl-scope w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">

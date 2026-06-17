@@ -325,4 +325,67 @@ async function getLotQuote(req, res) {
   }
 }
 
-module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix, getLotQuote };
+// ---- Vehicle types (admin-managed inland price modifiers) ----
+async function getVehicleTypes(req, res) {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, price_modifier, sort_order FROM vehicle_types ORDER BY sort_order, id'
+    );
+    res.json({ error: 0, success: true, data: result.rows });
+  } catch (err) {
+    console.error('getVehicleTypes error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function createVehicleType(req, res) {
+  try {
+    const { name, price_modifier, sort_order } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 1, success: false, message: 'Name is required' });
+    }
+    const result = await pool.query(
+      'INSERT INTO vehicle_types (name, price_modifier, sort_order) VALUES ($1, $2, $3) RETURNING *',
+      [name.trim(), Number(price_modifier) || 0, Number(sort_order) || 0]
+    );
+    res.json({ error: 0, success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('createVehicleType error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function updateVehicleType(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, price_modifier, sort_order } = req.body;
+    const fields = [];
+    const params = [];
+    let i = 1;
+    if (name !== undefined) { fields.push(`name = $${i++}`); params.push(name); }
+    if (price_modifier !== undefined) { fields.push(`price_modifier = $${i++}`); params.push(Number(price_modifier) || 0); }
+    if (sort_order !== undefined) { fields.push(`sort_order = $${i++}`); params.push(Number(sort_order) || 0); }
+    if (!fields.length) return res.status(400).json({ error: 1, success: false, message: 'Nothing to update' });
+    params.push(id);
+    const result = await pool.query(`UPDATE vehicle_types SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`, params);
+    if (!result.rows.length) return res.status(404).json({ error: 1, success: false, message: 'Vehicle type not found' });
+    res.json({ error: 0, success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('updateVehicleType error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function deleteVehicleType(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM vehicle_types WHERE id = $1 RETURNING id', [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 1, success: false, message: 'Vehicle type not found' });
+    res.json({ error: 0, success: true, message: 'Vehicle type deleted' });
+  } catch (err) {
+    console.error('deleteVehicleType error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix, getLotQuote, getVehicleTypes, createVehicleType, updateVehicleType, deleteVehicleType };

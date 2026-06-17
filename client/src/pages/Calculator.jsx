@@ -12,6 +12,13 @@ function formatPrice(value) {
   return `$${Number(value).toLocaleString()}`;
 }
 
+function formatModifier(value) {
+  if (value == null) return '—';
+  const n = Number(value);
+  if (n > 0) return `+${n}`;
+  return String(n);
+}
+
 function Calculator() {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -45,6 +52,104 @@ function Calculator() {
   const [formData, setFormData] = useState({ auction: '', city: '', state: '', destination: '', land_price: '', container_price: '', total_price: '', port: '' });
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Vehicle Types state
+  const [vtData, setVtData] = useState([]);
+  const [vtLoading, setVtLoading] = useState(true);
+  const [vtEditModal, setVtEditModal] = useState(false);
+  const [vtEditRow, setVtEditRow] = useState(null);
+  const [vtFormData, setVtFormData] = useState({ name: '', price_modifier: '', sort_order: '' });
+  const [vtSaving, setVtSaving] = useState(false);
+  const [vtDeleteConfirm, setVtDeleteConfirm] = useState(null);
+
+  const fetchVehicleTypes = useCallback(async () => {
+    try {
+      setVtLoading(true);
+      const res = await api.get('/vehicle-types');
+      setVtData(res.data.data || []);
+    } catch (err) {
+      console.error('Error fetching vehicle types:', err);
+    } finally {
+      setVtLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchVehicleTypes(); }, [fetchVehicleTypes]);
+
+  function handleVtAddNew() {
+    setVtEditRow(null);
+    setVtFormData({ name: '', price_modifier: '', sort_order: '' });
+    setVtEditModal(true);
+  }
+
+  function handleVtAction(action, row) {
+    if (action === 'edit') {
+      setVtEditRow(row);
+      setVtFormData({
+        name: row.name || '',
+        price_modifier: row.price_modifier ?? '',
+        sort_order: row.sort_order ?? '',
+      });
+      setVtEditModal(true);
+    } else if (action === 'delete') {
+      setVtDeleteConfirm(row);
+    }
+  }
+
+  function handleVtFormChange(e) {
+    const { name, value } = e.target;
+    setVtFormData(prev => ({ ...prev, [name]: value }));
+  }
+
+  async function handleVtFormSubmit(e) {
+    e.preventDefault();
+    if (!vtFormData.name.trim()) return;
+
+    setVtSaving(true);
+    try {
+      const payload = {
+        name: vtFormData.name,
+        price_modifier: Number(vtFormData.price_modifier) || 0,
+        sort_order: Number(vtFormData.sort_order) || 0,
+      };
+
+      if (vtEditRow) {
+        await api.put(`/vehicle-types/${vtEditRow.id}`, payload);
+      } else {
+        await api.post('/vehicle-types', payload);
+      }
+      setVtEditModal(false);
+      fetchVehicleTypes();
+    } catch (err) {
+      console.error('Vehicle type save error:', err);
+    } finally {
+      setVtSaving(false);
+    }
+  }
+
+  async function handleVtDelete() {
+    if (!vtDeleteConfirm) return;
+    try {
+      await api.delete(`/vehicle-types/${vtDeleteConfirm.id}`);
+      setVtDeleteConfirm(null);
+      fetchVehicleTypes();
+    } catch (err) {
+      console.error('Vehicle type delete error:', err);
+    }
+  }
+
+  const vtColumns = [
+    { key: 'name', label: 'ტიპის დასახელება', sortable: false },
+    { key: 'price_modifier', label: 'ფასის მოდიფიკატორი', sortable: false, align: 'right', render: (row) => formatModifier(row.price_modifier) },
+    { key: 'sort_order', label: 'რიგითობა', sortable: false, align: 'right' },
+  ];
+
+  const vtActions = isAdmin
+    ? [
+        { key: 'edit', label: t('common.edit') },
+        { key: 'delete', label: t('common.delete') },
+      ]
+    : [];
 
   const fetchData = useCallback(async () => {
     try {
@@ -246,6 +351,106 @@ function Calculator() {
         onPageChange={handlePageChange}
         onLimitChange={handleLimitChange}
       />
+
+      {/* Vehicle Types Section */}
+      <div className="mt-5">
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <h4 className="mb-0">ავტომობილის ტიპები</h4>
+          {isAdmin && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleVtAddNew}>
+              + დამატება
+            </button>
+          )}
+        </div>
+
+        <DataTable
+          columns={vtColumns}
+          data={vtData}
+          loading={vtLoading}
+          actions={vtActions}
+          onAction={handleVtAction}
+        />
+      </div>
+
+      {/* Vehicle Types – Add/Edit Modal */}
+      {vtEditModal && (
+        <div className="calc-modal-overlay" onClick={() => setVtEditModal(false)}>
+          <div className="calc-modal" onClick={e => e.stopPropagation()}>
+            <div className="calc-modal-header">
+              <h5>{vtEditRow ? 'ტიპის რედაქტირება' : 'ახალი ტიპის დამატება'}</h5>
+              <button className="calc-modal-close" aria-label="დახურვა" onClick={() => setVtEditModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleVtFormSubmit}>
+              <div className="calc-modal-body">
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="vt-name">
+                    ტიპის დასახელება <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="vt-name"
+                    type="text"
+                    className="form-control"
+                    name="name"
+                    value={vtFormData.name}
+                    onChange={handleVtFormChange}
+                    required
+                  />
+                </div>
+                <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label" htmlFor="vt-price-modifier">ფასის მოდიფიკატორი</label>
+                    <input
+                      id="vt-price-modifier"
+                      type="number"
+                      className="form-control"
+                      name="price_modifier"
+                      value={vtFormData.price_modifier}
+                      onChange={handleVtFormChange}
+                    />
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label" htmlFor="vt-sort-order">რიგითობა</label>
+                    <input
+                      id="vt-sort-order"
+                      type="number"
+                      className="form-control"
+                      name="sort_order"
+                      value={vtFormData.sort_order}
+                      onChange={handleVtFormChange}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="calc-modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setVtEditModal(false)}>{t('common.cancel')}</button>
+                <button type="submit" className="btn btn-primary" disabled={vtSaving}>
+                  {vtSaving ? t('common.saving') : (vtEditRow ? t('common.update') : t('common.create'))}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle Types – Delete Confirmation Modal */}
+      {vtDeleteConfirm && (
+        <div className="calc-modal-overlay" onClick={() => setVtDeleteConfirm(null)}>
+          <div className="calc-modal calc-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="calc-modal-header">
+              <h5>ტიპის წაშლა</h5>
+              <button className="calc-modal-close" aria-label="დახურვა" onClick={() => setVtDeleteConfirm(null)}>&times;</button>
+            </div>
+            <div className="calc-modal-body">
+              <p>დარწმუნებული ხართ, რომ გსურთ ამ ჩანაწერის წაშლა?</p>
+              <p className="text-muted mb-0">{vtDeleteConfirm.name}</p>
+            </div>
+            <div className="calc-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setVtDeleteConfirm(null)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={handleVtDelete}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {editModal && (
