@@ -1,6 +1,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Scoped mini-preflight for the public pages ──────────────────────────────
+   Tailwind's global preflight is OFF (to not disturb the Bootstrap app), so we
+   re-apply its essential resets only inside .srl-scope. Tailwind utilities are
+   !important, so they still win where explicitly set. */
+.srl-scope *, .srl-scope ::before, .srl-scope ::after { border-width: 0; border-style: solid; }
+.srl-scope ul, .srl-scope ol { margin: 0; padding: 0; list-style: none; }
+.srl-scope button { background-color: transparent; background-image: none; }
+
 /* ── Leaflet route-map markers (public calculator) ── */
 .leaflet-container { background: #161619; font-family: 'Inter', sans-serif; }
 .pc-map-pin { display: block; width: 18px; height: 18px; border-radius: 9999px; }

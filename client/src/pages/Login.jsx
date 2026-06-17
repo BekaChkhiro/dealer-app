@@ -116,7 +116,7 @@ function formatDate(dateStr) {
 // ─── Results view (vehicle tracking) ─────────────────────────────────────────
 function ResultsView({ results, privateCode, onBack, t }) {
   return (
-    <div className="min-h-screen w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
+    <div className="srl-scope min-h-screen w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         {/* Header */}
         <div className="mb-8 flex items-center gap-4">
@@ -316,7 +316,7 @@ export default function Login() {
 
   // ── Login + private-code forms ───────────────────────────────────────────────
   return (
-    <div className="grid min-h-screen w-full bg-ink-900 font-sans text-ink-100 antialiased lg:grid-cols-2 [&_a]:no-underline [&_button]:no-underline">
+    <div className="srl-scope grid min-h-screen w-full bg-ink-900 font-sans text-ink-100 antialiased lg:grid-cols-2 [&_a]:no-underline [&_button]:no-underline">
 
       {/* ── LEFT PANEL (decorative, hidden on mobile) ─────────────────────── */}
       <div className="relative hidden overflow-hidden border-r border-ink-700 lg:block">

@@ -437,7 +437,7 @@ export default function PublicCalculator() {
   const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
 
   return (
-    <div className="w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
+    <div className="srl-scope w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
 
       {/* ============ NAV ============ */}
       <header className="sticky top-0 z-30 border-b border-ink-700/80 bg-ink-900/85 backdrop-blur">
@@ -650,7 +650,7 @@ export default function PublicCalculator() {
                       ['საზღვაო', containerPrice],
                       ['სულ', totalPrice],
                     ].map(([l, v]) => (
-                      <div key={l} className="flex items-center justify-between border-b border-dashed border-ink-700 py-2.5">
+                      <div key={l} className="flex items-center justify-between border-b border-ink-800 py-2.5 last:border-0">
                         <span className="text-sm text-ink-400">{l}</span>
                         <span className="font-mono text-sm font-600 tabular-nums text-ink-100">{formatUSD(v)}</span>
                       </div>
