@@ -351,10 +351,12 @@ export default function PublicCalculator() {
     const [city, state] = location.split('|');
     return usable.find((r) => r.auction === auction && r.city === city && (r.state || '') === state && r.port === port) || null;
   }, [usable, auction, location, port]);
-  // ocean: port -> destination (same across locations/auctions)
+  // ocean: port -> destination (same across locations/auctions); prefer a real
+  // priced row so placeholder rows (price 0) never mask an actual sea price.
   const oceanRow = useMemo(() => {
     if (!port || !destination) return null;
-    return usable.find((r) => r.port === port && r.destination === destination) || null;
+    const match = (r) => r.port === port && r.destination === destination;
+    return usable.find((r) => match(r) && parseFloat(r.container_price) > 0) || usable.find(match) || null;
   }, [usable, port, destination]);
 
   const selected = !!(auction && location && port && destination);
