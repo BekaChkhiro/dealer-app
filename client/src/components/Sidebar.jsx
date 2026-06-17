@@ -146,7 +146,7 @@ function LogOutIcon() {
 /* ---------- Nav items config ---------- */
 
 const NAV_ITEMS = [
-  { labelKey: 'nav.dashboard', path: '/', end: true, icon: DashboardIcon },
+  { labelKey: 'nav.dashboard', path: '/dashboard', end: true, icon: DashboardIcon },
   { labelKey: 'nav.users', path: '/users', icon: UsersIcon, adminOnly: true },
   { labelKey: 'nav.booking', path: '/booking', icon: BookingIcon },
   { labelKey: 'nav.cars', path: '/cars', icon: CarsIcon },
@@ -188,7 +188,7 @@ export default function Sidebar({ isCollapsed, onToggle, isMobile, isOpen, onClo
       )}
       <aside className={sidebarClass}>
         {/* Logo */}
-        <Link to="/" className="sidebar-logo">
+        <Link to="/dashboard" className="sidebar-logo">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
             <rect width="28" height="28" rx="6" fill="#727CF5" />
             <text x="14" y="19" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="bold">D</text>

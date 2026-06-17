@@ -32,7 +32,7 @@ import './styles/global.css';
 
 function AdminRoute({ children }) {
   const { user } = useAuth();
-  if (user?.role !== 'admin') return <Navigate to="/" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -103,7 +103,6 @@ function ProtectedLayout() {
     );
   }
   if (!user) {
-    if (location.pathname === '/') return <PublicCalculator />;
     return <Navigate to="/login" replace />;
   }
 
@@ -134,7 +133,7 @@ function ProtectedLayout() {
         backgroundColor: 'var(--content-bg)',
       }}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/users/:id" element={<AdminRoute><UserDetail /></AdminRoute>} />
           <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
           <Route path="/booking/:id" element={<BookingDetail />} />
@@ -152,7 +151,7 @@ function ProtectedLayout() {
           <Route path="/audit-log" element={<AdminRoute><AuditLog /></AdminRoute>} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
     </div>
@@ -169,6 +168,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/track/:vin" element={<PublicTracking />} />
+            <Route path="/" element={<PublicCalculator />} />
             <Route path="/*" element={<ProtectedLayout />} />
           </Routes>
         </BrowserRouter>

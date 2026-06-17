@@ -252,7 +252,7 @@ export default function Login() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [user, loading, navigate]);
 
@@ -263,7 +263,7 @@ export default function Login() {
     try {
       const res = await login(username, password);
       if (res.success) {
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       } else {
         setError(res.message || t('login.loginFailed'));
       }
