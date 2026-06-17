@@ -6,6 +6,7 @@
 .pc-map-pin { display: block; width: 18px; height: 18px; border-radius: 9999px; }
 .pc-map-pin--origin { background: #e26009; box-shadow: 0 0 0 5px rgba(226, 96, 9, 0.3); }
 .pc-map-pin--dest { background: #1b5ff5; box-shadow: 0 0 0 5px rgba(27, 95, 245, 0.3); }
+.pc-map-pin--port { width: 11px; height: 11px; background: #d6d6da; border: 2px solid #0b0b0d; box-shadow: 0 0 0 3px rgba(214, 214, 218, 0.25); }
 .pc-map-pill {
   display: inline-block;
   transform: translate(-50%, -190%);
