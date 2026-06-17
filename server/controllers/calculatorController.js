@@ -248,4 +248,81 @@ async function getPublicMatrix(req, res) {
   }
 }
 
-module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix };
+// Scrape a bid.cars lot, resolve its auction location to our calculator matrix,
+// and return the vehicle info plus all priced routes for that location.
+const { scrapeLot } = require('../helpers/bidcars');
+
+function pickBestLocation(rows, city) {
+  const c = city.toLowerCase();
+  // exact city first, then contains either way
+  let m = rows.filter((r) => (r.city || '').toLowerCase() === c);
+  if (m.length) return m;
+  m = rows.filter((r) => {
+    const rc = (r.city || '').toLowerCase();
+    return rc && (rc.includes(c) || c.includes(rc));
+  });
+  if (m.length) {
+    // prefer the longest common match (most specific single city)
+    const best = m.reduce((a, b) => ((b.city || '').length > (a.city || '').length ? b : a)).city;
+    return m.filter((r) => r.city === best);
+  }
+  return rows; // state-only fallback
+}
+
+async function getLotQuote(req, res) {
+  try {
+    const auction = req.query.auction;
+    const lot = req.query.lot;
+    if (!['Copart', 'IAAI'].includes(auction) || !lot) {
+      return res.status(400).json({ error: 1, success: false, message: 'auction (Copart|IAAI) and lot are required' });
+    }
+
+    const scraped = await scrapeLot(auction, lot);
+    if (!scraped.ok) {
+      const msg = scraped.error === 'blocked'
+        ? 'Could not load the lot (blocked by the source). Please try again.'
+        : scraped.error === 'no-data'
+          ? 'No data found for this lot. Check the lot number and auction.'
+          : 'Failed to read the lot.';
+      return res.status(502).json({ error: 1, success: false, message: msg, detail: scraped.error });
+    }
+
+    const { city, state } = scraped.location;
+    const all = await pool.query(
+      `SELECT city, state, port, destination, land_price, container_price, total_price
+         FROM calculator
+        WHERE auction = $1 AND state = $2
+          AND port IS NOT NULL AND destination IS NOT NULL`,
+      [auction, state]
+    );
+    const matched = pickBestLocation(all.rows, city);
+
+    res.json({
+      error: 0,
+      success: true,
+      data: {
+        auction,
+        vehicle: scraped.vehicle,
+        vin: scraped.vin,
+        lot: scraped.lot,
+        odometer: scraped.odometer,
+        location: scraped.location,
+        bidcarsPort: scraped.bidcarsPort,
+        lotUrl: scraped.url,
+        matchedCity: matched.length ? { city: matched[0].city, state: matched[0].state } : null,
+        routes: matched.map((r) => ({
+          port: r.port,
+          destination: r.destination,
+          land_price: r.land_price,
+          container_price: r.container_price,
+          total_price: r.total_price,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('getLotQuote error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix, getLotQuote };

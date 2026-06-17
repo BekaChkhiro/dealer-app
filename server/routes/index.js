@@ -14,6 +14,7 @@ const calculatorPublicController = require('../controllers/calculatorController'
 router.get('/public/calculator/options', calculatorPublicController.getPublicOptions);
 router.get('/public/calculator/quote', calculatorPublicController.getPublicQuote);
 router.get('/public/calculator/matrix', calculatorPublicController.getPublicMatrix);
+router.get('/public/calculator/lot-quote', calculatorPublicController.getLotQuote);
 
 // Route modules will be added here as they are built:
 router.use('/', require('./auth'));

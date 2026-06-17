@@ -1,0 +1,13 @@
+**/node_modules
+client/dist
+.git
+.gitignore
+*.md
+server/tests
+e2e-*.mjs
+verify-*.mjs
+test-*.js
+verify-watermark.js
+.env
+npm-debug.log
+.DS_Store
