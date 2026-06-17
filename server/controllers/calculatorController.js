@@ -388,4 +388,68 @@ async function deleteVehicleType(req, res) {
   }
 }
 
-module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix, getLotQuote, getVehicleTypes, createVehicleType, updateVehicleType, deleteVehicleType };
+// ---- Calculator ports (admin-managed loading & destination ports) ----
+async function getCalcPorts(req, res) {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, kind, lat, lon, sort_order FROM calc_ports ORDER BY kind, sort_order, id'
+    );
+    res.json({ error: 0, success: true, data: result.rows });
+  } catch (err) {
+    console.error('getCalcPorts error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function createCalcPort(req, res) {
+  try {
+    const { name, kind, lat, lon, sort_order } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 1, success: false, message: 'Name is required' });
+    const k = kind === 'destination' ? 'destination' : 'loading';
+    const result = await pool.query(
+      'INSERT INTO calc_ports (name, kind, lat, lon, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name.trim(), k, lat === '' || lat == null ? null : Number(lat), lon === '' || lon == null ? null : Number(lon), Number(sort_order) || 0]
+    );
+    res.json({ error: 0, success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('createCalcPort error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function updateCalcPort(req, res) {
+  try {
+    const { id } = req.params;
+    const { name, kind, lat, lon, sort_order } = req.body;
+    const fields = [];
+    const params = [];
+    let i = 1;
+    if (name !== undefined) { fields.push(`name = $${i++}`); params.push(name); }
+    if (kind !== undefined) { fields.push(`kind = $${i++}`); params.push(kind === 'destination' ? 'destination' : 'loading'); }
+    if (lat !== undefined) { fields.push(`lat = $${i++}`); params.push(lat === '' || lat == null ? null : Number(lat)); }
+    if (lon !== undefined) { fields.push(`lon = $${i++}`); params.push(lon === '' || lon == null ? null : Number(lon)); }
+    if (sort_order !== undefined) { fields.push(`sort_order = $${i++}`); params.push(Number(sort_order) || 0); }
+    if (!fields.length) return res.status(400).json({ error: 1, success: false, message: 'Nothing to update' });
+    params.push(id);
+    const result = await pool.query(`UPDATE calc_ports SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`, params);
+    if (!result.rows.length) return res.status(404).json({ error: 1, success: false, message: 'Port not found' });
+    res.json({ error: 0, success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('updateCalcPort error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function deleteCalcPort(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM calc_ports WHERE id = $1 RETURNING id', [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 1, success: false, message: 'Port not found' });
+    res.json({ error: 0, success: true, message: 'Port deleted' });
+  } catch (err) {
+    console.error('deleteCalcPort error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote, getPublicMatrix, getLotQuote, getVehicleTypes, createVehicleType, updateVehicleType, deleteVehicleType, getCalcPorts, createCalcPort, updateCalcPort, deleteCalcPort };

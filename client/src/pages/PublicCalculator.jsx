@@ -279,6 +279,7 @@ export default function PublicCalculator() {
   const [destination, setDestination] = useState('');
   const [vehicle, setVehicle] = useState('Sedan');
   const [vehicleTypes, setVehicleTypes] = useState([]); // admin-managed types
+  const [calcPorts, setCalcPorts] = useState([]); // admin-managed loading & destination ports
 
   // ── FAQ accordion ─────────────────────────────────────────────────────────────
   const [faq, setFaq] = useState(null);
@@ -314,6 +315,15 @@ export default function PublicCalculator() {
     return () => { ignore = true; };
   }, []);
 
+  // ── Fetch admin-managed ports (loading + destination) ────────────────────────
+  useEffect(() => {
+    let ignore = false;
+    api.get('/public/calculator/ports')
+      .then((res) => { if (!ignore) setCalcPorts(Array.isArray(res.data?.data) ? res.data.data : []); })
+      .catch(() => {});
+    return () => { ignore = true; };
+  }, []);
+
   // keep the selected vehicle valid for the loaded types
   useEffect(() => {
     if (vehicleTypes.length && !vehicleTypes.some((t) => t.name === vehicle)) {
@@ -340,10 +350,28 @@ export default function PublicCalculator() {
     );
   }, [usable, auction]);
 
+  // Admin-managed ports/destinations (fallback to hardcoded if API is empty).
+  const portList = useMemo(() => {
+    const ld = calcPorts.filter((p) => p.kind === 'loading').map((p) => p.name);
+    return ld.length ? ld : PORT_LIST;
+  }, [calcPorts]);
+  const destList = useMemo(() => {
+    const ds = calcPorts.filter((p) => p.kind === 'destination').map((p) => p.name);
+    return ds.length ? ds : DEST_LIST;
+  }, [calcPorts]);
+  const portCoords = useMemo(() => {
+    const ld = calcPorts.filter((p) => p.kind === 'loading' && p.lat != null && p.lon != null);
+    return ld.length ? Object.fromEntries(ld.map((p) => [p.name, [Number(p.lat), Number(p.lon)]])) : PORT_COORDS;
+  }, [calcPorts]);
+  const destCoords = useMemo(() => {
+    const ds = calcPorts.filter((p) => p.kind === 'destination' && p.lat != null && p.lon != null);
+    return ds.length ? Object.fromEntries(ds.map((p) => [p.name, [Number(p.lat), Number(p.lon)]])) : DEST_COORDS;
+  }, [calcPorts]);
+
   // srl.ge shows ALL ports + ALL destinations always (after the previous field is
   // chosen); the price is computed independently per leg, $0 where no route exists.
-  const ports = useMemo(() => (auction && location ? PORT_LIST : []), [auction, location]);
-  const destinations = useMemo(() => (auction && location && port ? DEST_LIST : []), [auction, location, port]);
+  const ports = useMemo(() => (auction && location ? portList : []), [auction, location, portList]);
+  const destinations = useMemo(() => (auction && location && port ? destList : []), [auction, location, port, destList]);
 
   // inland: location -> port (same across destinations)
   const inlandRow = useMemo(() => {
@@ -406,7 +434,7 @@ export default function PublicCalculator() {
     const map = mapObj.current, group = routeLayer.current;
     if (!map || !group) return;
     group.clearLayers();
-    const port_ = PORT_COORDS[port], dest_ = DEST_COORDS[destination];
+    const port_ = portCoords[port], dest_ = destCoords[destination];
     if (!port_ || !dest_) { map.setView([40, -30], 2); return; }
     const state = location ? location.split('|')[1] : '';
     const origin = STATE_COORDS[state] || null; // auction location (inland origin)
@@ -435,7 +463,7 @@ export default function PublicCalculator() {
 
     map.fitBounds(origin ? [origin, port_, dest_] : [port_, dest_], { padding: [60, 60], maxZoom: 5 });
     setTimeout(() => map.invalidateSize(), 100);
-  }, [location, port, destination, landPrice, containerPrice]);
+  }, [location, port, destination, landPrice, containerPrice, portCoords, destCoords]);
 
   // Select option arrays
   const auctionOptions = [{ value: '', label: 'აირჩიეთ...' }, ...auctions.map((a) => ({ value: a, label: a }))];

@@ -62,6 +62,15 @@ function Calculator() {
   const [vtSaving, setVtSaving] = useState(false);
   const [vtDeleteConfirm, setVtDeleteConfirm] = useState(null);
 
+  // Ports state
+  const [cpData, setCpData] = useState([]);
+  const [cpLoading, setCpLoading] = useState(true);
+  const [cpEditModal, setCpEditModal] = useState(false);
+  const [cpEditRow, setCpEditRow] = useState(null);
+  const [cpFormData, setCpFormData] = useState({ name: '', kind: 'loading', lat: '', lon: '', sort_order: '' });
+  const [cpSaving, setCpSaving] = useState(false);
+  const [cpDeleteConfirm, setCpDeleteConfirm] = useState(null);
+
   const fetchVehicleTypes = useCallback(async () => {
     try {
       setVtLoading(true);
@@ -75,6 +84,101 @@ function Calculator() {
   }, []);
 
   useEffect(() => { fetchVehicleTypes(); }, [fetchVehicleTypes]);
+
+  const fetchCalcPorts = useCallback(async () => {
+    try {
+      setCpLoading(true);
+      const res = await api.get('/calc-ports');
+      setCpData(res.data.data || []);
+    } catch (err) {
+      console.error('Error fetching calc ports:', err);
+    } finally {
+      setCpLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchCalcPorts(); }, [fetchCalcPorts]);
+
+  function handleCpAddNew() {
+    setCpEditRow(null);
+    setCpFormData({ name: '', kind: 'loading', lat: '', lon: '', sort_order: '' });
+    setCpEditModal(true);
+  }
+
+  function handleCpAction(action, row) {
+    if (action === 'edit') {
+      setCpEditRow(row);
+      setCpFormData({
+        name: row.name || '',
+        kind: row.kind || 'loading',
+        lat: row.lat ?? '',
+        lon: row.lon ?? '',
+        sort_order: row.sort_order ?? '',
+      });
+      setCpEditModal(true);
+    } else if (action === 'delete') {
+      setCpDeleteConfirm(row);
+    }
+  }
+
+  function handleCpFormChange(e) {
+    const { name, value } = e.target;
+    setCpFormData(prev => ({ ...prev, [name]: value }));
+  }
+
+  async function handleCpFormSubmit(e) {
+    e.preventDefault();
+    if (!cpFormData.name.trim()) return;
+
+    setCpSaving(true);
+    try {
+      const payload = {
+        name: cpFormData.name,
+        kind: cpFormData.kind,
+        lat: cpFormData.lat !== '' ? Number(cpFormData.lat) : null,
+        lon: cpFormData.lon !== '' ? Number(cpFormData.lon) : null,
+        sort_order: Number(cpFormData.sort_order) || 0,
+      };
+
+      if (cpEditRow) {
+        await api.put(`/calc-ports/${cpEditRow.id}`, payload);
+      } else {
+        await api.post('/calc-ports', payload);
+      }
+      setCpEditModal(false);
+      fetchCalcPorts();
+    } catch (err) {
+      console.error('Calc port save error:', err);
+    } finally {
+      setCpSaving(false);
+    }
+  }
+
+  async function handleCpDelete() {
+    if (!cpDeleteConfirm) return;
+    try {
+      await api.delete(`/calc-ports/${cpDeleteConfirm.id}`);
+      setCpDeleteConfirm(null);
+      fetchCalcPorts();
+    } catch (err) {
+      console.error('Calc port delete error:', err);
+    }
+  }
+
+  const cpColumns = [
+    { key: 'name', label: 'სახელი', sortable: false },
+    { key: 'kind', label: 'ტიპი', sortable: false, render: (row) => row.kind === 'destination' ? 'დანიშნულების' : 'ჩატვირთვის' },
+    { key: 'lat', label: 'Lat', sortable: false, align: 'right', render: (row) => row.lat ?? '—' },
+    { key: 'lon', label: 'Lon', sortable: false, align: 'right', render: (row) => row.lon ?? '—' },
+    { key: 'sort_order', label: 'რიგი', sortable: false, align: 'right' },
+  ];
+
+  const cpActions = isAdmin
+    ? [
+        { key: 'edit', label: t('common.edit') },
+        { key: 'delete', label: t('common.delete') },
+      ]
+    : [];
 
   function handleVtAddNew() {
     setVtEditRow(null);
@@ -371,6 +475,132 @@ function Calculator() {
           onAction={handleVtAction}
         />
       </div>
+
+      {/* Ports Section */}
+      <div className="mt-5">
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <h4 className="mb-0">პორტები</h4>
+          {isAdmin && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleCpAddNew}>
+              + დამატება
+            </button>
+          )}
+        </div>
+
+        <DataTable
+          columns={cpColumns}
+          data={cpData}
+          loading={cpLoading}
+          actions={cpActions}
+          onAction={handleCpAction}
+        />
+      </div>
+
+      {/* Ports – Add/Edit Modal */}
+      {cpEditModal && (
+        <div className="calc-modal-overlay" onClick={() => setCpEditModal(false)}>
+          <div className="calc-modal" onClick={e => e.stopPropagation()}>
+            <div className="calc-modal-header">
+              <h5>{cpEditRow ? 'პორტის რედაქტირება' : 'ახალი პორტის დამატება'}</h5>
+              <button className="calc-modal-close" aria-label="დახურვა" onClick={() => setCpEditModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleCpFormSubmit}>
+              <div className="calc-modal-body">
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="cp-name">
+                    სახელი <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="cp-name"
+                    type="text"
+                    className="form-control"
+                    name="name"
+                    value={cpFormData.name}
+                    onChange={handleCpFormChange}
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="cp-kind">ტიპი</label>
+                  <select
+                    id="cp-kind"
+                    className="form-select"
+                    name="kind"
+                    value={cpFormData.kind}
+                    onChange={handleCpFormChange}
+                  >
+                    <option value="loading">ჩატვირთვის პორტი</option>
+                    <option value="destination">დანიშნულების პორტი</option>
+                  </select>
+                </div>
+                <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label" htmlFor="cp-lat">Lat</label>
+                    <input
+                      id="cp-lat"
+                      type="number"
+                      step="any"
+                      className="form-control"
+                      name="lat"
+                      value={cpFormData.lat}
+                      onChange={handleCpFormChange}
+                    />
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label" htmlFor="cp-lon">Lon</label>
+                    <input
+                      id="cp-lon"
+                      type="number"
+                      step="any"
+                      className="form-control"
+                      name="lon"
+                      value={cpFormData.lon}
+                      onChange={handleCpFormChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="cp-sort-order">რიგი</label>
+                  <input
+                    id="cp-sort-order"
+                    type="number"
+                    className="form-control"
+                    name="sort_order"
+                    value={cpFormData.sort_order}
+                    onChange={handleCpFormChange}
+                  />
+                </div>
+              </div>
+              <div className="calc-modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setCpEditModal(false)}>{t('common.cancel')}</button>
+                <button type="submit" className="btn btn-primary" disabled={cpSaving}>
+                  {cpSaving ? t('common.saving') : (cpEditRow ? t('common.update') : t('common.create'))}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Ports – Delete Confirmation Modal */}
+      {cpDeleteConfirm && (
+        <div className="calc-modal-overlay" onClick={() => setCpDeleteConfirm(null)}>
+          <div className="calc-modal calc-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="calc-modal-header">
+              <h5>პორტის წაშლა</h5>
+              <button className="calc-modal-close" aria-label="დახურვა" onClick={() => setCpDeleteConfirm(null)}>&times;</button>
+            </div>
+            <div className="calc-modal-body">
+              <p>დარწმუნებული ხართ, რომ გსურთ ამ ჩანაწერის წაშლა?</p>
+              <p className="text-muted mb-0">{cpDeleteConfirm.name}</p>
+            </div>
+            <div className="calc-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setCpDeleteConfirm(null)}>{t('common.cancel')}</button>
+              <button className="btn btn-danger" onClick={handleCpDelete}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Vehicle Types – Add/Edit Modal */}
       {vtEditModal && (

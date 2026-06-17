@@ -16,6 +16,7 @@ router.get('/public/calculator/quote', calculatorPublicController.getPublicQuote
 router.get('/public/calculator/matrix', calculatorPublicController.getPublicMatrix);
 router.get('/public/calculator/lot-quote', calculatorPublicController.getLotQuote);
 router.get('/public/calculator/vehicle-types', calculatorPublicController.getVehicleTypes);
+router.get('/public/calculator/ports', calculatorPublicController.getCalcPorts);
 
 // Route modules will be added here as they are built:
 router.use('/', require('./auth'));
@@ -42,6 +43,12 @@ router.get('/vehicle-types', requireAuth, calculatorPublicController.getVehicleT
 router.post('/vehicle-types', requireAdmin, calculatorPublicController.createVehicleType);
 router.put('/vehicle-types/:id', requireAdmin, calculatorPublicController.updateVehicleType);
 router.delete('/vehicle-types/:id', requireAdmin, calculatorPublicController.deleteVehicleType);
+
+// Calculator ports (admin-managed loading & destination ports)
+router.get('/calc-ports', requireAuth, calculatorPublicController.getCalcPorts);
+router.post('/calc-ports', requireAdmin, calculatorPublicController.createCalcPort);
+router.put('/calc-ports/:id', requireAdmin, calculatorPublicController.updateCalcPort);
+router.delete('/calc-ports/:id', requireAdmin, calculatorPublicController.deleteCalcPort);
 
 router.get('/cities', requireAuth, vehiclesController.getCities);
 router.get('/search', requireAuth, vehiclesController.searchVehicles);
