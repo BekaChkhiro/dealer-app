@@ -550,7 +550,7 @@ export default function PublicCalculator() {
                     </Field>
                     <div className="sm:col-span-2">
                       <Field label="ავტომობილის ტიპი" icon={<IconTruck className="h-3.5 w-3.5" />}>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="ავტომობილის ტიპი">
                           {Object.keys(VEHICLES).map((type) => {
                             const Icon = VEHICLE_ICONS[type] || IconCar;
                             const active = vehicle === type;
@@ -558,10 +558,14 @@ export default function PublicCalculator() {
                               <button
                                 key={type}
                                 type="button"
+                                role="radio"
+                                aria-checked={active}
                                 onClick={() => setVehicle(type)}
-                                aria-pressed={active}
-                                className={`flex items-center gap-2 rounded-btn border px-3 py-2.5 text-left text-xs font-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${active ? 'border-brand-500 bg-brand-600/15 text-ink-50' : 'border-ink-700 bg-ink-900 text-ink-300 hover:border-ink-500 hover:text-ink-100'}`}
+                                className={`flex items-center gap-2.5 rounded-btn border px-3 py-2.5 text-left text-xs font-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${active ? 'border-brand-500 bg-brand-600/10 text-ink-50' : 'border-ink-700 bg-ink-900 text-ink-300 hover:border-ink-500 hover:text-ink-100'}`}
                               >
+                                <span className={`grid h-4.5 w-4.5 shrink-0 place-items-center rounded-[5px] border transition-colors ${active ? 'border-brand-500 bg-brand-600 text-white' : 'border-ink-600 text-transparent'}`}>
+                                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
+                                </span>
                                 <Icon className={`h-4.5 w-4.5 shrink-0 ${active ? 'text-brand-500' : 'text-ink-400'}`} />
                                 <span className="leading-tight">{type}</span>
                               </button>
