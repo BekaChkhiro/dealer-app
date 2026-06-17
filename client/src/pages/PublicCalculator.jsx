@@ -133,10 +133,10 @@ function Select({ value, onChange, options, disabled }) {
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className="h-11 w-full appearance-none rounded-field border border-ink-700 bg-ink-950 px-3.5 pr-9 text-sm font-500 text-ink-100 outline-none transition-colors hover:border-ink-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="h-11 w-full appearance-none rounded-field border border-ink-700 bg-ink-900 px-3.5 pr-9 text-sm font-500 text-ink-100 outline-none transition-colors hover:border-ink-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {options.map((o) => (
-          <option key={o.value !== undefined ? o.value : o} value={o.value !== undefined ? o.value : o} className="bg-ink-900">
+          <option key={o.value !== undefined ? o.value : o} value={o.value !== undefined ? o.value : o} className="bg-ink-800">
             {o.label !== undefined ? o.label : o}
           </option>
         ))}
@@ -325,10 +325,10 @@ export default function PublicCalculator() {
   const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
 
   return (
-    <div className="w-full bg-ink-950 font-sans text-ink-100 antialiased">
+    <div className="w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
 
       {/* ============ NAV ============ */}
-      <header className="sticky top-0 z-30 border-b border-ink-800/80 bg-ink-950/85 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-ink-700/80 bg-ink-900/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
           <Logo />
           <nav className="hidden items-center gap-8 lg:flex">
@@ -349,9 +349,9 @@ export default function PublicCalculator() {
       </header>
 
       {/* ============ HERO ============ */}
-      <section className="relative overflow-hidden border-b border-ink-800">
+      <section className="relative overflow-hidden border-b border-ink-700">
         {/* dark base */}
-        <div className="absolute inset-0 bg-ink-950" />
+        <div className="absolute inset-0 bg-ink-900" />
         {/* container photo — right half */}
         <div className="absolute inset-y-0 right-0 w-full lg:w-[58%]">
           <img
@@ -360,14 +360,14 @@ export default function PublicCalculator() {
             className="h-full w-full object-cover object-center"
           />
           {/* fade left edge into dark */}
-          <div className="absolute inset-0 bg-gradient-to-r from-ink-950 via-ink-950/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-ink-900 via-ink-900/70 to-transparent" />
           {/* fade top & bottom */}
-          <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-transparent to-ink-950/60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink-900 via-transparent to-ink-900/60" />
         </div>
 
         {/* floating container badge */}
         <div className="pointer-events-none absolute bottom-20 right-[8%] hidden lg:flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2 rounded-card border border-ink-700/60 bg-ink-900/80 px-4 py-3 backdrop-blur-md shadow-pop">
+          <div className="flex items-center gap-2 rounded-card border border-ink-700/60 bg-ink-800/80 px-4 py-3 backdrop-blur-md shadow-pop">
             <svg className="h-5 w-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
               <rect x="2" y="7" width="20" height="14" rx="1" />
               <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
@@ -379,7 +379,7 @@ export default function PublicCalculator() {
               <div className="font-display text-sm font-700 text-ink-100">40HC · Savannah → Poti</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-card border border-ink-700/60 bg-ink-900/80 px-4 py-3 backdrop-blur-md shadow-pop">
+          <div className="flex items-center gap-2 rounded-card border border-ink-700/60 bg-ink-800/80 px-4 py-3 backdrop-blur-md shadow-pop">
             <svg className="h-5 w-5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
@@ -411,7 +411,7 @@ export default function PublicCalculator() {
               </a>
               <button
                 type="button"
-                className="inline-flex h-14 items-center gap-2 rounded-btn border border-ink-600 bg-ink-900/60 px-8 font-display text-sm font-700 uppercase tracking-widest text-ink-100 backdrop-blur transition-colors hover:border-ink-400 hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="inline-flex h-14 items-center gap-2 rounded-btn border border-ink-600 bg-ink-800/60 px-8 font-display text-sm font-700 uppercase tracking-widest text-ink-100 backdrop-blur transition-colors hover:border-ink-400 hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               >
                 ნახე ლოტები
               </button>
@@ -421,7 +421,7 @@ export default function PublicCalculator() {
       </section>
 
       {/* ============ CALCULATOR ============ */}
-      <section id="calc" className="relative border-b border-ink-800 py-20 lg:py-28">
+      <section id="calc" className="relative border-b border-ink-700 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -445,7 +445,7 @@ export default function PublicCalculator() {
 
           {/* Error / empty state — shows message but preserves layout */}
           {!optionsLoading && (optionsError || !hasOptions) && (
-            <div className="mt-10 rounded-card border border-ink-800 bg-ink-900 p-10 text-center" role="alert">
+            <div className="mt-10 rounded-card border border-ink-700 bg-ink-800 p-10 text-center" role="alert">
               <svg className="mx-auto mb-4 h-10 w-10 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
@@ -463,7 +463,7 @@ export default function PublicCalculator() {
               {/* ---- LEFT: form + breakdown ---- */}
               <div className="flex flex-col gap-6 lg:col-span-5">
                 {/* form */}
-                <div className="rounded-card border border-ink-800 bg-ink-900 p-6">
+                <div className="rounded-card border border-ink-700 bg-ink-800 p-6">
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Field label="აუქციონი" icon={<IconShield className="h-3.5 w-3.5" />}>
                       <Select
@@ -498,27 +498,27 @@ export default function PublicCalculator() {
                     </Field>
                   </div>
 
-                  <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-800 bg-ink-950 px-4 py-3">
+                  <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-700 bg-ink-900 px-4 py-3">
                     <IconShield className="h-5 w-5 shrink-0 text-brand-500" />
                     <p className="text-xs leading-snug text-ink-400">ფასი მოიცავს დაზღვევას და ლოტის გატანას. საბაჟო/აქციზი იანგარიშება ცალკე.</p>
                   </div>
                 </div>
 
                 {/* breakdown + total */}
-                <div className="rounded-card border border-ink-800 bg-ink-900 p-6">
+                <div className="rounded-card border border-ink-700 bg-ink-800 p-6">
                   <div className="grid gap-y-1" aria-live="polite">
                     {[
                       ['შიდა', landPrice],
                       ['საზღვაო', containerPrice],
                       ['სულ', totalPrice],
                     ].map(([l, v]) => (
-                      <div key={l} className="flex items-center justify-between border-b border-dashed border-ink-800 py-2.5">
+                      <div key={l} className="flex items-center justify-between border-b border-dashed border-ink-700 py-2.5">
                         <span className="text-sm text-ink-400">{l}</span>
                         <span className="font-mono text-sm font-600 tabular-nums text-ink-100">{formatUSD(v)}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-5 flex flex-col gap-4 rounded-btn bg-ink-950 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mt-5 flex flex-col gap-4 rounded-btn bg-ink-900 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="font-display text-4xl font-700 tabular-nums text-brand-500">{formatUSD(totalPrice)}</div>
                     <Link
                       to="/login"
@@ -532,7 +532,7 @@ export default function PublicCalculator() {
 
               {/* ---- RIGHT: real geographic route map (full height) ---- */}
               <div className="lg:col-span-7">
-                <div className="relative flex h-full min-h-[440px] flex-col overflow-hidden rounded-card border border-ink-800 bg-ink-950">
+                <div className="relative flex h-full min-h-[440px] flex-col overflow-hidden rounded-card border border-ink-700 bg-ink-900">
                   <div className="flex items-center justify-between px-6 pt-5 pb-3">
                     <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">მარშრუტი</span>
                     <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">
@@ -548,7 +548,7 @@ export default function PublicCalculator() {
       </section>
 
       {/* ============ HOW IT WORKS ============ */}
-      <section id="how" className="border-b border-ink-800 py-20 lg:py-28">
+      <section id="how" className="border-b border-ink-700 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-4">
@@ -575,7 +575,7 @@ export default function PublicCalculator() {
                   ['03', 'ტრანსპორტი პორტამდე', 'სახმელეთო გადაზიდვა აუქციონიდან პორტამდე, შემდეგ კონტეინერით ფოთის ან ბათუმის ტერმინალამდე.', false],
                   ['04', 'გაბაჟება და მიწოდება', 'ვაფორმებთ საბაჟო პროცედურებს და მანქანას მზად, დარეგისტრირებულს გადმოგცემთ.', false],
                 ].map(([n, t, d, hot]) => (
-                  <div key={n} className={`rounded-card border p-6 transition-colors ${hot ? 'border-brand-500/40 bg-brand-600/[0.07]' : 'border-ink-800 bg-ink-900 hover:border-ink-600'}`}>
+                  <div key={n} className={`rounded-card border p-6 transition-colors ${hot ? 'border-brand-500/40 bg-brand-600/[0.07]' : 'border-ink-700 bg-ink-800 hover:border-ink-600'}`}>
                     <div className="flex items-center justify-between">
                       <span className={`font-display text-3xl font-800 tabular-nums ${hot ? 'text-brand-500' : 'text-ink-600'}`}>{n}</span>
                       {hot && <span className="rounded-pill bg-brand-600/15 px-2.5 py-1 font-mono text-[10px] font-600 uppercase tracking-wider text-brand-400 ring-1 ring-brand-500/25">აქ იწყება</span>}
@@ -591,7 +591,7 @@ export default function PublicCalculator() {
       </section>
 
       {/* ============ WHY US ============ */}
-      <section className="border-b border-ink-800 py-20 lg:py-28">
+      <section className="border-b border-ink-700 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="grid gap-4 lg:grid-cols-3">
             {[
@@ -599,7 +599,7 @@ export default function PublicCalculator() {
               [<IconShip key="h" className="h-6 w-6" />, 'გამჭვირვალე ლოგისტიკა', 'ფიქსირებული ფრახტი და რეალური ETA. ყველა ეტაპი თვალყურის დევნებით — აუქციონიდან ფოთამდე.'],
               [<IconTruck key="t" className="h-6 w-6" />, 'სრული მომსახურება', 'შემოწმება, ყიდვა, ტრანსპორტი, დაზღვევა და გაბაჟება — ერთ ხელშეკრულებაში, ერთ გუნდთან.'],
             ].map(([ic, t, d]) => (
-              <div key={t} className="rounded-card border border-ink-800 bg-ink-900 p-7">
+              <div key={t} className="rounded-card border border-ink-700 bg-ink-800 p-7">
                 <span className="grid h-12 w-12 place-items-center rounded-btn bg-brand-600/15 text-brand-500">{ic}</span>
                 <h3 className="mt-5 font-display text-lg font-700 uppercase tracking-wide text-ink-50">{t}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-400">{d}</p>
@@ -610,7 +610,7 @@ export default function PublicCalculator() {
       </section>
 
       {/* ============ FAQ ============ */}
-      <section className="border-b border-ink-800 py-20 lg:py-28">
+      <section className="border-b border-ink-700 py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-4">
@@ -626,7 +626,7 @@ export default function PublicCalculator() {
             </div>
 
             <div className="lg:col-span-8">
-              <div className="divide-y divide-ink-800 overflow-hidden rounded-card border border-ink-800 bg-ink-900">
+              <div className="divide-y divide-ink-700 overflow-hidden rounded-card border border-ink-700 bg-ink-800">
                 {[
                   ['რა შედის ტრანსპორტირების ფასში?', 'ფასი მოიცავს სახმელეთო გადაზიდვას აუქციონიდან პორტამდე, საზღვაო ფრახტს, დაზღვევას და ლოტის გატანას. საბაჟო და აქციზი იანგარიშება ცალკე, ავტომობილის ასაკისა და ძრავის მიხედვით.'],
                   ['რამდენი ხანი სჭირდება მიწოდებას?', 'საშუალოდ 30-45 დღე აუქციონზე ყიდვიდან ფოთის პორტამდე. ზუსტი ETA დამოკიდებულია გასვლის პორტსა და კონტეინერის გრაფიკზე.'],
@@ -659,7 +659,7 @@ export default function PublicCalculator() {
       </section>
 
       {/* ============ CTA BAND ============ */}
-      <section className="border-b border-ink-800 py-20 lg:py-24">
+      <section className="border-b border-ink-700 py-20 lg:py-24">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="relative overflow-hidden rounded-card border border-brand-500/30 bg-gradient-to-br from-brand-600 to-brand-800 px-8 py-14 lg:px-16 lg:py-16">
             <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(0,0,0,0.25)_1px,transparent_1.5px)] bg-[length:22px_22px] opacity-40" />
@@ -675,7 +675,7 @@ export default function PublicCalculator() {
               <div className="flex shrink-0 flex-wrap gap-3">
                 <Link
                   to="/login"
-                  className="inline-flex h-14 items-center gap-2 rounded-btn bg-ink-950 px-8 font-display text-sm font-700 uppercase tracking-widest text-white transition-colors hover:bg-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="inline-flex h-14 items-center gap-2 rounded-btn bg-ink-900 px-8 font-display text-sm font-700 uppercase tracking-widest text-white transition-colors hover:bg-ink-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   დაიწყე ახლა <IconArrow className="h-5 w-5" />
                 </Link>
@@ -692,7 +692,7 @@ export default function PublicCalculator() {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer className="bg-ink-950 pt-16">
+      <footer className="bg-ink-900 pt-16">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           <div className="grid gap-10 pb-14 lg:grid-cols-12">
             <div className="lg:col-span-4">
@@ -702,7 +702,7 @@ export default function PublicCalculator() {
               </p>
               <div className="mt-6 flex gap-3">
                 {['IN', 'FB', 'TG'].map((s) => (
-                  <button key={s} type="button" className="grid h-10 w-10 place-items-center rounded-btn border border-ink-800 font-mono text-[11px] text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">{s}</button>
+                  <button key={s} type="button" className="grid h-10 w-10 place-items-center rounded-btn border border-ink-700 font-mono text-[11px] text-ink-400 transition-colors hover:border-ink-600 hover:text-ink-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">{s}</button>
                 ))}
               </div>
             </div>
@@ -730,7 +730,7 @@ export default function PublicCalculator() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-ink-800 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-ink-700 py-6 sm:flex-row sm:items-center sm:justify-between">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-500">© 2026 SRL Soreli. ყველა უფლება დაცულია.</span>
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-500">Copart · IAAI · Manheim ოფიციალური წვდომა</span>
           </div>
