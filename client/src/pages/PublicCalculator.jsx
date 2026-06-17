@@ -1,6 +1,8 @@
 // @page: Landing
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import api from '../services/api';
 
 /* ===========================================================
@@ -17,6 +19,28 @@ function uniq(arr) {
   return Array.from(new Set(arr));
 }
 const locKey = (city, state) => `${city}|${state || ''}`;
+
+// Approx coordinates [lat, lon] for the US/Canada loading ports and the
+// destination ports, so the route can be drawn on a real map (srl.ge style).
+const PORT_COORDS = {
+  'CA - LOS ANGELES': [33.74, -118.27],
+  'CA - OAKLAND': [37.80, -122.30],
+  'FL - MIAMI': [25.77, -80.19],
+  'GA - SAVANNAH': [32.08, -81.10],
+  'IL - CHICAGO': [41.85, -87.65],
+  'NJ - NEWARK': [40.69, -74.17],
+  'TX - HOUSTON': [29.75, -95.36],
+  'VA - NORFOLK': [36.85, -76.29],
+  'WA - SEATTLE': [47.61, -122.33],
+  'CANADA - MONTREAL': [45.50, -73.55],
+  'CANADA - TORONTO': [43.65, -79.38],
+  'CANADA - VANCOUVER': [49.28, -123.12],
+};
+const DEST_COORDS = {
+  'GE - Poti / Batumi': [42.15, 41.67],
+  'GE - Tbilisi 30 Days': [41.72, 44.78],
+  'AM - Gyumri': [40.79, 43.85],
+};
 
 /* ---------- small inline icons ---------- */
 const IconTruck = (p) => (
@@ -209,6 +233,49 @@ export default function PublicCalculator() {
 
   // Derive display labels for the route map
   const originLabel = location ? location.split('|')[0] : '';
+
+  // ─── Leaflet route map ───────────────────────────────────
+  const mapEl = useRef(null);
+  const mapObj = useRef(null);
+  const routeLayer = useRef(null);
+
+  // init the map once the calculator is mounted
+  useEffect(() => {
+    if (!hasOptions || mapObj.current || !mapEl.current) return;
+    const map = L.map(mapEl.current, {
+      zoomControl: false, attributionControl: false, scrollWheelZoom: false, worldCopyJump: true,
+    }).setView([40, -30], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 10, subdomains: 'abcd',
+    }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    routeLayer.current = L.layerGroup().addTo(map);
+    mapObj.current = map;
+    setTimeout(() => map.invalidateSize(), 200);
+  }, [hasOptions]);
+
+  // cleanup
+  useEffect(() => () => { if (mapObj.current) { mapObj.current.remove(); mapObj.current = null; } }, []);
+
+  // draw the route when a port + destination are chosen
+  useEffect(() => {
+    const map = mapObj.current, group = routeLayer.current;
+    if (!map || !group) return;
+    group.clearLayers();
+    const o = PORT_COORDS[port], d = DEST_COORDS[destination];
+    if (!o || !d) { map.setView([40, -30], 2); return; }
+    const pin = (cls) => L.divIcon({ className: '', html: `<span class="pc-map-pin ${cls}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+    const pill = (text, cls) => L.divIcon({ className: '', html: `<span class="pc-map-pill ${cls}">${text}</span>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+    L.polyline([o, d], { color: '#59a3ff', weight: 2.5, dashArray: '6 8', opacity: 0.9 }).addTo(group);
+    L.marker(o, { icon: pin('pc-map-pin--origin') }).addTo(group);
+    L.marker(d, { icon: pin('pc-map-pin--dest') }).addTo(group);
+    if (landPrice > 0) L.marker(o, { icon: pill(formatUSD(landPrice), 'pc-map-pill--land') }).addTo(group);
+    if (containerPrice > 0) {
+      L.marker([(o[0] + d[0]) / 2, (o[1] + d[1]) / 2], { icon: pill(formatUSD(containerPrice), 'pc-map-pill--ocean') }).addTo(group);
+    }
+    map.fitBounds([o, d], { padding: [60, 60], maxZoom: 5 });
+    setTimeout(() => map.invalidateSize(), 100);
+  }, [port, destination, landPrice, containerPrice]);
 
   // Select option arrays
   const auctionOptions = [{ value: '', label: 'აირჩიეთ...' }, ...auctions.map((a) => ({ value: a, label: a }))];
@@ -428,59 +495,16 @@ export default function PublicCalculator() {
                 </div>
               </div>
 
-              {/* ---- RIGHT: route map only (full height) ---- */}
+              {/* ---- RIGHT: real geographic route map (full height) ---- */}
               <div className="lg:col-span-7">
-                <div className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-card border border-ink-800 bg-ink-950 p-6">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle,#252529_1px,transparent_1.5px)] bg-[length:20px_20px] opacity-60" />
-                  <div className="relative flex items-center justify-between">
+                <div className="relative flex h-full min-h-[440px] flex-col overflow-hidden rounded-card border border-ink-800 bg-ink-950">
+                  <div className="flex items-center justify-between px-6 pt-5 pb-3">
                     <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">მარშრუტი</span>
+                    <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">
+                      {originLabel || '—'} → {destination || '—'}
+                    </span>
                   </div>
-
-                  {/* route line — vertically centered to fill the tall card */}
-                  <div className="relative flex flex-1 flex-col justify-center">
-                    <div className="relative mt-10 mb-2">
-                      <div className="flex items-center">
-                        {/* origin */}
-                        <div className="flex flex-col items-center">
-                          <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 ring-4 ring-brand-600/20">
-                            <IconPin className="h-4 w-4 text-white" />
-                          </span>
-                        </div>
-                        {/* inland leg */}
-                        <div className="relative flex-1 px-2">
-                          <div className="h-0.5 w-full bg-gradient-to-r from-brand-500 to-ink-600" />
-                          <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
-                            <IconTruck className="h-3 w-3 text-brand-400" /> {landPrice > 0 ? formatUSD(landPrice) : '—'}
-                          </span>
-                        </div>
-                        {/* port */}
-                        <div className="flex flex-col items-center">
-                          <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-ink-500 bg-ink-900">
-                            <span className="h-2 w-2 rounded-full bg-ink-300" />
-                          </span>
-                        </div>
-                        {/* ocean leg */}
-                        <div className="relative flex-[1.4] px-2">
-                          <div className="h-0.5 w-full border-t-2 border-dashed border-accent-500/70" />
-                          <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
-                            <IconShip className="h-3 w-3 text-accent-400" /> {containerPrice > 0 ? formatUSD(containerPrice) : '—'}
-                          </span>
-                        </div>
-                        {/* dest */}
-                        <div className="flex flex-col items-center">
-                          <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-600 ring-4 ring-accent-600/20">
-                            <IconShip className="h-5 w-5 text-white" />
-                          </span>
-                        </div>
-                      </div>
-                      {/* labels */}
-                      <div className="mt-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-wide">
-                        <span className="text-ink-100">{originLabel || '—'}</span>
-                        <span className="text-ink-500">{port || '—'}</span>
-                        <span className="text-ink-100">{destination ? `${destination}, GEO` : '—'}</span>
-                      </div>
-                    </div>
-                  </div>
+                  <div ref={mapEl} className="w-full flex-1" />
                 </div>
               </div>
             </div>

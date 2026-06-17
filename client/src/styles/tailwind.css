@@ -1,2 +1,26 @@
 @tailwind components;
 @tailwind utilities;
+
+/* ── Leaflet route-map markers (public calculator) ── */
+.leaflet-container { background: #0b0b0d; font-family: 'Inter', sans-serif; }
+.pc-map-pin { display: block; width: 18px; height: 18px; border-radius: 9999px; }
+.pc-map-pin--origin { background: #e26009; box-shadow: 0 0 0 5px rgba(226, 96, 9, 0.3); }
+.pc-map-pin--dest { background: #1b5ff5; box-shadow: 0 0 0 5px rgba(27, 95, 245, 0.3); }
+.pc-map-pill {
+  display: inline-block;
+  transform: translate(-50%, -190%);
+  white-space: nowrap;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font: 600 11px/1 'JetBrains Mono', monospace;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.pc-map-pill--land { background: #039855; }
+.pc-map-pill--ocean { background: #1b5ff5; }
+.leaflet-control-zoom a {
+  background: #161619 !important;
+  color: #b2b2b9 !important;
+  border-color: #252529 !important;
+}
+.leaflet-control-zoom a:hover { background: #252529 !important; }
