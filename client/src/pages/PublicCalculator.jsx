@@ -357,104 +357,52 @@ export default function PublicCalculator() {
 
           {/* Calculator content */}
           {!optionsLoading && hasOptions && (
-            <div className="mt-10 grid gap-6 lg:grid-cols-12">
-              {/* ---- form ---- */}
-              <div className="rounded-card border border-ink-800 bg-ink-900 p-6 lg:col-span-5">
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Field label="აუქციონი" icon={<IconShield className="h-3.5 w-3.5" />}>
-                    <Select
-                      value={auction}
-                      onChange={(e) => onAuctionChange(e.target.value)}
-                      options={auctionOptions}
-                    />
-                  </Field>
-                  <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
-                    <Select
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
-                      options={destOptions}
-                      disabled={!port}
-                    />
-                  </Field>
-                  <Field label="აუქციონის ლოკაცია" icon={<IconPin className="h-3.5 w-3.5" />}>
-                    <Select
-                      value={location}
-                      onChange={(e) => onLocationChange(e.target.value)}
-                      options={locationOptions}
-                      disabled={!auction}
-                    />
-                  </Field>
-                  <Field label="ჩატვირთვის პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
-                    <Select
-                      value={port}
-                      onChange={(e) => onPortChange(e.target.value)}
-                      options={portOptions}
-                      disabled={!location}
-                    />
-                  </Field>
-                </div>
-
-                <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-800 bg-ink-950 px-4 py-3">
-                  <IconShield className="h-5 w-5 shrink-0 text-brand-500" />
-                  <p className="text-xs leading-snug text-ink-400">ფასი მოიცავს დაზღვევას და ლოტის გატანას. საბაჟო/აქციზი იანგარიშება ცალკე.</p>
-                </div>
-              </div>
-
-              {/* ---- route + breakdown ---- */}
-              <div className="grid gap-6 lg:col-span-7">
-                {/* route map */}
-                <div className="relative overflow-hidden rounded-card border border-ink-800 bg-ink-950 p-6">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle,#252529_1px,transparent_1.5px)] bg-[length:20px_20px] opacity-60" />
-                  <div className="relative flex items-center justify-between">
-                    <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">მარშრუტი</span>
+            <div className="mt-10 grid gap-6 lg:grid-cols-12 lg:items-stretch">
+              {/* ---- LEFT: form + breakdown ---- */}
+              <div className="flex flex-col gap-6 lg:col-span-5">
+                {/* form */}
+                <div className="rounded-card border border-ink-800 bg-ink-900 p-6">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Field label="აუქციონი" icon={<IconShield className="h-3.5 w-3.5" />}>
+                      <Select
+                        value={auction}
+                        onChange={(e) => onAuctionChange(e.target.value)}
+                        options={auctionOptions}
+                      />
+                    </Field>
+                    <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
+                      <Select
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        options={destOptions}
+                        disabled={!port}
+                      />
+                    </Field>
+                    <Field label="აუქციონის ლოკაცია" icon={<IconPin className="h-3.5 w-3.5" />}>
+                      <Select
+                        value={location}
+                        onChange={(e) => onLocationChange(e.target.value)}
+                        options={locationOptions}
+                        disabled={!auction}
+                      />
+                    </Field>
+                    <Field label="ჩატვირთვის პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
+                      <Select
+                        value={port}
+                        onChange={(e) => onPortChange(e.target.value)}
+                        options={portOptions}
+                        disabled={!location}
+                      />
+                    </Field>
                   </div>
 
-                  {/* route line */}
-                  <div className="relative mt-10 mb-2">
-                    <div className="flex items-center">
-                      {/* origin */}
-                      <div className="flex flex-col items-center">
-                        <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 ring-4 ring-brand-600/20">
-                          <IconPin className="h-4 w-4 text-white" />
-                        </span>
-                      </div>
-                      {/* inland leg */}
-                      <div className="relative flex-1 px-2">
-                        <div className="h-0.5 w-full bg-gradient-to-r from-brand-500 to-ink-600" />
-                        <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
-                          <IconTruck className="h-3 w-3 text-brand-400" /> {landPrice > 0 ? formatUSD(landPrice) : '—'}
-                        </span>
-                      </div>
-                      {/* port */}
-                      <div className="flex flex-col items-center">
-                        <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-ink-500 bg-ink-900">
-                          <span className="h-2 w-2 rounded-full bg-ink-300" />
-                        </span>
-                      </div>
-                      {/* ocean leg */}
-                      <div className="relative flex-[1.4] px-2">
-                        <div className="h-0.5 w-full border-t-2 border-dashed border-accent-500/70" />
-                        <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
-                          <IconShip className="h-3 w-3 text-accent-400" /> {containerPrice > 0 ? formatUSD(containerPrice) : '—'}
-                        </span>
-                      </div>
-                      {/* dest */}
-                      <div className="flex flex-col items-center">
-                        <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-600 ring-4 ring-accent-600/20">
-                          <IconShip className="h-5 w-5 text-white" />
-                        </span>
-                      </div>
-                    </div>
-                    {/* labels */}
-                    <div className="mt-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-wide">
-                      <span className="text-ink-100">{originLabel || '—'}</span>
-                      <span className="text-ink-500">{port || '—'}</span>
-                      <span className="text-ink-100">{destination ? `${destination}, GEO` : '—'}</span>
-                    </div>
+                  <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-800 bg-ink-950 px-4 py-3">
+                    <IconShield className="h-5 w-5 shrink-0 text-brand-500" />
+                    <p className="text-xs leading-snug text-ink-400">ფასი მოიცავს დაზღვევას და ლოტის გატანას. საბაჟო/აქციზი იანგარიშება ცალკე.</p>
                   </div>
                 </div>
 
-                {/* breakdown */}
+                {/* breakdown + total */}
                 <div className="rounded-card border border-ink-800 bg-ink-900 p-6">
                   <div className="grid gap-y-1" aria-live="polite">
                     {[
@@ -469,15 +417,69 @@ export default function PublicCalculator() {
                     ))}
                   </div>
                   <div className="mt-5 flex flex-col gap-4 rounded-btn bg-ink-950 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="font-display text-4xl font-700 tabular-nums text-brand-500">{formatUSD(totalPrice)}</div>
-                    </div>
+                    <div className="font-display text-4xl font-700 tabular-nums text-brand-500">{formatUSD(totalPrice)}</div>
                     <Link
                       to="/login"
                       className="inline-flex h-12 items-center justify-center gap-2 rounded-btn bg-brand-600 px-6 font-display text-sm font-600 uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(226,96,9,0.7)] transition-colors hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                     >
                       შეუკვეთე გადაზიდვა <IconArrow className="h-4 w-4" />
                     </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* ---- RIGHT: route map only (full height) ---- */}
+              <div className="lg:col-span-7">
+                <div className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-card border border-ink-800 bg-ink-950 p-6">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle,#252529_1px,transparent_1.5px)] bg-[length:20px_20px] opacity-60" />
+                  <div className="relative flex items-center justify-between">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-400">მარშრუტი</span>
+                  </div>
+
+                  {/* route line — vertically centered to fill the tall card */}
+                  <div className="relative flex flex-1 flex-col justify-center">
+                    <div className="relative mt-10 mb-2">
+                      <div className="flex items-center">
+                        {/* origin */}
+                        <div className="flex flex-col items-center">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-600 ring-4 ring-brand-600/20">
+                            <IconPin className="h-4 w-4 text-white" />
+                          </span>
+                        </div>
+                        {/* inland leg */}
+                        <div className="relative flex-1 px-2">
+                          <div className="h-0.5 w-full bg-gradient-to-r from-brand-500 to-ink-600" />
+                          <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
+                            <IconTruck className="h-3 w-3 text-brand-400" /> {landPrice > 0 ? formatUSD(landPrice) : '—'}
+                          </span>
+                        </div>
+                        {/* port */}
+                        <div className="flex flex-col items-center">
+                          <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-ink-500 bg-ink-900">
+                            <span className="h-2 w-2 rounded-full bg-ink-300" />
+                          </span>
+                        </div>
+                        {/* ocean leg */}
+                        <div className="relative flex-[1.4] px-2">
+                          <div className="h-0.5 w-full border-t-2 border-dashed border-accent-500/70" />
+                          <span className="absolute -top-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-pill border border-ink-700 bg-ink-900 px-2 py-1 font-mono text-[10px] text-ink-300 whitespace-nowrap">
+                            <IconShip className="h-3 w-3 text-accent-400" /> {containerPrice > 0 ? formatUSD(containerPrice) : '—'}
+                          </span>
+                        </div>
+                        {/* dest */}
+                        <div className="flex flex-col items-center">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-accent-600 ring-4 ring-accent-600/20">
+                            <IconShip className="h-5 w-5 text-white" />
+                          </span>
+                        </div>
+                      </div>
+                      {/* labels */}
+                      <div className="mt-3 flex items-center justify-between font-mono text-[11px] uppercase tracking-wide">
+                        <span className="text-ink-100">{originLabel || '—'}</span>
+                        <span className="text-ink-500">{port || '—'}</span>
+                        <span className="text-ink-100">{destination ? `${destination}, GEO` : '—'}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
