@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-const ALLOWED_SORT_COLUMNS = ['id', 'auction', 'city', 'destination', 'land_price', 'container_price', 'total_price', 'port'];
+const ALLOWED_SORT_COLUMNS = ['id', 'auction', 'city', 'state', 'destination', 'land_price', 'container_price', 'total_price', 'port'];
 const ALLOWED_ORDER = ['asc', 'desc'];
 
 async function getCalculator(req, res) {
@@ -57,17 +57,17 @@ async function getCalculator(req, res) {
 
 async function createCalculator(req, res) {
   try {
-    const { auction, city, destination, land_price, container_price, total_price, port } = req.body;
+    const { auction, city, state, destination, land_price, container_price, total_price, port } = req.body;
 
     if (!auction) {
       return res.status(400).json({ error: 1, success: false, message: 'Auction is required' });
     }
 
     const result = await pool.query(
-      `INSERT INTO calculator (auction, city, destination, land_price, container_price, total_price, port)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO calculator (auction, city, state, destination, land_price, container_price, total_price, port)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [auction, city || null, destination || null, land_price || 0, container_price || 0, total_price || 0, port || null]
+      [auction, city || null, state || null, destination || null, land_price || 0, container_price || 0, total_price || 0, port || null]
     );
 
     res.status(201).json({ error: 0, success: true, data: result.rows[0] });
@@ -80,7 +80,7 @@ async function createCalculator(req, res) {
 async function updateCalculator(req, res) {
   try {
     const { id } = req.params;
-    const { auction, city, destination, land_price, container_price, total_price, port } = req.body;
+    const { auction, city, state, destination, land_price, container_price, total_price, port } = req.body;
 
     const fields = [];
     const params = [];
@@ -96,6 +96,7 @@ async function updateCalculator(req, res) {
 
     addField('auction', auction);
     addField('city', city);
+    addField('state', state);
     addField('destination', destination);
     addField('land_price', land_price);
     addField('container_price', container_price);
@@ -140,4 +141,89 @@ async function deleteCalculator(req, res) {
   }
 }
 
-module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator };
+// ---- Public (no-auth) calculator endpoints for the landing-page calculator ----
+
+// Returns the distinct dropdown options derived from the admin-managed matrix.
+async function getPublicOptions(req, res) {
+  try {
+    const [auctions, locations, ports, destinations] = await Promise.all([
+      pool.query(`SELECT DISTINCT auction FROM calculator WHERE auction IS NOT NULL AND auction <> '' ORDER BY auction`),
+      pool.query(`SELECT DISTINCT city, state FROM calculator WHERE city IS NOT NULL AND city <> '' ORDER BY city, state`),
+      pool.query(`SELECT DISTINCT port FROM calculator WHERE port IS NOT NULL AND port <> '' ORDER BY port`),
+      pool.query(`SELECT DISTINCT destination FROM calculator WHERE destination IS NOT NULL AND destination <> '' ORDER BY destination`),
+    ]);
+
+    res.json({
+      error: 0,
+      success: true,
+      data: {
+        auctions: auctions.rows.map(r => r.auction),
+        locations: locations.rows.map(r => ({ city: r.city, state: r.state })),
+        ports: ports.rows.map(r => r.port),
+        destinations: destinations.rows.map(r => r.destination),
+      },
+    });
+  } catch (err) {
+    console.error('getPublicOptions error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Returns the price for an exact (auction, city, state, port, destination) combination.
+async function getPublicQuote(req, res) {
+  try {
+    const { auction, city, state, port, destination } = req.query;
+
+    const conditions = [];
+    const params = [];
+    let i = 1;
+    const eq = (col, val) => {
+      if (val === undefined || val === null || val === '') {
+        conditions.push(`(${col} IS NULL OR ${col} = '')`);
+      } else {
+        conditions.push(`${col} = $${i}`);
+        params.push(val);
+        i++;
+      }
+    };
+    eq('auction', auction);
+    eq('city', city);
+    eq('state', state);
+    eq('port', port);
+    eq('destination', destination);
+
+    const result = await pool.query(
+      `SELECT land_price, container_price, total_price
+         FROM calculator
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY id DESC
+        LIMIT 1`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({
+        error: 0,
+        success: true,
+        data: { found: false, land_price: 0, container_price: 0, total_price: 0 },
+      });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      error: 0,
+      success: true,
+      data: {
+        found: true,
+        land_price: row.land_price,
+        container_price: row.container_price,
+        total_price: row.total_price,
+      },
+    });
+  } catch (err) {
+    console.error('getPublicQuote error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getCalculator, createCalculator, updateCalculator, deleteCalculator, getPublicOptions, getPublicQuote };

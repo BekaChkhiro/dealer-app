@@ -20,6 +20,7 @@ function Calculator() {
   const columns = [
     { key: 'auction', label: t('calculator.auction'), sortable: true },
     { key: 'city', label: t('calculator.city'), sortable: true },
+    { key: 'state', label: t('calculator.state'), sortable: true },
     { key: 'destination', label: t('calculator.destination'), sortable: true },
     { key: 'land_price', label: t('calculator.landPrice'), sortable: true, align: 'right', render: (row) => formatPrice(row.land_price) },
     { key: 'container_price', label: t('calculator.containerPrice'), sortable: true, align: 'right', render: (row) => formatPrice(row.container_price) },
@@ -41,7 +42,7 @@ function Calculator() {
 
   const [editModal, setEditModal] = useState(false);
   const [editRow, setEditRow] = useState(null);
-  const [formData, setFormData] = useState({ auction: '', city: '', destination: '', land_price: '', container_price: '', total_price: '', port: '' });
+  const [formData, setFormData] = useState({ auction: '', city: '', state: '', destination: '', land_price: '', container_price: '', total_price: '', port: '' });
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -111,7 +112,7 @@ function Calculator() {
 
   function handleAddNew() {
     setEditRow(null);
-    setFormData({ auction: '', city: '', destination: '', land_price: '', container_price: '', total_price: '', port: '' });
+    setFormData({ auction: '', city: '', state: '', destination: '', land_price: '', container_price: '', total_price: '', port: '' });
     setEditModal(true);
   }
 
@@ -121,6 +122,7 @@ function Calculator() {
       setFormData({
         auction: row.auction || '',
         city: row.city || '',
+        state: row.state || '',
         destination: row.destination || '',
         land_price: row.land_price ?? '',
         container_price: row.container_price ?? '',
@@ -260,11 +262,15 @@ function Calculator() {
                   <input type="text" className="form-control" name="auction" value={formData.auction} onChange={handleFormChange} required />
                 </div>
                 <div className="row mb-3">
-                  <div className="col-6">
+                  <div className="col-4">
                     <label className="form-label">{t('calculator.city')}</label>
                     <input type="text" className="form-control" name="city" value={formData.city} onChange={handleFormChange} />
                   </div>
-                  <div className="col-6">
+                  <div className="col-4">
+                    <label className="form-label">{t('calculator.state')}</label>
+                    <input type="text" className="form-control" name="state" value={formData.state} onChange={handleFormChange} />
+                  </div>
+                  <div className="col-4">
                     <label className="form-label">{t('calculator.destination')}</label>
                     <input type="text" className="form-control" name="destination" value={formData.destination} onChange={handleFormChange} />
                   </div>

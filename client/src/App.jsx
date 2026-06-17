@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import PublicTracking from './pages/PublicTracking';
+import PublicCalculator from './pages/PublicCalculator';
 import Dashboard from './pages/Dashboard';
 import Calculator from './pages/Calculator';
 import Ports from './pages/Ports';
@@ -101,7 +102,10 @@ function ProtectedLayout() {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    if (location.pathname === '/') return <PublicCalculator />;
+    return <Navigate to="/login" replace />;
+  }
 
   const mainMarginLeft = isMobile ? 0 : sidebarCollapsed ? 70 : 270;
   const mainPadding = isMobile ? 16 : 24;

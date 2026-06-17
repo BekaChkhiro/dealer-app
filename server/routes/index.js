@@ -10,6 +10,10 @@ router.get('/health', (req, res) => {
 const vehiclesController = require('../controllers/vehiclesController');
 router.get('/public/track/:vin', vehiclesController.getPublicTracking);
 
+const calculatorPublicController = require('../controllers/calculatorController');
+router.get('/public/calculator/options', calculatorPublicController.getPublicOptions);
+router.get('/public/calculator/quote', calculatorPublicController.getPublicQuote);
+
 // Route modules will be added here as they are built:
 router.use('/', require('./auth'));
 router.use('/users', require('./users'));

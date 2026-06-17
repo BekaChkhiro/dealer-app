@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS calculator (
   id SERIAL PRIMARY KEY,
   auction VARCHAR(100),
   city VARCHAR(255),
+  state VARCHAR(100),
   destination VARCHAR(255),
   land_price DECIMAL(12,2) DEFAULT 0,
   container_price DECIMAL(12,2) DEFAULT 0,
