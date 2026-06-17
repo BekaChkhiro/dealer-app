@@ -41,6 +41,9 @@ const DEST_COORDS = {
   'GE - Tbilisi 30 Days': [41.72, 44.78],
   'AM - Gyumri': [40.79, 43.85],
 };
+// Full static lists (srl.ge shows all of these always; price is $0 where there's no route)
+const PORT_LIST = Object.keys(PORT_COORDS);
+const DEST_LIST = Object.keys(DEST_COORDS);
 // Approx state/province centroids — used to mark the auction location (origin
 // of the inland leg) since we don't store per-city coordinates.
 const STATE_COORDS = {
@@ -319,9 +322,9 @@ export default function PublicCalculator() {
   }, [vehicleTypes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Cascading option lists ───────────────────────────────────────────────────
-  // Only offer routes that actually have an ocean leg (container_price > 0), so
-  // every full selection computes a real sea-freight cost.
-  const usable = useMemo(() => matrix.filter((r) => parseFloat(r.container_price) > 0), [matrix]);
+  // Show every city/state/port we have (matches srl.ge). Ocean is $0 for routes
+  // srl.ge has no sea price for (only 5 ports are priced there).
+  const usable = matrix;
 
   const auctions = useMemo(() => uniq(usable.map((r) => r.auction)).sort(), [usable]);
 
@@ -337,55 +340,32 @@ export default function PublicCalculator() {
     );
   }, [usable, auction]);
 
-  const ports = useMemo(() => {
-    if (!auction || !location) return [];
-    const [city, state] = location.split('|');
-    return uniq(
-      usable
-        .filter((r) => r.auction === auction && r.city === city && (r.state || '') === state)
-        .map((r) => r.port)
-    ).sort();
-  }, [usable, auction, location]);
+  // srl.ge shows ALL ports + ALL destinations always (after the previous field is
+  // chosen); the price is computed independently per leg, $0 where no route exists.
+  const ports = useMemo(() => (auction && location ? PORT_LIST : []), [auction, location]);
+  const destinations = useMemo(() => (auction && location && port ? DEST_LIST : []), [auction, location, port]);
 
-  const destinations = useMemo(() => {
-    if (!auction || !location || !port) return [];
+  // inland: location -> port (same across destinations)
+  const inlandRow = useMemo(() => {
+    if (!auction || !location || !port) return null;
     const [city, state] = location.split('|');
-    return uniq(
-      usable
-        .filter(
-          (r) =>
-            r.auction === auction &&
-            r.city === city &&
-            (r.state || '') === state &&
-            r.port === port
-        )
-        .map((r) => r.destination)
-    ).sort();
+    return usable.find((r) => r.auction === auction && r.city === city && (r.state || '') === state && r.port === port) || null;
   }, [usable, auction, location, port]);
+  // ocean: port -> destination (same across locations/auctions)
+  const oceanRow = useMemo(() => {
+    if (!port || !destination) return null;
+    return usable.find((r) => r.port === port && r.destination === destination) || null;
+  }, [usable, port, destination]);
 
-  const matchedRow = useMemo(() => {
-    if (!auction || !location || !port || !destination) return null;
-    const [city, state] = location.split('|');
-    return (
-      usable.find(
-        (r) =>
-          r.auction === auction &&
-          r.city === city &&
-          (r.state || '') === state &&
-          r.port === port &&
-          r.destination === destination
-      ) || null
-    );
-  }, [usable, auction, location, port, destination]);
-
-  const containerPrice = matchedRow ? parseFloat(matchedRow.container_price) || 0 : 0;
-  // vehicle type adjusts the inland cost (Sedan = 0)
+  const selected = !!(auction && location && port && destination);
+  const containerPrice = oceanRow ? parseFloat(oceanRow.container_price) || 0 : 0;
   // vehicle modifiers come from admin-managed types (fallback to defaults)
   const vehMods = vehicleTypes.length
     ? Object.fromEntries(vehicleTypes.map((t) => [t.name, parseFloat(t.price_modifier) || 0]))
     : VEHICLES;
-  const landPrice = matchedRow ? Math.max(0, (parseFloat(matchedRow.land_price) || 0) + (vehMods[vehicle] || 0)) : 0;
-  const totalPrice = matchedRow ? landPrice + containerPrice : 0;
+  const baseInland = inlandRow ? parseFloat(inlandRow.land_price) || 0 : 0;
+  const landPrice = selected ? Math.max(0, baseInland + (vehMods[vehicle] || 0)) : 0;
+  const totalPrice = selected ? landPrice + containerPrice : 0;
 
   const onAuctionChange = (v) => { setAuction(v); setLocation(''); setPort(''); setDestination(''); };
   const onLocationChange = (v) => { setLocation(v); setPort(''); setDestination(''); };
