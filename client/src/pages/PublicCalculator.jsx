@@ -212,7 +212,10 @@ function Select({ value, onChange, options, disabled }) {
         onClick={() => setOpen((o) => !o)}
         className={`flex h-11 w-full items-center justify-between rounded-field border bg-ink-900 px-3.5 text-sm font-500 outline-none transition-colors ${disabled ? 'cursor-not-allowed border-ink-700 opacity-40' : 'border-ink-700 hover:border-ink-500'} ${open ? 'border-brand-500 ring-2 ring-brand-500/30' : ''} ${current ? 'text-ink-100' : 'text-ink-500'}`}
       >
-        <span className="truncate">{current ? current.label : placeholder}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          {current?.Icon && <current.Icon className="h-4 w-4 shrink-0 text-ink-400" />}
+          <span className="truncate">{current ? current.label : placeholder}</span>
+        </span>
         <IconChevron className={`ml-2 h-4 w-4 shrink-0 text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -240,7 +243,10 @@ function Select({ value, onChange, options, disabled }) {
                       onClick={() => pick(o.value)}
                       className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-sm transition-colors ${sel ? 'bg-brand-600/15 text-brand-400' : 'text-ink-200 hover:bg-ink-800'}`}
                     >
-                      <span className="truncate">{o.label}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        {o.Icon && <o.Icon className={`h-4 w-4 shrink-0 ${sel ? 'text-brand-400' : 'text-ink-400'}`} />}
+                        <span className="truncate">{o.label}</span>
+                      </span>
                       {sel && (
                         <svg viewBox="0 0 24 24" className="ml-2 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
                       )}
@@ -435,7 +441,7 @@ export default function PublicCalculator() {
   ];
   const portOptions = [{ value: '', label: 'აირჩიეთ...' }, ...ports.map((p) => ({ value: p, label: p }))];
   const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
-  const vehicleOptions = Object.keys(VEHICLES).map((v) => ({ value: v, label: v }));
+  const vehicleOptions = Object.keys(VEHICLES).map((v) => ({ value: v, label: v, Icon: VEHICLE_ICONS[v] || IconCar }));
 
   return (
     <div className="srl-scope w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
@@ -593,20 +599,20 @@ export default function PublicCalculator() {
                         disabled={!auction}
                       />
                     </Field>
-                    <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
-                      <Select
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        options={destOptions}
-                        disabled={!port}
-                      />
-                    </Field>
                     <Field label="ჩატვირთვის პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
                       <Select
                         value={port}
                         onChange={(e) => onPortChange(e.target.value)}
                         options={portOptions}
                         disabled={!location}
+                      />
+                    </Field>
+                    <Field label="დანიშნულების პორტი" icon={<IconShip className="h-3.5 w-3.5" />}>
+                      <Select
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        options={destOptions}
+                        disabled={!port}
                       />
                     </Field>
                     <div className="sm:col-span-2">
