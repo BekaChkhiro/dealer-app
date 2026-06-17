@@ -105,6 +105,43 @@ const IconShield = (p) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="m9 12 2 2 4-4" /></svg>
 );
 
+/* ---------- vehicle-type icons ---------- */
+const IconCar = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 11l1.6-4a2 2 0 0 1 1.9-1.3h7a2 2 0 0 1 1.9 1.3L19 11" /><path d="M3 16v-3a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3h-3" /><path d="M6 16H3" /><circle cx="7.5" cy="16.5" r="1.6" /><circle cx="16.5" cy="16.5" r="1.6" /></svg>
+);
+const IconSuv = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12l1.4-4.4A2 2 0 0 1 6.3 6h11.4a2 2 0 0 1 1.9 1.6L21 12" /><path d="M2 16v-2.5a1.5 1.5 0 0 1 1.5-1.5h17a1.5 1.5 0 0 1 1.5 1.5V16h-2.5" /><path d="M6 16H2" /><circle cx="7.5" cy="16.5" r="1.6" /><circle cx="16.5" cy="16.5" r="1.6" /></svg>
+);
+const IconVan = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 6h11l5 5v5h-2" /><path d="M5 16H3V6" /><path d="M9 16h5" /><path d="M14 8v3h5" /><circle cx="7" cy="16.5" r="1.6" /><circle cx="16.5" cy="16.5" r="1.6" /></svg>
+);
+const IconMoto = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="5" cy="16" r="3" /><circle cx="19" cy="16" r="3" /><path d="M8 16h5l3-5h3" /><path d="M13 11l-2-3H8" /><path d="M16 11l-3 5" /></svg>
+);
+const IconQuad = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="5" cy="17" r="2.5" /><circle cx="19" cy="17" r="2.5" /><path d="M5 17h2l2-5h6l1 5h3" /><path d="M9 12l1-3h4" /></svg>
+);
+const IconBoat = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 18c1 .8 2 1 3 1s2.5-1 4-1 3 1 4 1 2-.2 3-1" /><path d="M5 15l1-5h11l-2 5" /><path d="M9 10V5l6 5" /></svg>
+);
+const IconExcavator = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 19h11v-3H5l-2 3z" /><path d="M7 16v-3h5v3" /><path d="M12 13l4-6 4 1" /><path d="M20 8l1 4-3 .5" /><circle cx="5.5" cy="19" r="1" /><circle cx="9" cy="19" r="1" /><circle cx="12.5" cy="19" r="1" /></svg>
+);
+
+// maps each vehicle type to an icon
+const VEHICLE_ICONS = {
+  'Sedan': IconCar,
+  'Medium Duty Truck': IconTruck,
+  'Quadrocycle': IconQuad,
+  'Motorcycles': IconMoto,
+  'Bob Cat': IconExcavator,
+  '3 Cars Cont. (SUV)': IconSuv,
+  'Van': IconVan,
+  'Boat': IconBoat,
+  'Truck': IconTruck,
+  'Heavy Equipment': IconExcavator,
+};
+
 /* ---------- reusable bits ---------- */
 function Mark({ className }) {
   return (
@@ -338,7 +375,6 @@ export default function PublicCalculator() {
   ];
   const portOptions = [{ value: '', label: 'აირჩიეთ...' }, ...ports.map((p) => ({ value: p, label: p }))];
   const destOptions = [{ value: '', label: 'აირჩიეთ...' }, ...destinations.map((d) => ({ value: d, label: d }))];
-  const vehicleOptions = Object.keys(VEHICLES).map((v) => ({ value: v, label: v }));
 
   return (
     <div className="w-full bg-ink-900 font-sans text-ink-100 antialiased [&_a]:no-underline [&_button]:no-underline">
@@ -514,11 +550,24 @@ export default function PublicCalculator() {
                     </Field>
                     <div className="sm:col-span-2">
                       <Field label="ავტომობილის ტიპი" icon={<IconTruck className="h-3.5 w-3.5" />}>
-                        <Select
-                          value={vehicle}
-                          onChange={(e) => setVehicle(e.target.value)}
-                          options={vehicleOptions}
-                        />
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {Object.keys(VEHICLES).map((type) => {
+                            const Icon = VEHICLE_ICONS[type] || IconCar;
+                            const active = vehicle === type;
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setVehicle(type)}
+                                aria-pressed={active}
+                                className={`flex items-center gap-2 rounded-btn border px-3 py-2.5 text-left text-xs font-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${active ? 'border-brand-500 bg-brand-600/15 text-ink-50' : 'border-ink-700 bg-ink-900 text-ink-300 hover:border-ink-500 hover:text-ink-100'}`}
+                              >
+                                <Icon className={`h-4.5 w-4.5 shrink-0 ${active ? 'text-brand-500' : 'text-ink-400'}`} />
+                                <span className="leading-tight">{type}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </Field>
                     </div>
                   </div>
