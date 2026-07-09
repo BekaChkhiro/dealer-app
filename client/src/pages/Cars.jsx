@@ -111,6 +111,8 @@ function Cars() {
 
   // Receiver data entry mode: 'manual' or 'upload'
   const [receiverEntryMode, setReceiverEntryMode] = useState('manual');
+  const [frequentReceivers, setFrequentReceivers] = useState([]);
+  const [savingReceiver, setSavingReceiver] = useState(false);
   const [receiverIdFile, setReceiverIdFile] = useState(null);
   const [receiverIdUploading, setReceiverIdUploading] = useState(false);
   const [receiverIdError, setReceiverIdError] = useState(null);
@@ -361,18 +363,20 @@ function Cars() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes] = await Promise.all([
+        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes] = await Promise.all([
           api.get('/users', { params: { limit: 500 } }),
           api.get('/cities'),
           api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
           api.get('/car-brands'),
           api.get('/car-models'),
+          api.get('/frequent-receivers'),
         ]);
         setDealers((usersRes.data.data || []).filter((u) => u.role !== 'admin'));
         setCities(citiesRes.data.data || []);
         setPorts(portsRes.data.data || []);
         setCarBrands(brandsRes.data.data || []);
         setCarModels(modelsRes.data.data || []);
+        setFrequentReceivers(receiversRes.data.data || []);
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -523,6 +527,40 @@ function Cars() {
     let next = type === 'checkbox' ? checked : value;
     if (type !== 'checkbox' && UPPERCASE_FIELDS.includes(name)) next = String(next).toUpperCase();
     setFormData(prev => ({ ...prev, [name]: next }));
+  }
+
+  // Fill receiver fields from a saved frequent receiver.
+  function applyFrequentReceiver(r) {
+    if (!r) return;
+    setFormData(prev => ({
+      ...prev,
+      receiver_fullname: (r.fullname || '').toUpperCase(),
+      receiver_identity_number: (r.identity_number || '').toUpperCase(),
+      receiver_phone: r.phone || '',
+    }));
+  }
+
+  // Save the current receiver fields as a reusable frequent receiver.
+  async function handleSaveFrequentReceiver() {
+    if (!formData.receiver_fullname?.trim()) return;
+    try {
+      setSavingReceiver(true);
+      const res = await api.post('/frequent-receivers', {
+        fullname: formData.receiver_fullname,
+        identity_number: formData.receiver_identity_number,
+        phone: formData.receiver_phone,
+      });
+      if (res.data.success) {
+        setFrequentReceivers(prev => {
+          const rest = prev.filter(x => x.id !== res.data.data.id);
+          return [res.data.data, ...rest].sort((a, b) => (a.fullname || '').localeCompare(b.fullname || ''));
+        });
+      }
+    } catch (err) {
+      console.error('Error saving frequent receiver:', err);
+    } finally {
+      setSavingReceiver(false);
+    }
   }
 
   function handleImageChange(e) {
@@ -1070,6 +1108,59 @@ function Cars() {
                       onClick={() => setReceiverEntryMode('upload')}
                     >
                       {t('cars.uploadIdDocument')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Frequent receivers picker (reuse saved recipients) */}
+                <div className="row mb-3">
+                  <div className="col-8">
+                    <label className="form-label">{t('cars.frequentReceiver')}</label>
+                    <Autocomplete
+                      options={frequentReceivers}
+                      getOptionLabel={(o) => {
+                        if (!o) return '';
+                        return [o.fullname, o.identity_number].filter(Boolean).join(' — ');
+                      }}
+                      value={null}
+                      onChange={(_, newValue) => applyFrequentReceiver(newValue)}
+                      isOptionEqualToValue={(o, v) => o?.id === v?.id}
+                      filterOptions={(options, { inputValue }) => {
+                        const s = inputValue.trim().toLowerCase();
+                        if (!s) return options;
+                        return options.filter(o =>
+                          (o.fullname || '').toLowerCase().includes(s) ||
+                          (o.identity_number || '').toLowerCase().includes(s) ||
+                          (o.phone || '').toLowerCase().includes(s)
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={t('cars.selectFrequentReceiver')}
+                          size="small"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: '#fff',
+                              '& fieldset': { borderColor: '#ced4da' },
+                              '&:hover fieldset': { borderColor: '#86b7fe' },
+                              '&.Mui-focused fieldset': { borderColor: '#86b7fe', boxShadow: '0 0 0 0.25rem rgba(13, 110, 253, 0.25)' },
+                            },
+                            '& .MuiInputBase-input': { padding: '0.375rem 0.75rem', fontSize: '0.875rem' },
+                          }}
+                        />
+                      )}
+                      noOptionsText={t('common.noResults')}
+                    />
+                  </div>
+                  <div className="col-4 d-flex align-items-end">
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary w-100"
+                      onClick={handleSaveFrequentReceiver}
+                      disabled={savingReceiver || !formData.receiver_fullname?.trim()}
+                    >
+                      {savingReceiver ? t('common.saving') : t('cars.saveFrequentReceiver')}
                     </button>
                   </div>
                 </div>

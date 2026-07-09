@@ -50,6 +50,13 @@ router.post('/calc-ports', requireAdmin, calculatorPublicController.createCalcPo
 router.put('/calc-ports/:id', requireAdmin, calculatorPublicController.updateCalcPort);
 router.delete('/calc-ports/:id', requireAdmin, calculatorPublicController.deleteCalcPort);
 
+// Frequent receivers (saved recipient records)
+const frequentReceiversController = require('../controllers/frequentReceiversController');
+router.get('/frequent-receivers', requireAuth, frequentReceiversController.getFrequentReceivers);
+router.post('/frequent-receivers', requireAuth, frequentReceiversController.createFrequentReceiver);
+router.put('/frequent-receivers/:id', requireAuth, frequentReceiversController.updateFrequentReceiver);
+router.delete('/frequent-receivers/:id', requireAuth, frequentReceiversController.deleteFrequentReceiver);
+
 router.get('/cities', requireAuth, vehiclesController.getCities);
 router.get('/search', requireAuth, vehiclesController.searchVehicles);
 router.get('/invoices', requireAuth, vehiclesController.getInvoicesList);
