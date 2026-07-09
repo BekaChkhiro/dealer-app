@@ -18,6 +18,13 @@ router.get('/public/calculator/lot-quote', calculatorPublicController.getLotQuot
 router.get('/public/calculator/vehicle-types', calculatorPublicController.getVehicleTypes);
 router.get('/public/calculator/ports', calculatorPublicController.getCalcPorts);
 
+// Public geography reads (no auth) so the vehicle form / public pages can read them
+const geographyController = require('../controllers/geographyController');
+router.get('/public/geo/countries', geographyController.getCountries);
+router.get('/public/geo/states', geographyController.getStates);
+router.get('/public/geo/cities', geographyController.getCities2);
+router.get('/public/geo/loading-ports', geographyController.getLoadingPorts);
+
 // Route modules will be added here as they are built:
 router.use('/', require('./auth'));
 router.use('/users', require('./users'));
@@ -49,6 +56,27 @@ router.get('/calc-ports', requireAuth, calculatorPublicController.getCalcPorts);
 router.post('/calc-ports', requireAdmin, calculatorPublicController.createCalcPort);
 router.put('/calc-ports/:id', requireAdmin, calculatorPublicController.updateCalcPort);
 router.delete('/calc-ports/:id', requireAdmin, calculatorPublicController.deleteCalcPort);
+
+// Geography (admin-managed countries, states, cities, loading ports)
+router.get('/geo/countries', requireAuth, geographyController.getCountries);
+router.post('/geo/countries', requireAdmin, geographyController.createCountry);
+router.put('/geo/countries/:id', requireAdmin, geographyController.updateCountry);
+router.delete('/geo/countries/:id', requireAdmin, geographyController.deleteCountry);
+
+router.get('/geo/states', requireAuth, geographyController.getStates);
+router.post('/geo/states', requireAdmin, geographyController.createState);
+router.put('/geo/states/:id', requireAdmin, geographyController.updateState);
+router.delete('/geo/states/:id', requireAdmin, geographyController.deleteState);
+
+router.get('/geo/cities', requireAuth, geographyController.getCities2);
+router.post('/geo/cities', requireAdmin, geographyController.createCity);
+router.put('/geo/cities/:id', requireAdmin, geographyController.updateCity);
+router.delete('/geo/cities/:id', requireAdmin, geographyController.deleteCity);
+
+router.get('/geo/loading-ports', requireAuth, geographyController.getLoadingPorts);
+router.post('/geo/loading-ports', requireAdmin, geographyController.createLoadingPort);
+router.put('/geo/loading-ports/:id', requireAdmin, geographyController.updateLoadingPort);
+router.delete('/geo/loading-ports/:id', requireAdmin, geographyController.deleteLoadingPort);
 
 // Frequent receivers (saved recipient records)
 const frequentReceiversController = require('../controllers/frequentReceiversController');

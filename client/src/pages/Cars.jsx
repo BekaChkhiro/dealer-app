@@ -13,7 +13,6 @@ import VinDisplay from '../components/VinDisplay';
 import VinInput from '../components/VinInput';
 import { formatDate } from '../utils/formatDate';
 import { exportToCSV } from '../utils/export';
-import { US_STATES, US_PORTS, getPortForState } from '../utils/usLocations';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import './Cars.css';
@@ -23,8 +22,9 @@ const EMPTY_FORM = {
   mark: '', model: '', year: '', vin: '', lot_number: '', auction: '', vehicle_type: '', doc_type: '', fuel_type: '', is_hybrid: false, is_sublot: false,
   // Dealer / Receiver
   dealer_id: '', receiver_fullname: '', receiver_identity_number: '', receiver_phone: '',
-  // Location
-  us_state: '', us_port: '', destination_port: '', destination_port_id: '',
+  // Location (city_id/loading_port_id reference admin-managed geography;
+  // us_state/us_port keep denormalized names; sublot_city = actual location)
+  city: '', city_id: '', us_state: '', us_port: '', loading_port_id: '', sublot_city: '', destination_port: '', destination_port_id: '',
   // Container / Shipping
   container_number: '', line: '',
   // Pricing
@@ -56,7 +56,7 @@ const DATE_FIELDS = [
 // Text fields that should be stored/shown uppercase.
 const UPPERCASE_FIELDS = [
   'mark', 'model', 'vehicle_type', 'doc_type', 'lot_number', 'container_number',
-  'us_state', 'us_port', 'receiver_fullname', 'receiver_identity_number',
+  'us_state', 'us_port', 'city', 'sublot_city', 'receiver_fullname', 'receiver_identity_number',
   'driver_fullname', 'driver_id_number', 'driver_car_license_number', 'driver_company',
 ];
 
@@ -113,6 +113,8 @@ function Cars() {
   const [receiverEntryMode, setReceiverEntryMode] = useState('manual');
   const [frequentReceivers, setFrequentReceivers] = useState([]);
   const [savingReceiver, setSavingReceiver] = useState(false);
+  const [geoCities, setGeoCities] = useState([]);
+  const [loadingPorts, setLoadingPorts] = useState([]);
   const [receiverIdFile, setReceiverIdFile] = useState(null);
   const [receiverIdUploading, setReceiverIdUploading] = useState(false);
   const [receiverIdError, setReceiverIdError] = useState(null);
@@ -363,13 +365,15 @@ function Cars() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes] = await Promise.all([
+        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes] = await Promise.all([
           api.get('/users', { params: { limit: 500 } }),
           api.get('/cities'),
           api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
           api.get('/car-brands'),
           api.get('/car-models'),
           api.get('/frequent-receivers'),
+          api.get('/geo/cities'),
+          api.get('/geo/loading-ports'),
         ]);
         setDealers((usersRes.data.data || []).filter((u) => u.role !== 'admin'));
         setCities(citiesRes.data.data || []);
@@ -377,6 +381,8 @@ function Cars() {
         setCarBrands(brandsRes.data.data || []);
         setCarModels(modelsRes.data.data || []);
         setFrequentReceivers(receiversRes.data.data || []);
+        setGeoCities(geoCitiesRes.data.data || []);
+        setLoadingPorts((loadingPortsRes.data.data || []).filter((p) => p.is_active !== false));
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -1287,36 +1293,42 @@ function Cars() {
                 <h6 className="cars-section-heading">{t('cars.location')}</h6>
                 <div className="row mb-3">
                   <div className="col-6">
-                    <label className="form-label">{t('cars.usState')}</label>
+                    <label className="form-label">{t('cars.city')}</label>
                     <Autocomplete
                       freeSolo
                       autoHighlight
                       selectOnFocus
-                      options={US_STATES}
-                      getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
-                      inputValue={formData.us_state || ''}
+                      options={geoCities}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || '')).toUpperCase()}
+                      inputValue={formData.city || ''}
                       onInputChange={(_, newValue) => {
-                        setFormData(prev => ({ ...prev, us_state: (newValue || '').toUpperCase() }));
+                        setFormData(prev => ({ ...prev, city: (newValue || '').toUpperCase() }));
                       }}
                       onChange={(_, newValue) => {
-                        if (newValue && typeof newValue === 'object' && newValue.code) {
-                          const port = getPortForState(newValue.code);
-                          if (port) {
-                            setFormData(prev => ({ ...prev, us_state: newValue.name.toUpperCase(), us_port: port.name.toUpperCase() }));
-                          }
+                        if (newValue && typeof newValue === 'object') {
+                          setFormData(prev => ({
+                            ...prev,
+                            city: (newValue.name || '').toUpperCase(),
+                            city_id: newValue.id || '',
+                            us_state: (newValue.state_name || newValue.state_code || '').toUpperCase(),
+                          }));
                         }
                       }}
                       filterOptions={(options, { inputValue }) => {
                         const s = inputValue.trim().toLowerCase();
                         if (!s) return options;
-                        return options.filter(o => o.code.toLowerCase().includes(s) || o.name.toLowerCase().includes(s));
+                        return options.filter(o =>
+                          (o.name || '').toLowerCase().includes(s) ||
+                          (o.state_name || '').toLowerCase().includes(s) ||
+                          (o.state_code || '').toLowerCase().includes(s)
+                        );
                       }}
                       renderOption={(props, option) => {
                         const { key, ...rest } = props;
                         return (
-                          <li key={option.code} {...rest}>
-                            <span className="us-option-code">{option.code}</span>
-                            <span className="us-option-name">{option.name}</span>
+                          <li key={option.id} {...rest}>
+                            <span className="us-option-name">{(option.name || '').toUpperCase()}</span>
+                            <span className="us-option-code">{option.state_code || option.state_name}</span>
                           </li>
                         );
                       }}
@@ -1343,28 +1355,54 @@ function Cars() {
                     />
                   </div>
                   <div className="col-6">
-                    <label className="form-label">{t('cars.usPort')}</label>
+                    <label className="form-label">{t('cars.state')}</label>
+                    <input
+                      type="text"
+                      className="form-control input-uppercase"
+                      name="us_state"
+                      value={formData.us_state}
+                      onChange={handleFormChange}
+                      placeholder={t('cars.stateAutofill')}
+                    />
+                  </div>
+                </div>
+                <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label">{t('cars.loadingPort')}</label>
                     <Autocomplete
                       freeSolo
                       autoHighlight
                       selectOnFocus
-                      options={US_PORTS}
-                      getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                      options={loadingPorts}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || '')).toUpperCase()}
                       inputValue={formData.us_port || ''}
                       onInputChange={(_, newValue) => {
                         setFormData(prev => ({ ...prev, us_port: (newValue || '').toUpperCase() }));
                       }}
+                      onChange={(_, newValue) => {
+                        if (newValue && typeof newValue === 'object') {
+                          setFormData(prev => ({
+                            ...prev,
+                            us_port: (newValue.name || '').toUpperCase(),
+                            loading_port_id: newValue.id || '',
+                          }));
+                        }
+                      }}
                       filterOptions={(options, { inputValue }) => {
                         const s = inputValue.trim().toLowerCase();
                         if (!s) return options;
-                        return options.filter(o => o.code.toLowerCase().includes(s) || o.name.toLowerCase().includes(s));
+                        return options.filter(o =>
+                          (o.name || '').toLowerCase().includes(s) ||
+                          (o.code || '').toLowerCase().includes(s) ||
+                          (o.country_name || '').toLowerCase().includes(s)
+                        );
                       }}
                       renderOption={(props, option) => {
                         const { key, ...rest } = props;
                         return (
-                          <li key={option.code} {...rest}>
-                            <span className="us-option-code">{option.code}</span>
-                            <span className="us-option-name">{option.name}</span>
+                          <li key={option.id} {...rest}>
+                            <span className="us-option-name">{(option.name || '').toUpperCase()}</span>
+                            <span className="us-option-code">{option.country_name}</span>
                           </li>
                         );
                       }}
@@ -1390,6 +1428,19 @@ function Cars() {
                       closeText={t('common.close')}
                     />
                   </div>
+                  {formData.is_sublot && (
+                    <div className="col-6">
+                      <label className="form-label">{t('cars.sublotCity')}</label>
+                      <input
+                        type="text"
+                        className="form-control input-uppercase"
+                        name="sublot_city"
+                        value={formData.sublot_city}
+                        onChange={handleFormChange}
+                        placeholder={t('cars.sublotCityHint')}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="row mb-3">
                   <div className="col-6">

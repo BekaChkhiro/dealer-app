@@ -178,6 +178,7 @@ async function createVehicle(req, res) {
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
+      city_id, city, loading_port_id, sublot_city,
       // Field aliases for test compatibility
       lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
@@ -241,14 +242,16 @@ async function createVehicle(req, res) {
         has_poti_image, is_hybrid, vehicle_type, fuel_type, container_open_date,
         container_receive_date, receiver_changed, receiver_change_date,
         driver_fullname, driver_phone, driver_car_license_number, driver_id_number,
-        purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id
+        purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
+        city_id, city, loading_port_id, sublot_city
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
         $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
-        $51, $52, $53, $54, $55, $56, $57, $58, $59
+        $51, $52, $53, $54, $55, $56, $57, $58, $59,
+        $60, $61, $62, $63
       ) RETURNING *`,
       [
         dealer_id, receiver_fullname, receiverPersonalValue,
@@ -265,6 +268,7 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driverFullnameValue, driver_phone, driverLicenseValue, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
+        city_id, city, loading_port_id, sublot_city,
       ].map(emptyToNull)
     );
 
@@ -363,6 +367,7 @@ async function updateVehicle(req, res) {
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
+      city_id, city, loading_port_id, sublot_city,
       // Field aliases for test compatibility
       lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
@@ -436,6 +441,10 @@ async function updateVehicle(req, res) {
     addField('comment', comment);
     addField('insurance_type', insurance_type);
     addField('container_id', container_id);
+    addField('city_id', city_id);
+    addField('city', city);
+    addField('loading_port_id', loading_port_id);
+    addField('sublot_city', sublot_city);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });

@@ -71,6 +71,16 @@ function PortsIcon() {
   );
 }
 
+function GeographyIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
 function CalculatorIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -152,6 +162,7 @@ const NAV_ITEMS = [
   { labelKey: 'nav.cars', path: '/cars', icon: CarsIcon },
   { labelKey: 'nav.containers', path: '/containers', icon: ContainersIcon },
   { labelKey: 'nav.ports', path: '/ports', icon: PortsIcon, adminOnly: true },
+  { labelKey: 'nav.geography', path: '/geography', icon: GeographyIcon, adminOnly: true },
   { labelKey: 'nav.calculator', path: '/calculator', icon: CalculatorIcon },
   { labelKey: 'nav.transactions', path: '/transactions', icon: TransactionsIcon },
   { labelKey: 'nav.ticket', path: '/ticket', icon: TicketIcon },

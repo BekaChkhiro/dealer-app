@@ -1,0 +1,111 @@
+.geo-section-header {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.geo-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.geo-filter-select {
+  width: auto;
+  min-width: 180px;
+}
+
+.geo-filter-search {
+  width: auto;
+  min-width: 220px;
+}
+
+/* Modal (mirrors the drawer-style modal used across admin CRUD pages) */
+@keyframes geo-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes geo-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.geo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  z-index: 1050;
+  animation: geo-backdrop-in 0.22s ease-out;
+}
+
+.geo-modal {
+  background: #fff;
+  border-radius: 0;
+  width: 520px;
+  max-width: 92vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: geo-drawer-in 0.22s ease-out;
+}
+
+.geo-modal-sm {
+  width: 420px;
+  max-width: 90vw;
+}
+
+@media (max-width: 640px) {
+  .geo-modal,
+  .geo-modal-sm {
+    width: 100vw;
+    max-width: 100vw;
+  }
+}
+
+.geo-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.geo-modal-header h5 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.geo-modal-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6c757d;
+  line-height: 1;
+  padding: 0;
+}
+
+.geo-modal-body {
+  padding: 20px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.geo-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}

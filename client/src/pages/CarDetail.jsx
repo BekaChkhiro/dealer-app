@@ -607,8 +607,10 @@ function CarDetail() {
               }
             />
             <InfoItem label={t('cars.line')} value={vehicle.line} />
-            <InfoItem label={t('cars.usState')} value={vehicle.us_state} />
-            <InfoItem label={t('cars.usPort')} value={vehicle.us_port} />
+            <InfoItem label={t('cars.city')} value={vehicle.city} />
+            <InfoItem label={t('cars.state')} value={vehicle.us_state} />
+            {vehicle.sublot_city && <InfoItem label={t('cars.sublotCity')} value={vehicle.sublot_city} />}
+            <InfoItem label={t('cars.loadingPort')} value={vehicle.us_port} />
             <InfoItem label={t('cars.destinationPort')} value={vehicle.destination_port_name || vehicle.destination_port} />
           </div>
         </div>
