@@ -144,11 +144,13 @@ async function getVehicles(req, res) {
        p.name AS destination_port_name,
        p.code AS destination_port_code,
        c.id AS container_id,
+       w.name AS warehouse_name,
        (SELECT b.booking_number FROM booking b WHERE b.vin = v.vin AND b.booking_number IS NOT NULL ORDER BY b.id DESC LIMIT 1) AS booking_number,
        ${overdueDaysExpr} AS overdue_days
        FROM vehicles v
        LEFT JOIN ports p ON v.destination_port_id = p.id
        LEFT JOIN containers c ON v.container_id = c.id
+       LEFT JOIN warehouses w ON v.warehouse_id = w.id
        ${whereClause} ORDER BY ${orderByExpr} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -178,7 +180,7 @@ async function createVehicle(req, res) {
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
-      city_id, city, loading_port_id, sublot_city,
+      city_id, city, loading_port_id, sublot_city, warehouse_id,
       // Field aliases for test compatibility
       lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
@@ -243,7 +245,7 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driver_fullname, driver_phone, driver_car_license_number, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
-        city_id, city, loading_port_id, sublot_city
+        city_id, city, loading_port_id, sublot_city, warehouse_id
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -251,7 +253,7 @@ async function createVehicle(req, res) {
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
         $51, $52, $53, $54, $55, $56, $57, $58, $59,
-        $60, $61, $62, $63
+        $60, $61, $62, $63, $64
       ) RETURNING *`,
       [
         dealer_id, receiver_fullname, receiverPersonalValue,
@@ -268,7 +270,7 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driverFullnameValue, driver_phone, driverLicenseValue, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
-        city_id, city, loading_port_id, sublot_city,
+        city_id, city, loading_port_id, sublot_city, warehouse_id,
       ].map(emptyToNull)
     );
 
@@ -367,7 +369,7 @@ async function updateVehicle(req, res) {
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
-      city_id, city, loading_port_id, sublot_city,
+      city_id, city, loading_port_id, sublot_city, warehouse_id,
       // Field aliases for test compatibility
       lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
@@ -445,6 +447,7 @@ async function updateVehicle(req, res) {
     addField('city', city);
     addField('loading_port_id', loading_port_id);
     addField('sublot_city', sublot_city);
+    addField('warehouse_id', warehouse_id);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
@@ -569,11 +572,13 @@ async function getVehicleById(req, res) {
               v.receiver_identity_number AS receiver_personal_number,
               u.name AS dealer_name, u.surname AS dealer_surname, u.email AS dealer_email, u.phone AS dealer_phone,
               p.name AS destination_port_name, p.code AS destination_port_code,
-              c.id AS container_id
+              c.id AS container_id,
+              w.name AS warehouse_name
        FROM vehicles v
        LEFT JOIN users u ON v.dealer_id = u.id
        LEFT JOIN ports p ON v.destination_port_id = p.id
        LEFT JOIN containers c ON v.container_id = c.id
+       LEFT JOIN warehouses w ON v.warehouse_id = w.id
        WHERE v.id = $1`,
       [id]
     );

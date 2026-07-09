@@ -13,6 +13,7 @@ import VinDisplay from '../components/VinDisplay';
 import VinInput from '../components/VinInput';
 import { formatDate } from '../utils/formatDate';
 import { exportToCSV } from '../utils/export';
+import { VEHICLE_STATUSES, VEHICLE_STATUS_COLORS } from '../utils/vehicleStatuses';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import './Cars.css';
@@ -24,7 +25,7 @@ const EMPTY_FORM = {
   dealer_id: '', receiver_fullname: '', receiver_identity_number: '', receiver_phone: '',
   // Location (city_id/loading_port_id reference admin-managed geography;
   // us_state/us_port keep denormalized names; sublot_city = actual location)
-  city: '', city_id: '', us_state: '', us_port: '', loading_port_id: '', sublot_city: '', destination_port: '', destination_port_id: '',
+  city: '', city_id: '', us_state: '', us_port: '', loading_port_id: '', sublot_city: '', destination_port: '', destination_port_id: '', warehouse_id: '',
   // Container / Shipping
   container_number: '', line: '',
   // Pricing
@@ -126,6 +127,7 @@ function Cars() {
   const [ports, setPorts] = useState([]);
   const [carBrands, setCarBrands] = useState([]);
   const [carModels, setCarModels] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
 
   const FILTER_FIELDS = [
     { type: 'date-range', label: t('cars.purchaseDate'), startKey: 'start_date', endKey: 'end_date' },
@@ -223,18 +225,15 @@ function Cars() {
     { key: 'container_number', label: t('cars.container'), render: (row) => renderContainerCell(row) },
     { key: 'current_status', label: t('cars.status'), sortable: true, render: (row) => {
       const statusLabels = {
-        'arrived': t('cars.statusArrived'),
-        'in_transit': t('cars.statusInTransit'),
+        ...Object.fromEntries(VEHICLE_STATUSES.map((s) => [s.value, t(s.labelKey)])),
+        // Legacy statuses kept for backward compatibility with older records.
         'booked': t('cars.statusBooked'),
         'pending': t('cars.statusPending'),
-        'delivered': t('cars.statusDelivered'),
       };
       const statusColors = {
-        'arrived': '#28a745',
-        'in_transit': '#17a2b8',
+        ...VEHICLE_STATUS_COLORS,
         'booked': '#ffc107',
         'pending': '#6c757d',
-        'delivered': '#20c997',
       };
       const status = row.current_status || 'pending';
       return (
@@ -365,7 +364,7 @@ function Cars() {
   useEffect(() => {
     async function fetchDropdowns() {
       try {
-        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes] = await Promise.all([
+        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes, warehousesRes] = await Promise.all([
           api.get('/users', { params: { limit: 500 } }),
           api.get('/cities'),
           api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
@@ -374,6 +373,7 @@ function Cars() {
           api.get('/frequent-receivers'),
           api.get('/geo/cities'),
           api.get('/geo/loading-ports'),
+          api.get('/warehouses'),
         ]);
         setDealers((usersRes.data.data || []).filter((u) => u.role !== 'admin'));
         setCities(citiesRes.data.data || []);
@@ -383,6 +383,7 @@ function Cars() {
         setFrequentReceivers(receiversRes.data.data || []);
         setGeoCities(geoCitiesRes.data.data || []);
         setLoadingPorts((loadingPortsRes.data.data || []).filter((p) => p.is_active !== false));
+        setWarehouses((warehousesRes.data.data || []).filter((w) => w.is_active !== false));
       } catch (err) {
         console.error('Error fetching dropdown data:', err);
       }
@@ -1459,6 +1460,22 @@ function Cars() {
                       ))}
                     </select>
                   </div>
+                  <div className="col-6">
+                    <label className="form-label">{t('cars.warehouse')}</label>
+                    <select
+                      className="form-select"
+                      name="warehouse_id"
+                      value={formData.warehouse_id}
+                      onChange={handleFormChange}
+                    >
+                      <option value="">—</option>
+                      {warehouses.map(w => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}{w.code ? ` (${w.code})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <hr />
@@ -1535,9 +1552,9 @@ function Cars() {
                     <label className="form-label">{t('cars.currentStatus')}</label>
                     <select className="form-select" name="current_status" value={formData.current_status} onChange={handleFormChange}>
                       <option value="">Select...</option>
-                      <option value="arrived">Arrived</option>
-                      <option value="in_transit">In Transit</option>
-                      <option value="booked">Booked</option>
+                      {VEHICLE_STATUSES.map((s) => (
+                        <option key={s.value} value={s.value}>{t(s.labelKey)}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-6">

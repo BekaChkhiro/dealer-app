@@ -44,6 +44,7 @@ router.use('/audit-logs', require('./auditLogs'));
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const dashboardController = require('../controllers/dashboardController');
 router.get('/dashboard/stats', requireAuth, dashboardController.getStats);
+router.get('/dashboard/analytics', requireAuth, dashboardController.getAnalytics);
 
 // Vehicle types (admin-managed calculator price modifiers)
 router.get('/vehicle-types', requireAuth, calculatorPublicController.getVehicleTypes);
@@ -77,6 +78,13 @@ router.get('/geo/loading-ports', requireAuth, geographyController.getLoadingPort
 router.post('/geo/loading-ports', requireAdmin, geographyController.createLoadingPort);
 router.put('/geo/loading-ports/:id', requireAdmin, geographyController.updateLoadingPort);
 router.delete('/geo/loading-ports/:id', requireAdmin, geographyController.deleteLoadingPort);
+
+// Warehouses (admin-managed)
+const warehousesController = require('../controllers/warehousesController');
+router.get('/warehouses', requireAuth, warehousesController.getWarehouses);
+router.post('/warehouses', requireAdmin, warehousesController.createWarehouse);
+router.put('/warehouses/:id', requireAdmin, warehousesController.updateWarehouse);
+router.delete('/warehouses/:id', requireAdmin, warehousesController.deleteWarehouse);
 
 // Frequent receivers (saved recipient records)
 const frequentReceiversController = require('../controllers/frequentReceiversController');

@@ -34,3 +34,53 @@
   font-size: 13px;
   color: #6c757d;
 }
+
+/* Prominent highlight cards (Fleet Analytics section) */
+.dashboard-highlight-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 24px;
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.dashboard-highlight-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dashboard-highlight-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dashboard-highlight-info .value {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dashboard-highlight-info .title {
+  font-size: 14px;
+  color: #6c757d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-analytics-table th,
+.dashboard-analytics-table td {
+  white-space: nowrap;
+  font-size: 13px;
+}

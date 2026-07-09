@@ -7,6 +7,7 @@
     "containers": "კონტეინერები",
     "ports": "პორტები",
     "geography": "გეოგრაფია",
+    "warehouses": "საწყობები",
     "calculator": "კალკულატორი",
     "transactions": "ტრანზაქციები",
     "ticket": "ტიკეტი",
@@ -109,7 +110,16 @@
     "activeBookings": "აქტიური ბუქინგები",
     "containers": "კონტეინერები",
     "balance": "ბალანსი",
-    "totalDebt": "სულ ვალი"
+    "totalDebt": "სულ ვალი",
+    "analytics": "ავტოპარკის ანალიტიკა",
+    "inTransit": "გზაში",
+    "received": "ნაყიდი",
+    "toLoad": "ჩასატვირთი",
+    "arrived": "ჩამოსული",
+    "delivered": "ჩაბარებული",
+    "byWarehouse": "საწყობების მიხედვით",
+    "byPort": "პორტების მიხედვით",
+    "unassigned": "მიუთითებელი"
   },
   "invoices": {
     "title": "ინვოისები",
@@ -308,13 +318,18 @@
     "confirmDeleteVehicle": "ნამდვილად გსურთ ამ მანქანის წაშლა?",
     "vinMaxLength": "VIN უნდა იყოს 17 სიმბოლო ან ნაკლები",
     "vinCharCount": "{count}/17",
+    "statusPurchased": "ნაყიდი",
+    "statusAtWarehouse": "საწყობში",
+    "statusToLoad": "ჩასატვირთი",
+    "statusLoaded": "ჩატვირთული",
     "statusArrived": "ჩამოსულია",
     "statusInTransit": "ტრანზიტში",
     "statusBooked": "დაჯავშნილი",
     "statusPending": "მოლოდინში",
     "statusDelivered": "მიწოდებულია",
     "overdueDays": "დაგვიანება",
-    "daysOverdue": "დღე"
+    "daysOverdue": "დღე",
+    "warehouse": "საწყობი"
   },
   "booking": {
     "title": "ბუქინგი",
@@ -594,6 +609,22 @@
     "filterByCountry": "ფილტრი ქვეყნის მიხედვით",
     "filterByState": "ფილტრი შტატის მიხედვით",
     "saveFailed": "შენახვა ვერ მოხერხდა"
+  },
+  "warehouses": {
+    "title": "საწყობები",
+    "name": "დასახელება",
+    "code": "კოდი",
+    "location": "მდებარეობა",
+    "active": "აქტიური",
+    "inactive": "არააქტიური",
+    "sortOrder": "რიგი",
+    "addNew": "+ საწყობის დამატება",
+    "editWarehouse": "საწყობის რედაქტირება",
+    "addNewWarehouse": "ახალი საწყობი",
+    "deleteWarehouse": "საწყობის წაშლა",
+    "confirmDeleteWarehouse": "ნამდვილად გსურთ ამ საწყობის წაშლა?",
+    "nameRequired": "საწყობის დასახელება სავალდებულოა",
+    "saveFailed": "საწყობის შენახვა ვერ მოხერხდა"
   },
   "lines": {
     "msc": "MSC",
