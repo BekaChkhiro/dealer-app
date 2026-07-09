@@ -4,7 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import api from '../services/api';
 import VinDisplay from '../components/VinDisplay';
+import ImageLightbox from '../components/ImageLightbox';
 import './CarDetail.css';
+
+const PHOTO_CATEGORIES = [
+  { category: 'auction', labelKey: 'auctionPhotos' },
+  { category: 'port', labelKey: 'portPhotos' },
+  { category: 'port_opening', labelKey: 'portOpeningPhotos' },
+  { category: 'other', labelKey: 'otherPhotos' },
+];
 
 function formatPrice(value) {
   if (value == null) return '—';
@@ -37,6 +45,10 @@ function CarDetail() {
   const [files, setFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState(null);
+  const [uploadingZipCategory, setUploadingZipCategory] = useState(null);
+  const [settingMainUrl, setSettingMainUrl] = useState(null);
+  const [movingFileId, setMovingFileId] = useState(null);
+  const [lightbox, setLightbox] = useState(null); // { images, index }
 
   useEffect(() => {
     let ignore = false;
@@ -173,6 +185,69 @@ function CarDetail() {
       alert(err.response?.data?.message || 'Failed to upload photo');
     } finally {
       setUploadingCategory(null);
+    }
+  };
+
+  // Upload a ZIP of photos; the server extracts and stores each image.
+  const handleZipUpload = async (category, event) => {
+    const file = (event.target.files || [])[0];
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) {
+      alert('ZIP is too large. Maximum size is 100MB.');
+      event.target.value = '';
+      return;
+    }
+    try {
+      setUploadingZipCategory(category);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      const res = await api.post(`/vehicles/${id}/files/zip`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.success) {
+        const rows = Array.isArray(res.data.data) ? res.data.data : [];
+        setFiles(prev => [...rows, ...prev]);
+        alert(`${rows.length} ${t('carDetail.photosImported') || 'photos imported'}`);
+      }
+      event.target.value = '';
+    } catch (err) {
+      console.error('Error uploading ZIP:', err);
+      alert(err.response?.data?.message || 'Failed to import ZIP');
+    } finally {
+      setUploadingZipCategory(null);
+    }
+  };
+
+  // Set an existing photo as the vehicle's main/cover image (shown in tables).
+  const handleSetMain = async (photo) => {
+    try {
+      setSettingMainUrl(photo.file_url);
+      const res = await api.patch(`/vehicles/${id}/main-photo`, { file_url: photo.file_url });
+      if (res.data.success) {
+        setVehicle(prev => (prev ? { ...prev, profile_image_url: photo.file_url } : prev));
+      }
+    } catch (err) {
+      console.error('Error setting main photo:', err);
+      alert(err.response?.data?.message || 'Failed to set main photo');
+    } finally {
+      setSettingMainUrl(null);
+    }
+  };
+
+  // Move a photo to a different category tab.
+  const handleMoveCategory = async (fileId, category) => {
+    try {
+      setMovingFileId(fileId);
+      const res = await api.patch(`/vehicles/files/${fileId}/category`, { category });
+      if (res.data.success) {
+        setFiles(prev => prev.map(f => (f.id === fileId ? { ...f, category } : f)));
+      }
+    } catch (err) {
+      console.error('Error moving photo:', err);
+      alert(err.response?.data?.message || 'Failed to move photo');
+    } finally {
+      setMovingFileId(null);
     }
   };
 
@@ -679,22 +754,23 @@ function CarDetail() {
         )}
       </div>
 
-      {/* Photo Sections — Auction, Port, Port Opening */}
-      {[
-        { category: 'auction', labelKey: 'auctionPhotos', inputId: 'photo-upload-auction' },
-        { category: 'port', labelKey: 'portPhotos', inputId: 'photo-upload-port' },
-        { category: 'port_opening', labelKey: 'portOpeningPhotos', inputId: 'photo-upload-port-opening' },
-      ].map(({ category, labelKey, inputId }) => {
+      {/* Photo Sections — Auction, Port, Port Opening, Other */}
+      {PHOTO_CATEGORIES.map(({ category, labelKey }) => {
+        const inputId = `photo-upload-${category}`;
+        const zipInputId = `zip-upload-${category}`;
         const categoryPhotos = files.filter(f => f.category === category);
         const isUploading = uploadingCategory === category;
+        const isZipping = uploadingZipCategory === category;
         const canUpload = isAdmin || vehicle?.dealer_id === user?.id;
+        const imagePhotos = categoryPhotos.filter(p => p.file_type?.startsWith('image/'));
+        const lightboxImages = imagePhotos.map(p => ({ url: p.file_url, name: p.file_name }));
 
         return (
           <div key={category} className="car-detail-card">
-            <div className="car-detail-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="car-detail-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span>{t(`carDetail.${labelKey}`)}</span>
               {canUpload && (
-                <div>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <input
                     type="file"
                     id={inputId}
@@ -702,18 +778,29 @@ function CarDetail() {
                     multiple
                     accept="image/*,application/pdf"
                     onChange={(e) => handlePhotoUpload(category, e)}
-                    disabled={isUploading}
+                    disabled={isUploading || isZipping}
                   />
                   <label
                     htmlFor={inputId}
                     className="btn btn-sm btn-primary"
-                    style={{
-                      cursor: isUploading ? 'not-allowed' : 'pointer',
-                      opacity: isUploading ? 0.6 : 1,
-                      marginBottom: 0,
-                    }}
+                    style={{ cursor: (isUploading || isZipping) ? 'not-allowed' : 'pointer', opacity: (isUploading || isZipping) ? 0.6 : 1, marginBottom: 0 }}
                   >
                     {isUploading ? t('common.uploading') : `+ ${t('carDetail.uploadPhotos')}`}
+                  </label>
+                  <input
+                    type="file"
+                    id={zipInputId}
+                    style={{ display: 'none' }}
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    onChange={(e) => handleZipUpload(category, e)}
+                    disabled={isUploading || isZipping}
+                  />
+                  <label
+                    htmlFor={zipInputId}
+                    className="btn btn-sm btn-outline-primary"
+                    style={{ cursor: (isUploading || isZipping) ? 'not-allowed' : 'pointer', opacity: (isUploading || isZipping) ? 0.6 : 1, marginBottom: 0 }}
+                  >
+                    {isZipping ? t('common.uploading') : `＋ ${t('carDetail.uploadZip')}`}
                   </label>
                 </div>
               )}
@@ -725,10 +812,17 @@ function CarDetail() {
               <div className="car-detail-photo-grid">
                 {categoryPhotos.map((photo) => {
                   const isImage = photo.file_type?.startsWith('image/');
+                  const isMain = vehicle?.profile_image_url && vehicle.profile_image_url === photo.file_url;
+                  const imgIndex = imagePhotos.findIndex(p => p.id === photo.id);
                   return (
-                    <div key={photo.id} className="car-detail-photo-tile">
+                    <div key={photo.id} className={`car-detail-photo-tile ${isMain ? 'is-main-photo' : ''}`}>
                       {isImage ? (
-                        <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="car-detail-photo-link">
+                        <button
+                          type="button"
+                          className="car-detail-photo-link"
+                          onClick={() => setLightbox({ images: lightboxImages, index: Math.max(0, imgIndex) })}
+                          style={{ border: 'none', padding: 0, background: 'none', cursor: 'zoom-in', width: '100%' }}
+                        >
                           <img
                             src={photo.file_url}
                             alt={photo.file_name}
@@ -739,23 +833,51 @@ function CarDetail() {
                             <span>{getFileIcon(photo.file_type)}</span>
                             <span className="car-detail-photo-name">{photo.file_name}</span>
                           </div>
-                        </a>
+                        </button>
                       ) : (
                         <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="car-detail-photo-link car-detail-photo-doc">
                           <span style={{ fontSize: '2rem' }}>{getFileIcon(photo.file_type)}</span>
                           <span className="car-detail-photo-name">{photo.file_name}</span>
                         </a>
                       )}
+
+                      {isMain && <span className="car-detail-main-badge" title={t('carDetail.mainPhoto')}>★</span>}
+
                       {canUpload && (
-                        <button
-                          type="button"
-                          onClick={() => handleFileDelete(photo.id)}
-                          disabled={deletingFileId === photo.id}
-                          className="car-detail-photo-delete"
-                          aria-label={`Delete ${photo.file_name}`}
-                        >
-                          {deletingFileId === photo.id ? '…' : '×'}
-                        </button>
+                        <>
+                          {isImage && !isMain && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetMain(photo)}
+                              disabled={settingMainUrl === photo.file_url}
+                              className="car-detail-photo-main-btn"
+                              title={t('carDetail.setAsMain')}
+                              aria-label={t('carDetail.setAsMain')}
+                            >
+                              {settingMainUrl === photo.file_url ? '…' : '☆'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleFileDelete(photo.id)}
+                            disabled={deletingFileId === photo.id}
+                            className="car-detail-photo-delete"
+                            aria-label={`Delete ${photo.file_name}`}
+                          >
+                            {deletingFileId === photo.id ? '…' : '×'}
+                          </button>
+                          <select
+                            className="car-detail-photo-move"
+                            value={category}
+                            disabled={movingFileId === photo.id}
+                            onChange={(e) => handleMoveCategory(photo.id, e.target.value)}
+                            title={t('carDetail.moveToCategory')}
+                          >
+                            {PHOTO_CATEGORIES.map(c => (
+                              <option key={c.category} value={c.category}>{t(`carDetail.${c.labelKey}`)}</option>
+                            ))}
+                          </select>
+                        </>
                       )}
                     </div>
                   );
@@ -882,6 +1004,15 @@ function CarDetail() {
           <strong>Maximum file size:</strong> 10 MB
         </div>
       </div>
+
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(i) => setLightbox(lb => (lb ? { ...lb, index: i } : lb))}
+        />
+      )}
     </div>
   );
 }

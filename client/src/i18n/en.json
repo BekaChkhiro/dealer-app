@@ -579,7 +579,13 @@
     "auctionPhotos": "Auction Photos",
     "portPhotos": "Port Photos",
     "portOpeningPhotos": "Port Opening Photos",
+    "otherPhotos": "Other Photos",
     "uploadPhotos": "Upload photos",
+    "uploadZip": "ZIP",
+    "photosImported": "photos imported",
+    "mainPhoto": "Main photo",
+    "setAsMain": "Set as main",
+    "moveToCategory": "Move to category",
     "noPhotos": "No photos yet"
   },
   "userDetail": {

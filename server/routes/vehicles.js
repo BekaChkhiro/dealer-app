@@ -4,6 +4,7 @@ const vehiclesController = require('../controllers/vehiclesController');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const uploadDocument = require('../middleware/uploadDocument');
+const uploadZip = require('../middleware/uploadZip');
 
 router.get('/', requireAuth, vehiclesController.getVehicles);
 router.get('/invoices/list', requireAuth, vehiclesController.getInvoicesList);
@@ -25,6 +26,9 @@ router.get('/:id/invoice/transport', requireAuth, vehiclesController.generateTra
 // Vehicle files endpoints
 router.get('/:id/files', requireAuth, vehiclesController.getVehicleFiles);
 router.post('/:id/files', requireAuth, uploadDocument.single('file'), vehiclesController.uploadVehicleFile);
+router.post('/:id/files/zip', requireAuth, uploadZip.single('file'), vehiclesController.uploadVehicleFilesZip);
 router.delete('/files/:fileId', requireAuth, vehiclesController.deleteVehicleFile);
+router.patch('/:id/main-photo', requireAuth, vehiclesController.setMainPhoto);
+router.patch('/files/:fileId/category', requireAuth, vehiclesController.updateVehicleFileCategory);
 
 module.exports = router;

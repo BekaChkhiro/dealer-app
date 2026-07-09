@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import VinDisplay from '../components/VinDisplay';
+import ImageLightbox from '../components/ImageLightbox';
 import { useTranslation } from '../context/LanguageContext';
 import './PublicTracking.css';
+
+const PUBLIC_PHOTO_CATEGORIES = [
+  { category: 'auction', labelKey: 'auctionPhotos' },
+  { category: 'port', labelKey: 'portPhotos' },
+  { category: 'port_opening', labelKey: 'portOpeningPhotos' },
+  { category: 'other', labelKey: 'otherPhotos' },
+];
 
 function formatDate(value) {
   if (!value) return '—';
@@ -18,6 +26,7 @@ function PublicTracking() {
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lightbox, setLightbox] = useState(null); // { images, index }
 
   useEffect(() => {
     async function fetchVehicle() {
@@ -187,29 +196,33 @@ function PublicTracking() {
         </div>
 
         {/* Photo Galleries */}
-        {[
-          { category: 'auction', labelKey: 'auctionPhotos' },
-          { category: 'port', labelKey: 'portPhotos' },
-          { category: 'port_opening', labelKey: 'portOpeningPhotos' },
-        ].map(({ category, labelKey }) => {
+        {PUBLIC_PHOTO_CATEGORIES.map(({ category, labelKey }) => {
           const photos = (vehicle.photos || []).filter(p => p.category === category);
           if (photos.length === 0) return null;
+          const imagePhotos = photos.filter(p => p.file_type?.startsWith('image/'));
+          const lightboxImages = imagePhotos.map(p => ({ url: p.file_url, name: p.file_name }));
           return (
             <div key={category} className="public-tracking-card">
               <h3>{t(`carDetail.${labelKey}`)}</h3>
               <div className="public-tracking-photo-grid">
                 {photos.map((photo) => {
                   const isImage = photo.file_type?.startsWith('image/');
+                  const imgIndex = imagePhotos.findIndex(p => p.id === photo.id);
                   return (
                     <div key={photo.id} className="public-tracking-photo-tile">
                       {isImage ? (
-                        <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="public-tracking-photo-link">
+                        <button
+                          type="button"
+                          className="public-tracking-photo-link"
+                          onClick={() => setLightbox({ images: lightboxImages, index: Math.max(0, imgIndex) })}
+                          style={{ border: 'none', padding: 0, background: 'none', cursor: 'zoom-in', width: '100%' }}
+                        >
                           <img
                             src={photo.file_url}
                             alt={photo.file_name}
                             className="public-tracking-photo-thumb"
                           />
-                        </a>
+                        </button>
                       ) : (
                         <a href={photo.file_url} target="_blank" rel="noopener noreferrer" className="public-tracking-photo-link public-tracking-photo-doc">
                           <span style={{ fontSize: '2rem' }}>📄</span>
@@ -232,6 +245,15 @@ function PublicTracking() {
           </p>
         </div>
       </div>
+
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(i) => setLightbox(lb => (lb ? { ...lb, index: i } : lb))}
+        />
+      )}
     </div>
   );
 }

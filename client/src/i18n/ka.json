@@ -579,7 +579,13 @@
     "auctionPhotos": "აუქციონის ფოტოები",
     "portPhotos": "პორტის ფოტოები",
     "portOpeningPhotos": "პორტის გახსნის ფოტოები",
+    "otherPhotos": "სხვა ფოტოები",
     "uploadPhotos": "ფოტოების ატვირთვა",
+    "uploadZip": "ZIP",
+    "photosImported": "ფოტო აიტვირთა",
+    "mainPhoto": "მთავარი ფოტო",
+    "setAsMain": "მთავრად დაყენება",
+    "moveToCategory": "კატეგორიის შეცვლა",
     "noPhotos": "ფოტოები ჯერ არ არის"
   },
   "userDetail": {

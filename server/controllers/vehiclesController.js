@@ -4,6 +4,7 @@ const { logAudit } = require('../helpers/auditLog');
 const { applyWatermark, applyLogoWatermark } = require('../helpers/watermark');
 const { upsertBrandAndModel } = require('./carBrandsController');
 const path = require('path');
+const AdmZip = require('adm-zip');
 
 const ALLOWED_SORT_COLUMNS = [
   'id', 'mark', 'model', 'year', 'vin', 'lot_number', 'auction',
@@ -682,7 +683,7 @@ async function getPublicTracking(req, res) {
     const photosResult = await pool.query(
       `SELECT id, file_name, file_url, file_type, category, created_at
          FROM vehicle_files
-        WHERE vehicle_id = $1 AND category IN ('auction', 'port', 'port_opening')
+        WHERE vehicle_id = $1 AND category IN ('auction', 'port', 'port_opening', 'other')
         ORDER BY created_at ASC`,
       [vehicle.id]
     );
@@ -1475,7 +1476,7 @@ async function getVehicleFiles(req, res) {
 
 // Upload a file for a vehicle
 // Allowed photo categories for vehicle_files. NULL = general document.
-const VEHICLE_FILE_CATEGORIES = ['auction', 'port', 'port_opening'];
+const VEHICLE_FILE_CATEGORIES = ['auction', 'port', 'port_opening', 'other'];
 
 async function uploadVehicleFile(req, res) {
   try {
@@ -1624,4 +1625,233 @@ async function deleteVehicleFile(req, res) {
   }
 }
 
-module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile };
+// Maps a file extension to its MIME content type for zip-extracted images
+const IMAGE_EXTENSION_MIME = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.bmp': 'image/bmp',
+  '.heic': 'image/heic'
+};
+
+// Bulk upload vehicle photos from a zip archive
+async function uploadVehicleFilesZip(req, res) {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 1, success: false, message: 'No file uploaded' });
+    }
+
+    // Optional category: one of the allowed photo categories, or null for a general file
+    let category = req.body?.category;
+    if (category === undefined || category === null || category === '') {
+      category = null;
+    } else if (!VEHICLE_FILE_CATEGORIES.includes(category)) {
+      return res.status(400).json({
+        error: 1,
+        success: false,
+        message: `Invalid category. Allowed: ${VEHICLE_FILE_CATEGORIES.join(', ')}`
+      });
+    }
+
+    // Check if vehicle exists
+    const vehicleCheck = await pool.query('SELECT id, dealer_id FROM vehicles WHERE id = $1', [id]);
+    if (vehicleCheck.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const vehicle = vehicleCheck.rows[0];
+
+    // Check permissions (admin can upload, dealer can upload to their own vehicles)
+    if (req.session?.user?.role !== 'admin' && vehicle.dealer_id !== req.session?.user?.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Parse the zip archive
+    let zip;
+    let entries;
+    try {
+      zip = new AdmZip(file.buffer);
+      entries = zip.getEntries();
+    } catch (zipErr) {
+      return res.status(400).json({ error: 1, success: false, message: 'Invalid or corrupt zip file' });
+    }
+
+    if (!entries || entries.length === 0) {
+      return res.status(400).json({ error: 1, success: false, message: 'Zip file is empty' });
+    }
+
+    const uploadedBy = req.session?.user?.id;
+    const timestamp = Date.now();
+    const insertedRows = [];
+    let index = 0;
+
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
+
+      const entryName = entry.entryName || '';
+      const baseName = entryName.split('/').pop();
+
+      // Skip junk entries (macOS metadata, dotfiles/hidden files)
+      if (!baseName || baseName.startsWith('.') || entryName.startsWith('__MACOSX/') || entryName.includes('/__MACOSX/')) {
+        continue;
+      }
+
+      const ext = path.extname(baseName).toLowerCase();
+      const contentType = IMAGE_EXTENSION_MIME[ext];
+      if (!contentType) continue; // not a recognized image extension
+
+      const buffer = entry.getData();
+      if (!buffer || buffer.length === 0) continue;
+
+      const safeName = baseName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const key = `vehicle-files/${id}/${timestamp}-${index}-${safeName}`;
+
+      await uploadToR2(buffer, key, contentType);
+      const publicUrl = process.env.R2_PUBLIC_URL;
+      const fileUrl = `${publicUrl}/${key}`;
+
+      const result = await pool.query(
+        `INSERT INTO vehicle_files (vehicle_id, file_name, file_url, file_type, file_size, category, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [id, baseName, fileUrl, contentType, buffer.length, category, uploadedBy]
+      );
+
+      insertedRows.push(result.rows[0]);
+      index += 1;
+    }
+
+    if (insertedRows.length === 0) {
+      return res.status(400).json({ error: 1, success: false, message: 'No valid image files found in zip' });
+    }
+
+    // Log audit
+    await logAudit({ userId: uploadedBy, entityType: 'vehicle', entityId: id, action: 'file_upload_zip', oldValues: null, newValues: { count: insertedRows.length, category }, ipAddress: req.ip });
+
+    res.json({
+      error: 0,
+      success: true,
+      message: `${insertedRows.length} file(s) uploaded successfully`,
+      count: insertedRows.length,
+      data: insertedRows
+    });
+  } catch (err) {
+    console.error('uploadVehicleFilesZip error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Set a vehicle's main/cover photo (must be one of the vehicle's own files)
+async function setMainPhoto(req, res) {
+  try {
+    const { id } = req.params;
+    const { file_url } = req.body;
+
+    if (!file_url) {
+      return res.status(400).json({ error: 1, success: false, message: 'file_url is required' });
+    }
+
+    // Check if vehicle exists
+    const vehicleCheck = await pool.query('SELECT id, dealer_id FROM vehicles WHERE id = $1', [id]);
+    if (vehicleCheck.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const vehicle = vehicleCheck.rows[0];
+
+    // Check permissions (admin or dealer who owns the vehicle)
+    if (req.session?.user?.role !== 'admin' && vehicle.dealer_id !== req.session?.user?.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Security: file_url must belong to one of this vehicle's own files
+    const fileCheck = await pool.query(
+      'SELECT id FROM vehicle_files WHERE vehicle_id = $1 AND file_url = $2',
+      [id, file_url]
+    );
+    if (fileCheck.rows.length === 0) {
+      return res.status(400).json({ error: 1, success: false, message: 'file_url does not belong to this vehicle' });
+    }
+
+    const result = await pool.query(
+      'UPDATE vehicles SET profile_image_url = $1 WHERE id = $2 RETURNING *',
+      [file_url, id]
+    );
+
+    // Log audit
+    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: id, action: 'set_main_photo', oldValues: null, newValues: { file_url }, ipAddress: req.ip });
+
+    res.json({
+      error: 0,
+      success: true,
+      message: 'Main photo updated successfully',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('setMainPhoto error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Move a vehicle file to a different category
+async function updateVehicleFileCategory(req, res) {
+  try {
+    const { fileId } = req.params;
+
+    let category = req.body?.category;
+    if (category === undefined || category === null || category === '') {
+      category = null;
+    } else if (!VEHICLE_FILE_CATEGORIES.includes(category)) {
+      return res.status(400).json({
+        error: 1,
+        success: false,
+        message: `Invalid category. Allowed: ${VEHICLE_FILE_CATEGORIES.join(', ')}`
+      });
+    }
+
+    // Get file info and check permissions
+    const fileResult = await pool.query(
+      `SELECT vf.*, v.dealer_id
+       FROM vehicle_files vf
+       JOIN vehicles v ON vf.vehicle_id = v.id
+       WHERE vf.id = $1`,
+      [fileId]
+    );
+
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'File not found' });
+    }
+
+    const fileData = fileResult.rows[0];
+
+    // Check permissions (admin or the owning dealer of the file's vehicle)
+    if (req.session?.user?.role !== 'admin' && fileData.dealer_id !== req.session?.user?.id) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    const result = await pool.query(
+      'UPDATE vehicle_files SET category = $1 WHERE id = $2 RETURNING *',
+      [category, fileId]
+    );
+
+    // Log audit
+    await logAudit({ userId: req.session?.user?.id, entityType: 'vehicle', entityId: fileData.vehicle_id, action: 'file_category_update', oldValues: { category: fileData.category }, newValues: { category }, ipAddress: req.ip });
+
+    res.json({
+      error: 0,
+      success: true,
+      message: 'File category updated successfully',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('updateVehicleFileCategory error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile, uploadVehicleFilesZip, setMainPhoto, updateVehicleFileCategory };
