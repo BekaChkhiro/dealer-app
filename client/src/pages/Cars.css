@@ -1,22 +1,36 @@
 /* Modal */
+@keyframes cars-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes cars-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .cars-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-end;
+  align-items: stretch;
   z-index: 1050;
+  animation: cars-backdrop-in 0.22s ease-out;
 }
 
 .cars-modal {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   width: 520px;
-  max-width: 95vw;
-  max-height: 90vh;
+  max-width: 92vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  animation: cars-drawer-in 0.22s ease-out;
 }
 
 .cars-modal > form {
@@ -27,7 +41,8 @@
 }
 
 .cars-modal-sm {
-  width: 400px;
+  width: 420px;
+  max-width: 90vw;
 }
 
 .cars-modal-header {
@@ -73,6 +88,16 @@
 
 .cars-modal-lg {
   width: 720px;
+  max-width: 96vw;
+}
+
+@media (max-width: 640px) {
+  .cars-modal,
+  .cars-modal-sm,
+  .cars-modal-lg {
+    width: 100vw;
+    max-width: 100vw;
+  }
 }
 
 .cars-modal-tabs {

@@ -101,8 +101,8 @@
 
 /* Message Modal */
 .message-modal {
-  max-width: 700px;
-  width: 90%;
+  width: 720px;
+  max-width: 96vw;
 }
 
 .message-modal .modal-header {
@@ -111,6 +111,7 @@
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #DEE2E6;
+  flex-shrink: 0;
 }
 
 .message-modal .modal-header h3 {
@@ -143,6 +144,9 @@
 
 .message-modal .modal-body {
   padding: 20px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .message-modal .message-meta {
@@ -189,9 +193,20 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 /* Modal overlay */
+@keyframes modal-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -200,17 +215,32 @@
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-end;
   z-index: 1000;
+  animation: modal-backdrop-in 0.22s ease-out;
 }
 
 .modal-content {
   background: white;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  max-height: 90vh;
-  overflow-y: auto;
+  width: 520px;
+  max-width: 92vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modal-drawer-in 0.22s ease-out;
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    width: 100vw;
+    max-width: 100vw;
+  }
 }
 
 /* Responsive */
@@ -225,7 +255,8 @@
   }
 
   .message-modal {
-    width: 95%;
-    margin: 20px;
+    width: 100vw;
+    max-width: 100vw;
+    margin: 0;
   }
 }

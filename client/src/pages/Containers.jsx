@@ -26,7 +26,9 @@ const DATE_FIELDS = [
 
 function formatDate(value) {
   if (!value) return '—';
-  return new Date(value).toLocaleDateString();
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function Containers() {

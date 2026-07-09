@@ -10,6 +10,8 @@ import FilterPanel, { ActiveFilters } from '../components/FilterPanel';
 import BulkActionBar from '../components/BulkActionBar';
 import CopyButton from '../components/CopyButton';
 import VinDisplay from '../components/VinDisplay';
+import VinInput from '../components/VinInput';
+import { formatDate } from '../utils/formatDate';
 import { exportToCSV } from '../utils/export';
 import { US_STATES, US_PORTS, getPortForState } from '../utils/usLocations';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -51,14 +53,16 @@ const DATE_FIELDS = [
   'estimated_receive_date', 'receive_date', 'container_open_date', 'container_receive_date', 'receiver_change_date',
 ];
 
+// Text fields that should be stored/shown uppercase.
+const UPPERCASE_FIELDS = [
+  'mark', 'model', 'vehicle_type', 'doc_type', 'lot_number', 'container_number',
+  'us_state', 'us_port', 'receiver_fullname', 'receiver_identity_number',
+  'driver_fullname', 'driver_id_number', 'driver_car_license_number', 'driver_company',
+];
+
 function formatPrice(value) {
   if (value == null) return '—';
   return `$${Number(value).toLocaleString()}`;
-}
-
-function formatDate(value) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString();
 }
 
 function Cars() {
@@ -129,6 +133,44 @@ function Cars() {
     { type: 'select', key: 'insurance_type', label: t('cars.insuranceType'), options: [{ value: 'none', label: t('cars.insuranceTypeNone') }, { value: 'franchise', label: t('cars.insuranceTypeFranchise') }, { value: 'full', label: t('cars.insuranceTypeFull') }] },
   ];
 
+  // Combined cell: personal number on top, buyer (uppercase) below.
+  function renderBuyerCell(row) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        <span style={{ fontWeight: 600 }}>{row.receiver_identity_number || '—'}</span>
+        <span className="dt-uppercase" style={{ fontSize: '0.8em', color: '#6c757d' }}>{row.receiver_fullname || '—'}</span>
+      </div>
+    );
+  }
+
+  // Combined cell: container number on top, booking number below.
+  function renderContainerCell(row) {
+    const container = row.container_number
+      ? (row.container_id
+          ? (
+            <Link
+              to={`/containers/${row.container_id}`}
+              style={{ color: '#0D6EFD', textDecoration: 'none', fontWeight: 500 }}
+              onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
+              onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
+            >
+              {row.container_number}
+            </Link>
+          )
+          : <span>{row.container_number}</span>)
+      : <span>—</span>;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        {container}
+        {row.booking_number && (
+          <span style={{ fontSize: '0.8em', color: '#6c757d' }} title={t('booking.bookingNumber')}>
+            {row.booking_number}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   // Admin columns - full view with all details
   const adminColumns = [
     { key: 'profile_image_url', label: 'Image', type: 'image', width: '80px' },
@@ -149,31 +191,8 @@ function Cars() {
         {row.lot_number && <CopyButton text={row.lot_number} />}
       </div>
     )},
-    { key: 'receiver_fullname', label: t('cars.buyer'), sortable: true, render: (row) => (
-      <span className="dt-uppercase">{row.receiver_fullname || '—'}</span>
-    )},
-    { key: 'receiver_identity_number', label: t('cars.personalNumber') },
-    { key: 'receiver_phone', label: t('cars.phone') },
-    { key: 'container_number', label: t('cars.container'), render: (row) => {
-      if (!row.container_number) return '—';
-      if (row.container_id) {
-        return (
-          <Link
-            to={`/containers/${row.container_id}`}
-            style={{
-              color: '#0D6EFD',
-              textDecoration: 'none',
-              fontWeight: 500,
-            }}
-            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
-          >
-            {row.container_number}
-          </Link>
-        );
-      }
-      return row.container_number;
-    }},
+    { key: 'receiver_identity_number', label: t('cars.buyer'), sortable: true, sortKey: 'receiver_fullname', render: (row) => renderBuyerCell(row) },
+    { key: 'container_number', label: t('cars.container'), render: (row) => renderContainerCell(row) },
     { key: 'line', label: t('cars.line') },
     { key: 'auction', label: t('cars.auction'), sortable: true },
     { key: 'us_state', label: t('cars.state'), sortable: true },
@@ -196,26 +215,8 @@ function Cars() {
         {row.vin && <CopyButton text={row.vin} />}
       </div>
     )},
-    { key: 'container_number', label: t('cars.container'), render: (row) => {
-      if (!row.container_number) return '—';
-      if (row.container_id) {
-        return (
-          <Link
-            to={`/containers/${row.container_id}`}
-            style={{
-              color: '#0D6EFD',
-              textDecoration: 'none',
-              fontWeight: 500,
-            }}
-            onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-            onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
-          >
-            {row.container_number}
-          </Link>
-        );
-      }
-      return row.container_number;
-    }},
+    { key: 'receiver_identity_number', label: t('cars.buyer'), sortable: true, sortKey: 'receiver_fullname', render: (row) => renderBuyerCell(row) },
+    { key: 'container_number', label: t('cars.container'), render: (row) => renderContainerCell(row) },
     { key: 'current_status', label: t('cars.status'), sortable: true, render: (row) => {
       const statusLabels = {
         'arrived': t('cars.statusArrived'),
@@ -519,7 +520,9 @@ function Cars() {
 
   function handleFormChange(e) {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    let next = type === 'checkbox' ? checked : value;
+    if (type !== 'checkbox' && UPPERCASE_FIELDS.includes(name)) next = String(next).toUpperCase();
+    setFormData(prev => ({ ...prev, [name]: next }));
   }
 
   function handleImageChange(e) {
@@ -811,10 +814,10 @@ function Cars() {
                       selectOnFocus
                       openOnFocus
                       options={carBrands}
-                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || ''))}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || '')).toUpperCase()}
                       inputValue={formData.mark || ''}
                       onInputChange={(_, newValue) => {
-                        setFormData(prev => ({ ...prev, mark: newValue }));
+                        setFormData(prev => ({ ...prev, mark: (newValue || '').toUpperCase() }));
                       }}
                       filterOptions={(options, { inputValue }) => {
                         const s = inputValue.trim().toLowerCase();
@@ -853,10 +856,10 @@ function Cars() {
                       selectOnFocus
                       openOnFocus
                       options={carModels}
-                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || ''))}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : (option.name || '')).toUpperCase()}
                       inputValue={formData.model || ''}
                       onInputChange={(_, newValue) => {
-                        setFormData(prev => ({ ...prev, model: newValue }));
+                        setFormData(prev => ({ ...prev, model: (newValue || '').toUpperCase() }));
                       }}
                       filterOptions={(options, { inputValue }) => {
                         const search = inputValue.trim().toLowerCase();
@@ -883,8 +886,8 @@ function Cars() {
                         const { key, ...rest } = props;
                         return (
                           <li key={`${option.brand_id}-${option.id}`} {...rest}>
-                            <span className="us-option-code">{option.brand_name}</span>
-                            <span className="us-option-name">{option.name}</span>
+                            <span className="us-option-code">{(option.brand_name || '').toUpperCase()}</span>
+                            <span className="us-option-name">{(option.name || '').toUpperCase()}</span>
                           </li>
                         );
                       }}
@@ -919,15 +922,10 @@ function Cars() {
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.vin')} <span className="text-danger">*</span></label>
-                    <input
-                      type="text"
-                      className={`form-control ${formData.vin.length > 17 ? 'is-invalid' : ''}`}
-                      name="vin"
+                    <VinInput
+                      className={formData.vin.length > 17 ? 'is-invalid' : ''}
                       value={formData.vin}
-                      onChange={(e) => {
-                        const { name, value } = e.target;
-                        setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
-                      }}
+                      onChange={(v) => setFormData(prev => ({ ...prev, vin: v }))}
                       maxLength={17}
                       required
                     />
@@ -1207,13 +1205,13 @@ function Cars() {
                       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
                       inputValue={formData.us_state || ''}
                       onInputChange={(_, newValue) => {
-                        setFormData(prev => ({ ...prev, us_state: newValue }));
+                        setFormData(prev => ({ ...prev, us_state: (newValue || '').toUpperCase() }));
                       }}
                       onChange={(_, newValue) => {
                         if (newValue && typeof newValue === 'object' && newValue.code) {
                           const port = getPortForState(newValue.code);
                           if (port) {
-                            setFormData(prev => ({ ...prev, us_state: newValue.name, us_port: port.name }));
+                            setFormData(prev => ({ ...prev, us_state: newValue.name.toUpperCase(), us_port: port.name.toUpperCase() }));
                           }
                         }
                       }}
@@ -1263,7 +1261,7 @@ function Cars() {
                       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
                       inputValue={formData.us_port || ''}
                       onInputChange={(_, newValue) => {
-                        setFormData(prev => ({ ...prev, us_port: newValue }));
+                        setFormData(prev => ({ ...prev, us_port: (newValue || '').toUpperCase() }));
                       }}
                       filterOptions={(options, { inputValue }) => {
                         const s = inputValue.trim().toLowerCase();

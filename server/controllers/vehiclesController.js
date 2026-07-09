@@ -143,6 +143,7 @@ async function getVehicles(req, res) {
        p.name AS destination_port_name,
        p.code AS destination_port_code,
        c.id AS container_id,
+       (SELECT b.booking_number FROM booking b WHERE b.vin = v.vin AND b.booking_number IS NOT NULL ORDER BY b.id DESC LIMIT 1) AS booking_number,
        ${overdueDaysExpr} AS overdue_days
        FROM vehicles v
        LEFT JOIN ports p ON v.destination_port_id = p.id

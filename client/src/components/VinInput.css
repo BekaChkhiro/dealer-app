@@ -1,0 +1,37 @@
+.vin-input-wrap {
+  position: relative;
+}
+
+/* Real input keeps normal .form-control look but hides its own glyphs so the
+   colored overlay shows through; caret stays visible. */
+.vin-input-field {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  caret-color: #212529;
+}
+
+/* Overlay sits exactly on top of the input's text box. Matches Bootstrap
+   .form-control metrics so characters line up 1:1. */
+.vin-input-overlay {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid transparent;
+  font-size: 1rem;
+  line-height: 1.5;
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.vin-input-normal {
+  color: #212529;
+}
+
+.vin-input-highlight {
+  color: #dc3545;
+  font-weight: 500;
+}

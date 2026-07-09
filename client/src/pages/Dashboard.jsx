@@ -3,6 +3,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { formatDate } from '../utils/formatDate';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -177,7 +178,7 @@ function Dashboard() {
                       <tr key={invoice.id}>
                         <td><small>{invoice.vin}</small></td>
                         <td>{invoice.vehicle_name}</td>
-                        <td>{new Date(invoice.purchase_date).toLocaleDateString()}</td>
+                        <td>{formatDate(invoice.purchase_date)}</td>
                         <td>${Number(invoice.total_price || 0).toLocaleString()}</td>
                         <td>
                           <span style={{ color: invoice.debt_amount > 0 ? '#DC3545' : '#198754', fontWeight: 'bold' }}>

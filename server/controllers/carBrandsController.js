@@ -114,8 +114,9 @@ async function createModel(req, res) {
 }
 
 async function upsertBrandAndModel(mark, model) {
-  const trimmedMark = (mark || '').trim();
-  const trimmedModel = (model || '').trim();
+  // Store brands/models uppercase so the dropdowns stay consistent.
+  const trimmedMark = (mark || '').trim().toUpperCase();
+  const trimmedModel = (model || '').trim().toUpperCase();
   if (!trimmedMark) return;
 
   const brandResult = await pool.query(
