@@ -9,6 +9,7 @@ import './CarDetail.css';
 
 const PHOTO_CATEGORIES = [
   { category: 'auction', labelKey: 'auctionPhotos' },
+  { category: 'pickup', labelKey: 'pickupPhotos' },
   { category: 'port', labelKey: 'portPhotos' },
   { category: 'port_opening', labelKey: 'portOpeningPhotos' },
   { category: 'other', labelKey: 'otherPhotos' },
@@ -49,6 +50,7 @@ function CarDetail() {
   const [settingMainUrl, setSettingMainUrl] = useState(null);
   const [movingFileId, setMovingFileId] = useState(null);
   const [lightbox, setLightbox] = useState(null); // { images, index }
+  const [dragOverCategory, setDragOverCategory] = useState(null);
 
   useEffect(() => {
     let ignore = false;
@@ -154,15 +156,14 @@ function CarDetail() {
   // Upload state keyed by category
   const [uploadingCategory, setUploadingCategory] = useState(null);
 
-  // Handle photo upload for a specific category (accepts multiple files)
-  const handlePhotoUpload = async (category, event) => {
-    const selectedFiles = Array.from(event.target.files || []);
+  // Core photo upload logic — accepts an array of File objects directly so it
+  // can be reused from both the file-picker <input> and drag & drop.
+  const uploadPhotoFiles = async (category, selectedFiles) => {
     if (selectedFiles.length === 0) return;
 
     const oversized = selectedFiles.find(f => f.size > 10 * 1024 * 1024);
     if (oversized) {
       alert(`File "${oversized.name}" is too large. Maximum size is 10MB.`);
-      event.target.value = '';
       return;
     }
 
@@ -179,7 +180,6 @@ function CarDetail() {
           setFiles(prev => [res.data.data, ...prev]);
         }
       }
-      event.target.value = '';
     } catch (err) {
       console.error('Error uploading photo:', err);
       alert(err.response?.data?.message || 'Failed to upload photo');
@@ -188,13 +188,18 @@ function CarDetail() {
     }
   };
 
-  // Upload a ZIP of photos; the server extracts and stores each image.
-  const handleZipUpload = async (category, event) => {
-    const file = (event.target.files || [])[0];
+  // Handle photo upload for a specific category (accepts multiple files) from an <input>
+  const handlePhotoUpload = async (category, event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    await uploadPhotoFiles(category, selectedFiles);
+    event.target.value = '';
+  };
+
+  // Core ZIP upload logic — the server extracts and stores each image.
+  const uploadZipFile = async (category, file) => {
     if (!file) return;
     if (file.size > 100 * 1024 * 1024) {
       alert('ZIP is too large. Maximum size is 100MB.');
-      event.target.value = '';
       return;
     }
     try {
@@ -210,13 +215,58 @@ function CarDetail() {
         setFiles(prev => [...rows, ...prev]);
         alert(`${rows.length} ${t('carDetail.photosImported') || 'photos imported'}`);
       }
-      event.target.value = '';
     } catch (err) {
       console.error('Error uploading ZIP:', err);
       alert(err.response?.data?.message || 'Failed to import ZIP');
     } finally {
       setUploadingZipCategory(null);
     }
+  };
+
+  // Upload a ZIP of photos from an <input>
+  const handleZipUpload = async (category, event) => {
+    const file = (event.target.files || [])[0];
+    await uploadZipFile(category, file);
+    event.target.value = '';
+  };
+
+  // Handle files dropped onto a category card: split ZIP(s) from images/docs
+  // and route each to the appropriate upload path.
+  const onDropFiles = async (category, fileList) => {
+    const droppedFiles = Array.from(fileList || []);
+    if (droppedFiles.length === 0) return;
+
+    const zipFiles = droppedFiles.filter(f => f.name.toLowerCase().endsWith('.zip'));
+    const otherFiles = droppedFiles.filter(f => !f.name.toLowerCase().endsWith('.zip'));
+
+    if (otherFiles.length > 0) {
+      await uploadPhotoFiles(category, otherFiles);
+    }
+    for (const zipFile of zipFiles) {
+      await uploadZipFile(category, zipFile);
+    }
+  };
+
+  const handleCardDragOver = (category) => (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (dragOverCategory !== category) setDragOverCategory(category);
+  };
+
+  const handleCardDragLeave = (category) => (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    // Only clear if we're leaving the card itself, not moving between its children
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    setDragOverCategory(prev => (prev === category ? null : prev));
+  };
+
+  const handleCardDrop = (category, canUpload) => (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragOverCategory(prev => (prev === category ? null : prev));
+    if (!canUpload) return;
+    onDropFiles(category, event.dataTransfer?.files);
   };
 
   // Set an existing photo as the vehicle's main/cover image (shown in tables).
@@ -768,7 +818,13 @@ function CarDetail() {
         const lightboxImages = imagePhotos.map(p => ({ url: p.file_url, name: p.file_name }));
 
         return (
-          <div key={category} className="car-detail-card">
+          <div
+            key={category}
+            className={`car-detail-card${dragOverCategory === category ? ' drag-over' : ''}`}
+            onDragOver={canUpload ? handleCardDragOver(category) : undefined}
+            onDragLeave={canUpload ? handleCardDragLeave(category) : undefined}
+            onDrop={handleCardDrop(category, canUpload)}
+          >
             <div className="car-detail-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span>{t(`carDetail.${labelKey}`)}</span>
               {canUpload && (

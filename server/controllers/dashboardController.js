@@ -12,7 +12,7 @@ const getStats = async (req, res) => {
     if (isAdmin) {
       countsQuery = `
         SELECT
-          (SELECT COUNT(*) FROM vehicles)::int AS total_vehicles,
+          (SELECT COUNT(*) FROM vehicles WHERE deleted_at IS NULL)::int AS total_vehicles,
           (SELECT COUNT(*) FROM booking)::int AS total_bookings,
           (SELECT COUNT(*) FROM containers)::int AS total_containers
       `;
@@ -20,7 +20,7 @@ const getStats = async (req, res) => {
     } else {
       countsQuery = `
         SELECT
-          (SELECT COUNT(*) FROM vehicles WHERE dealer_id = $1)::int AS total_vehicles,
+          (SELECT COUNT(*) FROM vehicles WHERE dealer_id = $1 AND deleted_at IS NULL)::int AS total_vehicles,
           (SELECT COUNT(*) FROM booking WHERE user_id = $1)::int AS total_bookings,
           (SELECT COUNT(*) FROM containers WHERE user_id = $1)::int AS total_containers
       `;
@@ -55,6 +55,7 @@ const getStats = async (req, res) => {
       vehiclesByStatusQuery = `
         SELECT current_status, COUNT(*)::int AS count
         FROM vehicles
+        WHERE deleted_at IS NULL
         GROUP BY current_status
         ORDER BY count DESC
       `;
@@ -63,7 +64,7 @@ const getStats = async (req, res) => {
       vehiclesByStatusQuery = `
         SELECT current_status, COUNT(*)::int AS count
         FROM vehicles
-        WHERE dealer_id = $1
+        WHERE dealer_id = $1 AND deleted_at IS NULL
         GROUP BY current_status
         ORDER BY count DESC
       `;
@@ -87,7 +88,7 @@ const getStats = async (req, res) => {
         SELECT t.id, t.payer, t.vin, t.mark, t.model, t.year, t.personal_number,
                t.paid_amount, t.payment_type, t.create_date
         FROM transactions t
-        WHERE t.vin IN (SELECT vin FROM vehicles WHERE dealer_id = $1)
+        WHERE t.vin IN (SELECT vin FROM vehicles WHERE dealer_id = $1 AND deleted_at IS NULL)
         ORDER BY t.create_date DESC
         LIMIT 5
       `;
@@ -158,7 +159,7 @@ const getAnalytics = async (req, res) => {
     const isAdmin = user.role === 'admin';
     const userId = user.id;
 
-    const dealerFilter = isAdmin ? '' : 'WHERE v.dealer_id = $1';
+    const dealerFilter = isAdmin ? 'WHERE v.deleted_at IS NULL' : 'WHERE v.deleted_at IS NULL AND v.dealer_id = $1';
     const dealerParams = isAdmin ? [] : [userId];
 
     const overallQuery = `

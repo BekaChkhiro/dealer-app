@@ -41,7 +41,7 @@ async function getVehicles(req, res) {
     const order = ALLOWED_ORDER.includes(req.query.asc) ? req.query.asc : 'desc';
     const { auction, line, status, paid, start_date, end_date, dealer_id, fuel_type, insurance_type } = req.query;
 
-    const conditions = [];
+    const conditions = ['v.deleted_at IS NULL'];
     const params = [];
     let paramIndex = 1;
 
@@ -145,9 +145,14 @@ async function getVehicles(req, res) {
        p.code AS destination_port_code,
        c.id AS container_id,
        w.name AS warehouse_name,
-       (SELECT b.booking_number FROM booking b WHERE b.vin = v.vin AND b.booking_number IS NOT NULL ORDER BY b.id DESC LIMIT 1) AS booking_number,
+       u.name AS dealer_first_name,
+       u.surname AS dealer_last_name,
+       u.username AS dealer_username,
+       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name,
+       COALESCE(v.booking_number, (SELECT b.booking_number FROM booking b WHERE b.vin = v.vin AND b.booking_number IS NOT NULL ORDER BY b.id DESC LIMIT 1)) AS booking_number,
        ${overdueDaysExpr} AS overdue_days
        FROM vehicles v
+       LEFT JOIN users u ON v.dealer_id = u.id
        LEFT JOIN ports p ON v.destination_port_id = p.id
        LEFT JOIN containers c ON v.container_id = c.id
        LEFT JOIN warehouses w ON v.warehouse_id = w.id
@@ -180,7 +185,7 @@ async function createVehicle(req, res) {
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
-      city_id, city, loading_port_id, sublot_city, warehouse_id,
+      city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number,
       // Field aliases for test compatibility
       lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
@@ -249,7 +254,7 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driver_fullname, driver_phone, driver_car_license_number, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
-        city_id, city, loading_port_id, sublot_city, warehouse_id
+        city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -257,7 +262,7 @@ async function createVehicle(req, res) {
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
         $51, $52, $53, $54, $55, $56, $57, $58, $59,
-        $60, $61, $62, $63, $64
+        $60, $61, $62, $63, $64, $65
       ) RETURNING *`,
       [
         dealerIdValue, receiver_fullname, receiverPersonalValue,
@@ -274,7 +279,7 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driverFullnameValue, driver_phone, driverLicenseValue, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
-        city_id, city, loading_port_id, sublot_city, warehouse_id,
+        city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number,
       ].map(emptyToNull)
     );
 
@@ -379,7 +384,7 @@ async function updateVehicle(req, res) {
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
-      city_id, city, loading_port_id, sublot_city, warehouse_id,
+      city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number,
       // Field aliases for test compatibility
       lot, driver_full_name, driver_license_number, receiver_personal_number,
     } = req.body;
@@ -461,6 +466,7 @@ async function updateVehicle(req, res) {
     addField('loading_port_id', loading_port_id);
     addField('sublot_city', sublot_city);
     addField('warehouse_id', warehouse_id);
+    addField('booking_number', booking_number);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });
@@ -499,7 +505,7 @@ async function deleteVehicle(req, res) {
     const { id } = req.params;
 
     const result = await pool.query(
-      'DELETE FROM vehicles WHERE id = $1 RETURNING *',
+      'UPDATE vehicles SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING *',
       [id]
     );
 
@@ -508,15 +514,9 @@ async function deleteVehicle(req, res) {
     }
 
     const deleted = result.rows[0];
-    if (deleted.profile_image_url) {
-      const key = extractR2Key(deleted.profile_image_url);
-      if (key) {
-        deleteFromR2(key).catch(err => console.error('Failed to delete image from R2:', err));
-      }
-    }
 
     logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: parseInt(id), action: 'DELETE', oldValues: deleted, newValues: null, ipAddress: req.ip });
-    res.json({ error: 0, success: true, message: 'Vehicle deleted' });
+    res.json({ error: 0, success: true, message: 'Vehicle moved to trash' });
   } catch (err) {
     console.error('deleteVehicle error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
@@ -533,31 +533,130 @@ async function bulkDeleteVehicles(req, res) {
       return res.status(400).json({ error: 1, success: false, message: 'Maximum 100 items per request' });
     }
 
-    // Query images first for R2 cleanup
-    const imageResult = await pool.query(
-      'SELECT id, profile_image_url FROM vehicles WHERE id = ANY($1::int[])',
-      [ids]
-    );
-
     const result = await pool.query(
-      'DELETE FROM vehicles WHERE id = ANY($1::int[]) RETURNING id',
+      'UPDATE vehicles SET deleted_at = NOW() WHERE id = ANY($1::int[]) AND deleted_at IS NULL RETURNING id',
       [ids]
     );
-
-    // Fire-and-forget R2 cleanup
-    for (const row of imageResult.rows) {
-      if (row.profile_image_url) {
-        const key = extractR2Key(row.profile_image_url);
-        if (key) {
-          deleteFromR2(key).catch(err => console.error('Failed to delete image from R2:', err));
-        }
-      }
-    }
 
     res.json({ error: 0, success: true, deletedCount: result.rowCount, deletedIds: result.rows.map(r => r.id) });
   } catch (err) {
     console.error('bulkDeleteVehicles error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Trash: vehicles are soft-deleted for 30 days before being purged permanently.
+async function getTrashedVehicles(req, res) {
+  try {
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const offset = (page - 1) * limit;
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM vehicles v WHERE v.deleted_at IS NOT NULL`);
+    const total = parseInt(countResult.rows[0].count);
+
+    const dataResult = await pool.query(
+      `SELECT v.*,
+       v.lot_number AS lot,
+       u.name AS dealer_first_name,
+       u.surname AS dealer_last_name,
+       u.username AS dealer_username,
+       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name,
+       GREATEST(30 - (CURRENT_DATE - v.deleted_at::date), 0) AS days_left
+       FROM vehicles v
+       LEFT JOIN users u ON v.dealer_id = u.id
+       WHERE v.deleted_at IS NOT NULL
+       ORDER BY v.deleted_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    res.json({ error: 0, success: true, data: dataResult.rows, total });
+  } catch (err) {
+    console.error('getTrashedVehicles error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function restoreVehicle(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'UPDATE vehicles SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found in trash' });
+    }
+
+    const restored = result.rows[0];
+    logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: parseInt(id), action: 'RESTORE', oldValues: null, newValues: restored, ipAddress: req.ip });
+    res.json({ error: 0, success: true, message: 'Vehicle restored', data: restored });
+  } catch (err) {
+    console.error('restoreVehicle error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+async function permanentDeleteVehicle(req, res) {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'DELETE FROM vehicles WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Vehicle not found' });
+    }
+
+    const deleted = result.rows[0];
+    if (deleted.profile_image_url) {
+      const key = extractR2Key(deleted.profile_image_url);
+      if (key) {
+        deleteFromR2(key).catch(err => console.error('Failed to delete image from R2:', err));
+      }
+    }
+
+    logAudit({ userId: req.session.user.id, entityType: 'vehicle', entityId: parseInt(id), action: 'PERMANENT_DELETE', oldValues: deleted, newValues: null, ipAddress: req.ip });
+    res.json({ error: 0, success: true, message: 'Vehicle permanently deleted' });
+  } catch (err) {
+    console.error('permanentDeleteVehicle error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Hard-delete (and clean up R2 images for) trashed vehicles older than 30 days.
+// Called once on server startup and then on a 24h interval (see server/index.js).
+async function purgeOldTrashedVehicles() {
+  try {
+    const imageResult = await pool.query(
+      `SELECT id, profile_image_url FROM vehicles WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days'`
+    );
+
+    const result = await pool.query(
+      `DELETE FROM vehicles WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`
+    );
+
+    for (const row of imageResult.rows) {
+      if (row.profile_image_url) {
+        const key = extractR2Key(row.profile_image_url);
+        if (key) {
+          deleteFromR2(key).catch(err => console.error('Failed to delete image from R2 during purge:', err));
+        }
+      }
+    }
+
+    if (result.rowCount > 0) {
+      console.log(`purgeOldTrashedVehicles: permanently deleted ${result.rowCount} vehicle(s)`);
+    }
+
+    return result.rowCount;
+  } catch (err) {
+    console.error('purgeOldTrashedVehicles error:', err);
   }
 }
 
@@ -583,7 +682,9 @@ async function getVehicleById(req, res) {
               v.driver_fullname AS driver_full_name,
               v.driver_car_license_number AS driver_license_number,
               v.receiver_identity_number AS receiver_personal_number,
-              u.name AS dealer_name, u.surname AS dealer_surname, u.email AS dealer_email, u.phone AS dealer_phone,
+              u.name AS dealer_first_name, u.surname AS dealer_last_name, u.username AS dealer_username,
+              u.email AS dealer_email, u.phone AS dealer_phone,
+              COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name,
               p.name AS destination_port_name, p.code AS destination_port_code,
               c.id AS container_id,
               w.name AS warehouse_name
@@ -592,7 +693,7 @@ async function getVehicleById(req, res) {
        LEFT JOIN ports p ON v.destination_port_id = p.id
        LEFT JOIN containers c ON v.container_id = c.id
        LEFT JOIN warehouses w ON v.warehouse_id = w.id
-       WHERE v.id = $1`,
+       WHERE v.id = $1 AND v.deleted_at IS NULL`,
       [id]
     );
 
@@ -621,11 +722,14 @@ async function searchVehicles(req, res) {
       return res.json({ error: 0, success: true, data: [] });
     }
 
+    const exactKw = q;
     const conditions = [
-      `(v.vin ILIKE $1 OR v.lot_number ILIKE $1 OR v.mark ILIKE $1 OR v.model ILIKE $1 OR v.receiver_fullname ILIKE $1)`
+      `v.deleted_at IS NULL`,
+      `(v.vin ILIKE $1 OR v.lot_number ILIKE $1 OR v.mark ILIKE $1 OR v.model ILIKE $1 OR v.receiver_fullname ILIKE $1
+        OR u.username ILIKE $1 OR u.name ILIKE $1 OR u.surname ILIKE $1 OR CAST(v.dealer_id AS TEXT) = $2)`
     ];
-    const params = [`%${q}%`];
-    let paramIndex = 2;
+    const params = [`%${q}%`, exactKw];
+    let paramIndex = 3;
 
     // Non-admin users only see their own vehicles
     if (req.session.user.role !== 'admin') {
@@ -637,8 +741,10 @@ async function searchVehicles(req, res) {
     const whereClause = 'WHERE ' + conditions.join(' AND ');
 
     const result = await pool.query(
-      `SELECT v.id, v.vin, v.mark, v.model, v.year, v.profile_image_url, v.receiver_fullname, v.current_status
+      `SELECT v.id, v.vin, v.mark, v.model, v.year, v.profile_image_url, v.receiver_fullname, v.current_status,
+       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name
        FROM vehicles v
+       LEFT JOIN users u ON v.dealer_id = u.id
        ${whereClause}
        ORDER BY v.id DESC
        LIMIT 10`,
@@ -710,7 +816,7 @@ async function getPublicTracking(req, res) {
     const photosResult = await pool.query(
       `SELECT id, file_name, file_url, file_type, category, created_at
          FROM vehicle_files
-        WHERE vehicle_id = $1 AND category IN ('auction', 'port', 'port_opening', 'other')
+        WHERE vehicle_id = $1 AND category IN ('auction', 'pickup', 'port', 'port_opening', 'other')
         ORDER BY created_at ASC`,
       [vehicle.id]
     );
@@ -1340,7 +1446,7 @@ async function getInvoicesList(req, res) {
 
     const { keyword, start_date, end_date, vehicle_id, invoice_type } = req.query;
 
-    const conditions = [];
+    const conditions = ['v.deleted_at IS NULL'];
     const params = [];
     let paramIndex = 1;
 
@@ -1503,7 +1609,7 @@ async function getVehicleFiles(req, res) {
 
 // Upload a file for a vehicle
 // Allowed photo categories for vehicle_files. NULL = general document.
-const VEHICLE_FILE_CATEGORIES = ['auction', 'port', 'port_opening', 'other'];
+const VEHICLE_FILE_CATEGORIES = ['auction', 'pickup', 'port', 'port_opening', 'other'];
 
 async function uploadVehicleFile(req, res) {
   try {
@@ -1881,4 +1987,4 @@ async function updateVehicleFileCategory(req, res) {
   }
 }
 
-module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile, uploadVehicleFilesZip, setMainPhoto, updateVehicleFileCategory };
+module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getTrashedVehicles, restoreVehicle, permanentDeleteVehicle, purgeOldTrashedVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile, uploadVehicleFilesZip, setMainPhoto, updateVehicleFileCategory };

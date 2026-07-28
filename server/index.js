@@ -6,6 +6,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const sessionConfig = require('./config/session');
 const routes = require('./routes');
+const { purgeOldTrashedVehicles } = require('./controllers/vehiclesController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,17 @@ if (isProduction) {
 }
 
 if (require.main === module) {
+  // Purge vehicles that have been in the trash for more than 30 days.
+  // Runs once on boot, then every 24h. Guarded so a DB hiccup can't crash startup.
+  try {
+    purgeOldTrashedVehicles().catch(err => console.error('purgeOldTrashedVehicles (startup) failed:', err));
+    setInterval(() => {
+      purgeOldTrashedVehicles().catch(err => console.error('purgeOldTrashedVehicles (interval) failed:', err));
+    }, 24 * 60 * 60 * 1000);
+  } catch (err) {
+    console.error('Failed to schedule purgeOldTrashedVehicles:', err);
+  }
+
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

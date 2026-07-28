@@ -68,7 +68,7 @@ const VEHICLES = {
   'Sedan': 0,
   'Medium Duty Truck': 150,
   'Quadrocycle': -150,
-  'Motorcycles': -180,
+  'ATV': -180,
   'Bob Cat': 120,
   '3 Cars Cont. (SUV)': 90,
   'Van': 100,
@@ -76,6 +76,14 @@ const VEHICLES = {
   'Truck': 200,
   'Heavy Equipment': 300,
 };
+
+// Fuel-type surcharge added on top of the computed shipping total.
+const FUEL_SURCHARGE = { hybrid: 150, electric: 100 };
+const FUEL_TYPE_OPTIONS = [
+  { value: 'standard', label: 'სტანდარტული (Standard)' },
+  { value: 'hybrid', label: `ჰიბრიდი / Hybrid (+${formatUSD(FUEL_SURCHARGE.hybrid)})` },
+  { value: 'electric', label: `ელექტრო / Electric (+${formatUSD(FUEL_SURCHARGE.electric)})` },
+];
 
 /* ---------- small inline icons ---------- */
 const IconTruck = (p) => (
@@ -107,6 +115,9 @@ const IconArrow = (p) => (
 const IconShield = (p) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="m9 12 2 2 4-4" /></svg>
 );
+const IconFuel = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" /></svg>
+);
 
 /* ---------- vehicle-type icons ---------- */
 const IconCar = (p) => (
@@ -117,9 +128,6 @@ const IconSuv = (p) => (
 );
 const IconVan = (p) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 6h11l5 5v5h-2" /><path d="M5 16H3V6" /><path d="M9 16h5" /><path d="M14 8v3h5" /><circle cx="7" cy="16.5" r="1.6" /><circle cx="16.5" cy="16.5" r="1.6" /></svg>
-);
-const IconMoto = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="5" cy="16" r="3" /><circle cx="19" cy="16" r="3" /><path d="M8 16h5l3-5h3" /><path d="M13 11l-2-3H8" /><path d="M16 11l-3 5" /></svg>
 );
 const IconQuad = (p) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="5" cy="17" r="2.5" /><circle cx="19" cy="17" r="2.5" /><path d="M5 17h2l2-5h6l1 5h3" /><path d="M9 12l1-3h4" /></svg>
@@ -136,7 +144,7 @@ const VEHICLE_ICONS = {
   'Sedan': IconCar,
   'Medium Duty Truck': IconTruck,
   'Quadrocycle': IconQuad,
-  'Motorcycles': IconMoto,
+  'ATV': IconQuad,
   'Bob Cat': IconExcavator,
   '3 Cars Cont. (SUV)': IconSuv,
   'Van': IconVan,
@@ -278,6 +286,7 @@ export default function PublicCalculator() {
   const [port, setPort] = useState('');
   const [destination, setDestination] = useState('');
   const [vehicle, setVehicle] = useState('Sedan');
+  const [fuelType, setFuelType] = useState('standard');
   const [vehicleTypes, setVehicleTypes] = useState([]); // admin-managed types
   const [calcPorts, setCalcPorts] = useState([]); // admin-managed loading & destination ports
 
@@ -395,7 +404,8 @@ export default function PublicCalculator() {
     : VEHICLES;
   const baseInland = inlandRow ? parseFloat(inlandRow.land_price) || 0 : 0;
   const landPrice = selected ? Math.max(0, baseInland + (vehMods[vehicle] || 0)) : 0;
-  const totalPrice = selected ? landPrice + containerPrice : 0;
+  const fuelSurcharge = selected ? (FUEL_SURCHARGE[fuelType] || 0) : 0;
+  const totalPrice = selected ? landPrice + containerPrice + fuelSurcharge : 0;
 
   const onAuctionChange = (v) => { setAuction(v); setLocation(''); setPort(''); setDestination(''); };
   const onLocationChange = (v) => { setLocation(v); setPort(''); setDestination(''); };
@@ -660,6 +670,15 @@ export default function PublicCalculator() {
                         />
                       </Field>
                     </div>
+                    <div className="sm:col-span-2">
+                      <Field label="საწვავის ტიპი" icon={<IconFuel className="h-3.5 w-3.5" />}>
+                        <Select
+                          value={fuelType}
+                          onChange={(e) => setFuelType(e.target.value)}
+                          options={FUEL_TYPE_OPTIONS}
+                        />
+                      </Field>
+                    </div>
                   </div>
 
                   <div className="mt-6 flex items-center gap-3 rounded-btn border border-ink-700 bg-ink-900 px-4 py-3">
@@ -674,6 +693,7 @@ export default function PublicCalculator() {
                     {[
                       ['შიდა', landPrice],
                       ['საზღვაო', containerPrice],
+                      ...(fuelSurcharge > 0 ? [['საწვავის დანამატი / Fuel surcharge', fuelSurcharge]] : []),
                       ['სულ', totalPrice],
                     ].map(([l, v]) => (
                       <div key={l} className="flex items-center justify-between border-b border-ink-800 py-2.5 last:border-0">

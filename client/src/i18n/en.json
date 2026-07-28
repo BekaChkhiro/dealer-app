@@ -329,7 +329,8 @@
     "statusDelivered": "Delivered",
     "overdueDays": "Overdue Days",
     "daysOverdue": "days",
-    "warehouse": "Warehouse"
+    "warehouse": "Warehouse",
+    "copyShareLink": "Copy share link"
   },
   "booking": {
     "title": "Booking",
@@ -659,6 +660,7 @@
     "showLess": "Show less",
     "dealerReceiver": "Dealer / Receiver",
     "auctionPhotos": "Auction Photos",
+    "pickupPhotos": "Pickup Photos",
     "portPhotos": "Port Photos",
     "portOpeningPhotos": "Port Opening Photos",
     "otherPhotos": "Other Photos",
@@ -719,7 +721,7 @@
     "submit": "Send Reset Link",
     "sending": "Sending...",
     "sent": "If that email is registered, a reset link has been sent. Check your inbox.",
-    "backToLogin": "\u2190 Back to Login",
+    "backToLogin": "← Back to Login",
     "error": "Something went wrong. Please try again."
   },
   "resetPassword": {
@@ -734,7 +736,7 @@
     "tooShort": "Password must be at least 4 characters",
     "error": "Invalid or expired reset link. Please request a new one.",
     "goToLogin": "Go to Login",
-    "backToForgot": "\u2190 Request a new link"
+    "backToForgot": "← Request a new link"
   },
   "bookingDetail": {
     "backToBooking": "Back to Booking",

@@ -18,6 +18,31 @@ function TableImage({ src }) {
   );
 }
 
+function CellCopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="dt-cell-copy-btn"
+      title="Copy"
+      aria-label="Copy"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        });
+      }}
+    >
+      {copied ? (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+      ) : (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+      )}
+    </button>
+  );
+}
+
 export default function DataTable({
   columns,
   data,
@@ -86,7 +111,7 @@ export default function DataTable({
     onRowClick(row);
   }
 
-  function renderCell(col, row) {
+  function renderCellInner(col, row) {
     if (col.render) return col.render(row);
 
     const value = row[col.key];
@@ -99,12 +124,30 @@ export default function DataTable({
     return value;
   }
 
+  // Wrap a cell so any plain-text value gets a hover "copy" button.
+  function renderCell(col, row) {
+    const inner = renderCellInner(col, row);
+    if (col.type === 'image' || col.copyable === false) return inner;
+    const copyText = col.copyValue
+      ? col.copyValue(row)
+      : (row[col.key] != null && typeof row[col.key] !== 'object' ? String(row[col.key]) : null);
+    if (!copyText) return inner;
+    return (
+      <span className="dt-cell-copy-wrap">
+        <span className="dt-cell-copy-content">{inner}</span>
+        <CellCopyButton text={copyText} />
+      </span>
+    );
+  }
+
   function renderActionIcon(action) {
     if (action.icon) return action.icon;
     switch (action.key) {
       case 'view': return <EyeIcon />;
       case 'edit': return <PencilIcon />;
       case 'delete': return <TrashIcon />;
+      case 'share': return <ShareIcon />;
+      case 'restore': return <RestoreIcon />;
       default: return null;
     }
   }
@@ -129,9 +172,6 @@ export default function DataTable({
                     onChange={handleSelectAll}
                   />
                 </th>
-              )}
-              {hasActions && (
-                <th className="dt-th dt-th-actions">{t('common.actions')}</th>
               )}
               {columns.map((col) => (
                 <th
@@ -158,6 +198,9 @@ export default function DataTable({
                   </span>
                 </th>
               ))}
+              {hasActions && (
+                <th className="dt-th dt-th-actions dt-th-actions-right">{t('common.actions')}</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -196,8 +239,16 @@ export default function DataTable({
                         />
                       </td>
                     )}
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={`dt-td ${col.align === 'right' ? 'dt-align-right' : ''}`}
+                      >
+                        {renderCell(col, row)}
+                      </td>
+                    ))}
                     {hasActions && (
-                      <td className="dt-td dt-td-actions">
+                      <td className="dt-td dt-td-actions dt-td-actions-right">
                         <div className="dt-action-icons">
                           {actions.map((action) => (
                             <button
@@ -214,14 +265,6 @@ export default function DataTable({
                         </div>
                       </td>
                     )}
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        className={`dt-td ${col.align === 'right' ? 'dt-align-right' : ''}`}
-                      >
-                        {renderCell(col, row)}
-                      </td>
-                    ))}
                   </tr>
                   {renderExpandableRow && renderExpandableRow(row)}
                 </Fragment>
@@ -231,6 +274,25 @@ export default function DataTable({
         </table>
       </div>
     </div>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function RestoreIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <polyline points="3 3 3 8 8 8" />
+    </svg>
   );
 }
 

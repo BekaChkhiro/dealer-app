@@ -9,6 +9,12 @@ const uploadZip = require('../middleware/uploadZip');
 router.get('/', requireAuth, vehiclesController.getVehicles);
 router.get('/invoices/list', requireAuth, vehiclesController.getInvoicesList);
 router.post('/bulk-delete', requireAdmin, vehiclesController.bulkDeleteVehicles);
+
+// Trash (soft-deleted vehicles) — must come before the /:id routes below.
+router.get('/trash', requireAdmin, vehiclesController.getTrashedVehicles);
+router.post('/:id/restore', requireAdmin, vehiclesController.restoreVehicle);
+router.delete('/:id/permanent', requireAdmin, vehiclesController.permanentDeleteVehicle);
+
 router.get('/:id', requireAuth, vehiclesController.getVehicleById);
 // Dealers may create and edit vehicles; ownership is enforced in the controller
 // (a dealer's new cars auto-assign to them, and they can only edit their own).

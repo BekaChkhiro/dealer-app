@@ -65,6 +65,42 @@
   text-align: center;
 }
 
+/* Actions column pinned to the right */
+.dt-th-actions-right,
+.dt-td-actions-right {
+  text-align: right;
+}
+.dt-td-actions-right .dt-action-icons {
+  justify-content: flex-end;
+}
+
+/* Per-cell hover copy button */
+.dt-cell-copy-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.dt-cell-copy-btn {
+  border: none;
+  background: transparent;
+  color: #adb5bd;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 0;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+.dt-row:hover .dt-cell-copy-btn {
+  opacity: 1;
+}
+.dt-cell-copy-btn:hover {
+  color: var(--primary, #0d6efd);
+  background: rgba(13, 110, 253, 0.08);
+}
+
 /* ── Body rows ── */
 
 .dt-row {

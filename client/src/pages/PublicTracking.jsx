@@ -8,6 +8,7 @@ import './PublicTracking.css';
 
 const PUBLIC_PHOTO_CATEGORIES = [
   { category: 'auction', labelKey: 'auctionPhotos' },
+  { category: 'pickup', labelKey: 'pickupPhotos' },
   { category: 'port', labelKey: 'portPhotos' },
   { category: 'port_opening', labelKey: 'portOpeningPhotos' },
   { category: 'other', labelKey: 'otherPhotos' },

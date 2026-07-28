@@ -27,7 +27,7 @@ const EMPTY_FORM = {
   // us_state/us_port keep denormalized names; sublot_city = actual location)
   city: '', city_id: '', us_state: '', us_port: '', loading_port_id: '', sublot_city: '', destination_port: '', destination_port_id: '', warehouse_id: '',
   // Container / Shipping
-  container_number: '', line: '',
+  container_number: '', line: '', booking_number: '',
   // Pricing
   vehicle_price: '', total_price: '', payed_amount: '', debt_amount: '', container_cost: '', landing_cost: '', dealer_fee: '', late_car_payment: '',
   // Status / Payment
@@ -138,6 +138,11 @@ function Cars() {
     { type: 'select', key: 'paid', label: t('cars.paid'), options: [{ value: 'paid', label: 'Paid' }, { value: 'unpaid', label: 'Unpaid' }, { value: 'partial', label: 'Partial' }] },
     { type: 'select', key: 'fuel_type', label: t('cars.fuelType'), options: [{ value: 'gasoline', label: t('cars.fuelTypeGasoline') }, { value: 'diesel', label: t('cars.fuelTypeDiesel') }, { value: 'hybrid', label: t('cars.fuelTypeHybrid') }, { value: 'electric', label: t('cars.fuelTypeElectric') }, { value: 'plug_in_hybrid', label: t('cars.fuelTypePlugInHybrid') }] },
     { type: 'select', key: 'insurance_type', label: t('cars.insuranceType'), options: [{ value: 'none', label: t('cars.insuranceTypeNone') }, { value: 'franchise', label: t('cars.insuranceTypeFranchise') }, { value: 'full', label: t('cars.insuranceTypeFull') }] },
+    // Admin-only: filter by dealer (id — name)
+    ...(isAdmin ? [{
+      type: 'select', key: 'dealer_id', label: t('cars.dealer'),
+      options: dealers.map((d) => ({ value: String(d.id), label: `[${d.id}] ${[d.name, d.surname].filter(Boolean).join(' ') || d.username || ''}` })),
+    }] : []),
   ];
 
   // Combined cell: personal number on top, buyer (uppercase) below.
@@ -183,7 +188,7 @@ function Cars() {
     { key: 'profile_image_url', label: 'Image', type: 'image', width: '80px' },
     { key: 'purchase_date', label: t('cars.purchaseDate'), sortable: true, render: (row) => formatDate(row.purchase_date) },
     { key: 'mark', label: t('cars.vehicleName'), sortable: true, render: (row) => {
-      const name = [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—';
+      const name = [row.year, row.mark, row.model].filter(Boolean).join(' ') || '—';
       return <a href={`/cars/${row.id}`} onClick={(e) => { e.preventDefault(); navigate(`/cars/${row.id}`); }} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>{name}</a>;
     }},
     { key: 'vin', label: t('cars.vin'), sortable: true, render: (row) => (
@@ -202,6 +207,12 @@ function Cars() {
     { key: 'container_number', label: t('cars.container'), render: (row) => renderContainerCell(row) },
     { key: 'line', label: t('cars.line') },
     { key: 'auction', label: t('cars.auction'), sortable: true },
+    { key: 'dealer_id', label: t('cars.dealer'), render: (row) => (
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        <span style={{ fontWeight: 600 }}>{row.dealer_name || '—'}</span>
+        {row.dealer_id && <span style={{ fontSize: '0.8em', color: '#6c757d' }}>ID: {row.dealer_id}</span>}
+      </div>
+    )},
     { key: 'us_state', label: t('cars.state'), sortable: true },
     { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '—' },
     { key: 'payed_amount', label: t('cars.paid'), sortable: true, align: 'right', render: (row) => formatPrice(row.payed_amount) },
@@ -213,7 +224,7 @@ function Cars() {
   const dealerColumns = [
     { key: 'profile_image_url', label: 'Image', type: 'image', width: '80px' },
     { key: 'mark', label: t('cars.vehicleName'), sortable: true, render: (row) => {
-      const name = [row.mark, row.model, row.year].filter(Boolean).join(' ') || '—';
+      const name = [row.year, row.mark, row.model].filter(Boolean).join(' ') || '—';
       return <a href={`/cars/${row.id}`} onClick={(e) => { e.preventDefault(); navigate(`/cars/${row.id}`); }} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>{name}</a>;
     }},
     { key: 'vin', label: t('cars.vin'), sortable: true, render: (row) => (
@@ -253,6 +264,7 @@ function Cars() {
         </span>
       );
     }},
+    { key: 'us_state', label: t('cars.state'), sortable: true },
     { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '—' },
     { key: 'overdue_days', label: t('cars.overdueDays'), sortable: true, align: 'center', render: (row) => {
       const days = parseInt(row.overdue_days) || 0;
@@ -272,13 +284,13 @@ function Cars() {
 
   const actions = isAdmin
     ? [
-        { key: 'view', label: t('carDetail.view') },
+        { key: 'share', label: t('cars.copyShareLink') },
         { key: 'edit', label: t('common.edit') },
         { key: 'delete', label: t('common.delete') },
       ]
     : [
         // Dealers can add and edit their own vehicles (delete stays admin-only).
-        { key: 'view', label: t('carDetail.view') },
+        { key: 'share', label: t('cars.copyShareLink') },
         { key: 'edit', label: t('common.edit') },
       ];
 
@@ -292,6 +304,7 @@ function Cars() {
       if (filters.auction) params.auction = filters.auction;
       if (filters.line) params.line = filters.line;
       if (filters.status) params.status = filters.status;
+      if (filters.dealer_id) params.dealer_id = filters.dealer_id;
       if (filters.paid) params.paid = filters.paid;
       if (filters.fuel_type) params.fuel_type = filters.fuel_type;
       if (filters.insurance_type) params.insurance_type = filters.insurance_type;
@@ -317,6 +330,7 @@ function Cars() {
         if (filters.auction) params.auction = filters.auction;
         if (filters.line) params.line = filters.line;
         if (filters.status) params.status = filters.status;
+      if (filters.dealer_id) params.dealer_id = filters.dealer_id;
         if (filters.paid) params.paid = filters.paid;
         if (filters.fuel_type) params.fuel_type = filters.fuel_type;
         if (filters.insurance_type) params.insurance_type = filters.insurance_type;
@@ -449,6 +463,7 @@ function Cars() {
       if (filters.auction) params.auction = filters.auction;
       if (filters.line) params.line = filters.line;
       if (filters.status) params.status = filters.status;
+      if (filters.dealer_id) params.dealer_id = filters.dealer_id;
       if (filters.paid) params.paid = filters.paid;
       if (filters.fuel_type) params.fuel_type = filters.fuel_type;
       if (filters.insurance_type) params.insurance_type = filters.insurance_type;
@@ -458,7 +473,7 @@ function Cars() {
       // Admin export columns - full details
       const adminExportColumns = [
         { key: 'purchase_date', label: t('cars.purchaseDate'), render: (row) => formatDate(row.purchase_date) },
-        { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+        { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.year, row.mark, row.model].filter(Boolean).join(' ') || '' },
         { key: 'vin', label: t('cars.vin') },
         { key: 'lot_number', label: t('cars.lotNumber') },
         { key: 'receiver_fullname', label: t('cars.receiver') },
@@ -476,7 +491,7 @@ function Cars() {
 
       // Dealer export columns - simplified
       const dealerExportColumns = [
-        { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+        { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.year, row.mark, row.model].filter(Boolean).join(' ') || '' },
         { key: 'vin', label: t('cars.vin') },
         { key: 'container_number', label: t('cars.container') },
         { key: 'current_status', label: t('cars.status') },
@@ -509,6 +524,11 @@ function Cars() {
       navigate(`/cars/${row.id}`);
       return;
     }
+    if (action === 'share') {
+      const link = `${window.location.origin}/track/${row.vin}`;
+      navigator.clipboard?.writeText(link);
+      return;
+    }
     if (action === 'edit') {
       setEditRow(row);
       const populated = { ...EMPTY_FORM };
@@ -536,6 +556,8 @@ function Cars() {
   function handleFormChange(e) {
     const { name, value, type, checked } = e.target;
     let next = type === 'checkbox' ? checked : value;
+    // Receiver name may only contain English (Latin) letters.
+    if (type !== 'checkbox' && name === 'receiver_fullname') next = String(next).replace(/[^A-Za-z .'-]/g, '');
     if (type !== 'checkbox' && UPPERCASE_FIELDS.includes(name)) next = String(next).toUpperCase();
     setFormData(prev => ({ ...prev, [name]: next }));
   }
@@ -707,7 +729,7 @@ function Cars() {
     // Admin export columns - full details
     const adminExportColumns = [
       { key: 'purchase_date', label: t('cars.purchaseDate'), render: (row) => formatDate(row.purchase_date) },
-      { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+      { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.year, row.mark, row.model].filter(Boolean).join(' ') || '' },
       { key: 'vin', label: t('cars.vin') },
       { key: 'lot_number', label: t('cars.lotNumber') },
       { key: 'receiver_fullname', label: t('cars.receiver') },
@@ -725,7 +747,7 @@ function Cars() {
 
     // Dealer export columns - simplified
     const dealerExportColumns = [
-      { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.mark, row.model, row.year].filter(Boolean).join(' ') || '' },
+      { key: 'mark', label: t('cars.vehicleName'), render: (row) => [row.year, row.mark, row.model].filter(Boolean).join(' ') || '' },
       { key: 'vin', label: t('cars.vin') },
       { key: 'container_number', label: t('cars.container') },
       { key: 'current_status', label: t('cars.status') },
@@ -1326,7 +1348,7 @@ function Cars() {
                             ...prev,
                             city: (newValue.name || '').toUpperCase(),
                             city_id: newValue.id || '',
-                            us_state: (newValue.state_name || newValue.state_code || '').toUpperCase(),
+                            us_state: (newValue.state_code || newValue.state_name || '').toUpperCase(),
                           }));
                         }
                       }}
@@ -1510,6 +1532,12 @@ function Cars() {
                       <option value="Maersk">Maersk</option>
                       <option value="ZIM">ZIM</option>
                     </select>
+                  </div>
+                </div>
+                <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label">{t('booking.bookingNumber')}</label>
+                    <input type="text" className="form-control" name="booking_number" value={formData.booking_number} onChange={handleFormChange} />
                   </div>
                 </div>
                 </>)}

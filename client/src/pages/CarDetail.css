@@ -34,6 +34,13 @@
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.car-detail-card.drag-over {
+  border: 2px dashed var(--primary);
+  background-color: rgba(13, 110, 253, 0.06);
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
 }
 
 .car-detail-card-title {
