@@ -331,7 +331,8 @@
     "overdueDays": "დაგვიანება",
     "daysOverdue": "დღე",
     "warehouse": "საწყობი",
-    "copyShareLink": "ბმულის კოპირება"
+    "copyShareLink": "ბმულის კოპირება",
+    "trackContainer": "კონტეინერის თრექინგი გადამზიდავის საიტზე"
   },
   "booking": {
     "title": "ბუქინგი",
@@ -862,5 +863,20 @@
     "restore": "აღდგენა",
     "deleteForever": "სამუდამოდ წაშლა",
     "confirmForever": "ეს მანქანას საბოლოოდ წაშლის. დაბრუნება ვეღარ მოხერხდება."
+  },
+  "shippingLines": {
+    "title": "გადამზიდავი ხაზები",
+    "name": "სახელი",
+    "trackingUrl": "თრექინგის ბმული",
+    "urlHint": "გამოიყენეთ {container} ნომრის ადგილას",
+    "active": "აქტიური",
+    "sortOrder": "სორტირების რიგი"
+  },
+  "containerAssembly": {
+    "assemble": "კონტეინერის აწყობა",
+    "filterByState": "შტატით ფილტრი",
+    "addSelected": "დამატება",
+    "remove": "მოხსნა",
+    "noAvailable": "ხელმისაწვდომი მანქანა არ არის"
   }
 }

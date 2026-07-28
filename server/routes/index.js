@@ -86,6 +86,13 @@ router.post('/warehouses', requireAdmin, warehousesController.createWarehouse);
 router.put('/warehouses/:id', requireAdmin, warehousesController.updateWarehouse);
 router.delete('/warehouses/:id', requireAdmin, warehousesController.deleteWarehouse);
 
+// Shipping lines (admin-managed container tracking URLs)
+const shippingLinesController = require('../controllers/shippingLinesController');
+router.get('/shipping-lines', requireAuth, shippingLinesController.getShippingLines);
+router.post('/shipping-lines', requireAdmin, shippingLinesController.createShippingLine);
+router.put('/shipping-lines/:id', requireAdmin, shippingLinesController.updateShippingLine);
+router.delete('/shipping-lines/:id', requireAdmin, shippingLinesController.deleteShippingLine);
+
 // Announcements (admin-managed, shown to all dealers on their dashboard)
 const announcementsController = require('../controllers/announcementsController');
 router.get('/announcements/active', requireAuth, announcementsController.getActiveAnnouncements);

@@ -417,17 +417,25 @@ async function getAvailableVehicles(req, res) {
     const keyword = req.query.keyword || '';
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
 
+    const state = (req.query.state || '').trim();
+
     let query = `
       SELECT v.id, v.vin, v.mark, v.model, v.year, v.lot_number, v.current_status,
-             v.profile_image_url, v.dealer_id, v.receiver_fullname,
+             v.us_state, v.profile_image_url, v.dealer_id, v.receiver_fullname,
              u.name AS dealer_name, u.surname AS dealer_surname
       FROM vehicles v
       LEFT JOIN users u ON v.dealer_id = u.id
-      WHERE v.container_id IS NULL
+      WHERE v.container_id IS NULL AND v.deleted_at IS NULL
     `;
 
     const params = [];
     let paramIndex = 1;
+
+    if (state) {
+      query += ` AND v.us_state ILIKE $${paramIndex}`;
+      params.push(state);
+      paramIndex++;
+    }
 
     if (keyword) {
       query += ` AND (v.vin ILIKE $${paramIndex} OR v.lot_number ILIKE $${paramIndex} OR v.mark ILIKE $${paramIndex} OR v.model ILIKE $${paramIndex})`;
@@ -458,7 +466,8 @@ async function getAvailableVehicles(req, res) {
 async function assignVehiclesToContainer(req, res) {
   try {
     const { id } = req.params;
-    const { vehicleIds } = req.body;
+    // Accept both vehicle_ids (snake_case) and vehicleIds (camelCase) for compatibility
+    const vehicleIds = Array.isArray(req.body.vehicle_ids) ? req.body.vehicle_ids : req.body.vehicleIds;
 
     if (!Array.isArray(vehicleIds) || vehicleIds.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'vehicleIds must be a non-empty array' });

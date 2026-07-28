@@ -270,3 +270,12 @@
   color: #6c757d;
   margin-bottom: 12px;
 }
+
+/* Container assembly filter row */
+.container-assemble-filter {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}

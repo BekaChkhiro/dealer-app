@@ -331,7 +331,8 @@
     "overdueDays": "Overdue Days",
     "daysOverdue": "days",
     "warehouse": "Warehouse",
-    "copyShareLink": "Copy share link"
+    "copyShareLink": "Copy share link",
+    "trackContainer": "Track container on carrier site"
   },
   "booking": {
     "title": "Booking",
@@ -862,5 +863,20 @@
     "restore": "Restore",
     "deleteForever": "Delete forever",
     "confirmForever": "This will permanently delete the car. This cannot be undone."
+  },
+  "shippingLines": {
+    "title": "Shipping Lines",
+    "name": "Name",
+    "trackingUrl": "Tracking URL",
+    "urlHint": "Use {container} where the number goes",
+    "active": "Active",
+    "sortOrder": "Sort order"
+  },
+  "containerAssembly": {
+    "assemble": "Assemble Container",
+    "filterByState": "Filter by state",
+    "addSelected": "Add selected",
+    "remove": "Remove",
+    "noAvailable": "No available vehicles"
   }
 }

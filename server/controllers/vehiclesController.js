@@ -150,12 +150,14 @@ async function getVehicles(req, res) {
        u.username AS dealer_username,
        COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name,
        COALESCE(v.booking_number, (SELECT b.booking_number FROM booking b WHERE b.vin = v.vin AND b.booking_number IS NOT NULL ORDER BY b.id DESC LIMIT 1)) AS booking_number,
+       REPLACE(sl.tracking_url_template, '{container}', COALESCE(v.container_number, '')) AS container_tracking_url,
        ${overdueDaysExpr} AS overdue_days
        FROM vehicles v
        LEFT JOIN users u ON v.dealer_id = u.id
        LEFT JOIN ports p ON v.destination_port_id = p.id
        LEFT JOIN containers c ON v.container_id = c.id
        LEFT JOIN warehouses w ON v.warehouse_id = w.id
+       LEFT JOIN shipping_lines sl ON LOWER(sl.name) = LOWER(v.line)
        ${whereClause} ORDER BY ${orderByExpr} ${order} LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -687,12 +689,14 @@ async function getVehicleById(req, res) {
               COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name,
               p.name AS destination_port_name, p.code AS destination_port_code,
               c.id AS container_id,
-              w.name AS warehouse_name
+              w.name AS warehouse_name,
+              REPLACE(sl.tracking_url_template, '{container}', COALESCE(v.container_number, '')) AS container_tracking_url
        FROM vehicles v
        LEFT JOIN users u ON v.dealer_id = u.id
        LEFT JOIN ports p ON v.destination_port_id = p.id
        LEFT JOIN containers c ON v.container_id = c.id
        LEFT JOIN warehouses w ON v.warehouse_id = w.id
+       LEFT JOIN shipping_lines sl ON LOWER(sl.name) = LOWER(v.line)
        WHERE v.id = $1 AND v.deleted_at IS NULL`,
       [id]
     );

@@ -156,21 +156,41 @@ function Cars() {
   }
 
   // Combined cell: container number on top, booking number below.
+  // The container number links to the shipping line's tracking site (to verify
+  // the number); if no tracking URL is known it falls back to the internal
+  // container page.
   function renderContainerCell(row) {
-    const container = row.container_number
-      ? (row.container_id
-          ? (
-            <Link
-              to={`/containers/${row.container_id}`}
-              style={{ color: '#0D6EFD', textDecoration: 'none', fontWeight: 500 }}
-              onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
-              onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
-            >
-              {row.container_number}
-            </Link>
-          )
-          : <span>{row.container_number}</span>)
-      : <span>—</span>;
+    let container = <span>—</span>;
+    if (row.container_number) {
+      if (row.container_tracking_url) {
+        container = (
+          <a
+            href={row.container_tracking_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t('cars.trackContainer')}
+            style={{ color: '#0D6EFD', textDecoration: 'none', fontWeight: 500 }}
+            onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
+            onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
+          >
+            {row.container_number} ↗
+          </a>
+        );
+      } else if (row.container_id) {
+        container = (
+          <Link
+            to={`/containers/${row.container_id}`}
+            style={{ color: '#0D6EFD', textDecoration: 'none', fontWeight: 500 }}
+            onMouseEnter={(e) => (e.target.style.textDecoration = 'underline')}
+            onMouseLeave={(e) => (e.target.style.textDecoration = 'none')}
+          >
+            {row.container_number}
+          </Link>
+        );
+      } else {
+        container = <span>{row.container_number}</span>;
+      }
+    }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
         {container}

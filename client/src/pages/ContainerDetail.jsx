@@ -30,12 +30,87 @@ function ContainerDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Container assembly (admin) state
+  const [assignedVehicles, setAssignedVehicles] = useState([]);
+  const [stateFilter, setStateFilter] = useState('');
+  const [availableVehicles, setAvailableVehicles] = useState([]);
+  const [availLoading, setAvailLoading] = useState(false);
+  const [availSearched, setAvailSearched] = useState(false);
+  const [selectedAvail, setSelectedAvail] = useState(new Set());
+  const [assembleBusy, setAssembleBusy] = useState(false);
+
+  async function loadAssignedVehicles() {
+    try {
+      const res = await api.get(`/containers/${id}/vehicles`);
+      setAssignedVehicles(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to load container vehicles:', err);
+    }
+  }
+
+  async function loadAvailableVehicles() {
+    try {
+      setAvailLoading(true);
+      const params = {};
+      if (stateFilter.trim()) params.state = stateFilter.trim();
+      const res = await api.get('/containers/available-vehicles', { params });
+      setAvailableVehicles(res.data.data || []);
+      setSelectedAvail(new Set());
+      setAvailSearched(true);
+    } catch (err) {
+      console.error('Failed to load available vehicles:', err);
+    } finally {
+      setAvailLoading(false);
+    }
+  }
+
+  function toggleAvail(vehicleId) {
+    setSelectedAvail(prev => {
+      const next = new Set(prev);
+      if (next.has(vehicleId)) next.delete(vehicleId);
+      else next.add(vehicleId);
+      return next;
+    });
+  }
+
+  async function handleAddSelected() {
+    if (selectedAvail.size === 0) return;
+    try {
+      setAssembleBusy(true);
+      await api.post(`/containers/${id}/vehicles`, { vehicle_ids: [...selectedAvail] });
+      await Promise.all([loadAssignedVehicles(), loadAvailableVehicles()]);
+    } catch (err) {
+      console.error('Failed to assign vehicles:', err);
+    } finally {
+      setAssembleBusy(false);
+    }
+  }
+
+  async function handleRemoveVehicle(vehicleId) {
+    try {
+      setAssembleBusy(true);
+      await api.delete(`/containers/${id}/vehicles/${vehicleId}`);
+      await loadAssignedVehicles();
+      if (availSearched) await loadAvailableVehicles();
+    } catch (err) {
+      console.error('Failed to remove vehicle:', err);
+    } finally {
+      setAssembleBusy(false);
+    }
+  }
+
   useEffect(() => {
     let ignore = false;
 
     // Reset secondary state before fetching so stale data from prior id is cleared
     setVehicles([]);
     setRelatedBooking(null);
+    setAssignedVehicles([]);
+    setAvailableVehicles([]);
+    setSelectedAvail(new Set());
+    setAvailSearched(false);
+    setStateFilter('');
+    if (isAdmin) loadAssignedVehicles();
 
     async function fetchContainer() {
       try {
@@ -211,6 +286,121 @@ function ContainerDetail() {
           })}
         </div>
       </div>
+
+      {/* Assemble container (admin only) */}
+      {isAdmin && (
+        <div className="container-detail-card">
+          <div className="container-detail-card-title">{t('containerAssembly.assemble')}</div>
+
+          {/* State filter */}
+          <div className="container-assemble-filter">
+            <input
+              type="text"
+              className="form-control"
+              maxLength={2}
+              style={{ maxWidth: '140px', textTransform: 'uppercase' }}
+              placeholder={t('containerAssembly.filterByState')}
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === 'Enter') loadAvailableVehicles(); }}
+            />
+            <button
+              type="button"
+              className="btn btn-outline-primary"
+              onClick={loadAvailableVehicles}
+              disabled={availLoading}
+            >
+              {t('containerAssembly.filterByState')}
+            </button>
+          </div>
+
+          {/* Available (unassigned) vehicles */}
+          {availSearched && (
+            availableVehicles.length === 0 ? (
+              <div className="container-detail-empty">{t('containerAssembly.noAvailable')}</div>
+            ) : (
+              <>
+                <table className="container-detail-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>{t('cars.vin')}</th>
+                      <th>{t('cars.vehicleName')}</th>
+                      <th>{t('cars.state')}</th>
+                      <th>{t('cars.status')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableVehicles.map((v) => (
+                      <tr key={v.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedAvail.has(v.id)}
+                            onChange={() => toggleAvail(v.id)}
+                          />
+                        </td>
+                        <td><VinDisplay vin={v.vin} /></td>
+                        <td>{[v.mark, v.model, v.year].filter(Boolean).join(' ') || '—'}</td>
+                        <td>{v.us_state || '—'}</td>
+                        <td>{v.current_status?.replace('_', ' ') || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleAddSelected}
+                    disabled={selectedAvail.size === 0 || assembleBusy}
+                  >
+                    {t('containerAssembly.addSelected')}{selectedAvail.size > 0 ? ` (${selectedAvail.size})` : ''}
+                  </button>
+                </div>
+              </>
+            )
+          )}
+
+          {/* Currently assigned vehicles */}
+          <div className="container-detail-card-title" style={{ marginTop: '1.25rem' }}>
+            {t('containerDetail.vehiclesInContainer')}
+          </div>
+          {assignedVehicles.length === 0 ? (
+            <div className="container-detail-empty">{t('containerDetail.noVehicles')}</div>
+          ) : (
+            <table className="container-detail-table">
+              <thead>
+                <tr>
+                  <th>{t('cars.vin')}</th>
+                  <th>{t('cars.vehicleName')}</th>
+                  <th>{t('cars.status')}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignedVehicles.map((v) => (
+                  <tr key={v.id}>
+                    <td><VinDisplay vin={v.vin} /></td>
+                    <td>{[v.mark, v.model, v.year].filter(Boolean).join(' ') || '—'}</td>
+                    <td>{v.current_status?.replace('_', ' ') || '—'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleRemoveVehicle(v.id)}
+                        disabled={assembleBusy}
+                      >
+                        {t('containerAssembly.remove')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {/* Vehicles in this container */}
       <div className="container-detail-card">

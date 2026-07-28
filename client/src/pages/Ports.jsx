@@ -56,6 +56,13 @@ const EMPTY_CONTAINER_FORM = {
 const CONTAINER_STATUSES = ['booked', 'loaded', 'in_transit', 'arrived', 'delivered'];
 const LINES = ['MSC', 'Maersk', 'ZIM'];
 
+const EMPTY_SHIPPING_LINE_FORM = {
+  name: '',
+  tracking_url_template: '',
+  is_active: true,
+  sort_order: 0,
+};
+
 function Ports() {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -131,6 +138,16 @@ function Ports() {
 
   // Remove vehicle confirm state
   const [removeVehicleConfirm, setRemoveVehicleConfirm] = useState(null);
+
+  // Shipping lines (admin-managed container tracking URLs)
+  const [shippingLines, setShippingLines] = useState([]);
+  const [shippingLinesLoading, setShippingLinesLoading] = useState(false);
+  const [slModal, setSlModal] = useState(false);
+  const [slEditRow, setSlEditRow] = useState(null);
+  const [slFormData, setSlFormData] = useState(EMPTY_SHIPPING_LINE_FORM);
+  const [slSaving, setSlSaving] = useState(false);
+  const [slFormError, setSlFormError] = useState('');
+  const [slDeleteConfirm, setSlDeleteConfirm] = useState(null);
 
   const vehicleSearchTimeoutRef = useRef(null);
 
@@ -484,6 +501,92 @@ function Ports() {
     }
   }
 
+  // Shipping lines CRUD
+  const fetchShippingLines = useCallback(async () => {
+    try {
+      setShippingLinesLoading(true);
+      const res = await api.get('/shipping-lines');
+      setShippingLines(res.data.data || []);
+    } catch (err) {
+      console.error('Error fetching shipping lines:', err);
+      setShippingLines([]);
+    } finally {
+      setShippingLinesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShippingLines();
+  }, [fetchShippingLines]);
+
+  function handleSlAddNew() {
+    setSlEditRow(null);
+    setSlFormData(EMPTY_SHIPPING_LINE_FORM);
+    setSlFormError('');
+    setSlModal(true);
+  }
+
+  function handleSlEdit(row) {
+    setSlEditRow(row);
+    setSlFormData({
+      name: row.name || '',
+      tracking_url_template: row.tracking_url_template || '',
+      is_active: row.is_active !== false,
+      sort_order: row.sort_order || 0,
+    });
+    setSlFormError('');
+    setSlModal(true);
+  }
+
+  function handleSlFormChange(e) {
+    const { name, value, type, checked } = e.target;
+    setSlFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  }
+
+  async function handleSlFormSubmit(e) {
+    e.preventDefault();
+    if (!slFormData.name.trim()) {
+      setSlFormError(t('portsPage.nameRequired'));
+      return;
+    }
+    setSlSaving(true);
+    setSlFormError('');
+    try {
+      const payload = {
+        name: slFormData.name.trim(),
+        tracking_url_template: slFormData.tracking_url_template || null,
+        is_active: slFormData.is_active,
+        sort_order: Number(slFormData.sort_order) || 0,
+      };
+      if (slEditRow) {
+        await api.put(`/shipping-lines/${slEditRow.id}`, payload);
+      } else {
+        await api.post('/shipping-lines', payload);
+      }
+      setSlModal(false);
+      fetchShippingLines();
+    } catch (err) {
+      console.error('Save shipping line error:', err);
+      setSlFormError(err.response?.data?.message || t('portsPage.saveFailed'));
+    } finally {
+      setSlSaving(false);
+    }
+  }
+
+  async function handleSlDelete() {
+    if (!slDeleteConfirm) return;
+    try {
+      await api.delete(`/shipping-lines/${slDeleteConfirm.id}`);
+      setSlDeleteConfirm(null);
+      fetchShippingLines();
+    } catch (err) {
+      console.error('Delete shipping line error:', err);
+    }
+  }
+
   const actions = isAdmin
     ? [
         { key: 'addContainer', label: t('portsPage.addContainer') },
@@ -680,6 +783,163 @@ function Ports() {
         onPageChange={handlePageChange}
         onLimitChange={handleLimitChange}
       />
+
+      {/* Shipping Lines admin section */}
+      <div className="ports-containers-section" style={{ marginTop: '2.5rem' }}>
+        <div className="ports-containers-header">
+          <h5 style={{ margin: 0 }}>{t('shippingLines.title')}</h5>
+          {isAdmin && (
+            <button className="btn btn-sm btn-primary" onClick={handleSlAddNew}>
+              + {t('shippingLines.title')}
+            </button>
+          )}
+        </div>
+        {shippingLinesLoading ? (
+          <div className="ports-containers-loading">{t('common.loading')}</div>
+        ) : shippingLines.length === 0 ? (
+          <div className="ports-containers-empty">—</div>
+        ) : (
+          <table className="ports-containers-table">
+            <thead>
+              <tr>
+                <th>{t('shippingLines.name')}</th>
+                <th>{t('shippingLines.trackingUrl')}</th>
+                <th>{t('shippingLines.active')}</th>
+                <th>{t('shippingLines.sortOrder')}</th>
+                {isAdmin && <th></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {shippingLines.map(line => (
+                <tr key={line.id}>
+                  <td><strong>{line.name}</strong></td>
+                  <td style={{ maxWidth: '420px', wordBreak: 'break-all' }}>{line.tracking_url_template || '—'}</td>
+                  <td><StatusBadge isActive={line.is_active} t={t} /></td>
+                  <td>{line.sort_order || 0}</td>
+                  {isAdmin && (
+                    <td className="container-actions">
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => handleSlEdit(line)}
+                        title={t('common.edit')}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => setSlDeleteConfirm(line)}
+                        title={t('common.delete')}
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Add/Edit Shipping Line Modal */}
+      {slModal && (
+        <div className="ports-modal-overlay" onClick={() => setSlModal(false)}>
+          <div className="ports-modal" onClick={e => e.stopPropagation()}>
+            <div className="ports-modal-header">
+              <h5>{slEditRow ? t('common.edit') : t('shippingLines.title')}</h5>
+              <button className="ports-modal-close" onClick={() => setSlModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleSlFormSubmit}>
+              <div className="ports-modal-body">
+                {slFormError && (
+                  <div className="alert alert-danger py-2 mb-3">{slFormError}</div>
+                )}
+                <div className="mb-3">
+                  <label className="form-label">{t('shippingLines.name')} <span className="text-danger">*</span></label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="name"
+                    value={slFormData.name}
+                    onChange={handleSlFormChange}
+                    required
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">{t('shippingLines.trackingUrl')}</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="tracking_url_template"
+                    value={slFormData.tracking_url_template}
+                    onChange={handleSlFormChange}
+                    placeholder="https://example.com/track?number={container}"
+                  />
+                  <small className="text-muted">{t('shippingLines.urlHint')}</small>
+                </div>
+                <div className="row mb-3">
+                  <div className="col-6">
+                    <label className="form-label">{t('shippingLines.sortOrder')}</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="sort_order"
+                      value={slFormData.sort_order}
+                      onChange={handleSlFormChange}
+                    />
+                  </div>
+                  <div className="col-6 d-flex align-items-end">
+                    <div className="form-check">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="sl_is_active"
+                        name="is_active"
+                        checked={slFormData.is_active}
+                        onChange={handleSlFormChange}
+                      />
+                      <label className="form-check-label" htmlFor="sl_is_active">
+                        {t('shippingLines.active')}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="ports-modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setSlModal(false)}>
+                  {t('common.cancel')}
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={slSaving}>
+                  {slSaving ? t('common.saving') : (slEditRow ? t('common.update') : t('common.create'))}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Shipping Line Confirmation Modal */}
+      {slDeleteConfirm && (
+        <div className="ports-modal-overlay" onClick={() => setSlDeleteConfirm(null)}>
+          <div className="ports-modal ports-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="ports-modal-header">
+              <h5>{t('common.delete')}</h5>
+              <button className="ports-modal-close" onClick={() => setSlDeleteConfirm(null)}>&times;</button>
+            </div>
+            <div className="ports-modal-body">
+              <p className="text-muted mb-0">{slDeleteConfirm.name}</p>
+            </div>
+            <div className="ports-modal-footer">
+              <button className="btn btn-secondary" onClick={() => setSlDeleteConfirm(null)}>
+                {t('common.cancel')}
+              </button>
+              <button className="btn btn-danger" onClick={handleSlDelete}>
+                {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Port Modal */}
       {editModal && (
