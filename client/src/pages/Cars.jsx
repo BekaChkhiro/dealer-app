@@ -56,7 +56,7 @@ const DATE_FIELDS = [
 
 // Text fields that should be stored/shown uppercase.
 const UPPERCASE_FIELDS = [
-  'mark', 'model', 'vehicle_type', 'doc_type', 'lot_number', 'container_number',
+  'mark', 'model', 'doc_type', 'lot_number', 'container_number',
   'us_state', 'us_port', 'city', 'sublot_city', 'receiver_fullname', 'receiver_identity_number',
   'driver_fullname', 'driver_id_number', 'driver_car_license_number', 'driver_company',
 ];
@@ -116,6 +116,7 @@ function Cars() {
   const [savingReceiver, setSavingReceiver] = useState(false);
   const [geoCities, setGeoCities] = useState([]);
   const [loadingPorts, setLoadingPorts] = useState([]);
+  const [vehicleTypes, setVehicleTypes] = useState([]);
   const [receiverIdFile, setReceiverIdFile] = useState(null);
   const [receiverIdUploading, setReceiverIdUploading] = useState(false);
   const [receiverIdError, setReceiverIdError] = useState(null);
@@ -368,7 +369,7 @@ function Cars() {
       // Resilient: one failing endpoint (e.g. /users is admin-only) must not
       // wipe out the rest of the dropdowns for dealers.
       const data = (res) => (res.status === 'fulfilled' ? (res.value.data.data || []) : []);
-      const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes, warehousesRes] = await Promise.allSettled([
+      const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes, warehousesRes, vehicleTypesRes] = await Promise.allSettled([
         isAdmin ? api.get('/users', { params: { limit: 500 } }) : Promise.reject(new Error('skip')),
         api.get('/cities'),
         api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
@@ -378,6 +379,7 @@ function Cars() {
         api.get('/geo/cities'),
         api.get('/geo/loading-ports'),
         api.get('/warehouses'),
+        api.get('/vehicle-types'),
       ]);
       setDealers(data(usersRes).filter((u) => u.role !== 'admin'));
       setCities(data(citiesRes));
@@ -388,6 +390,7 @@ function Cars() {
       setGeoCities(data(geoCitiesRes));
       setLoadingPorts(data(loadingPortsRes).filter((p) => p.is_active !== false));
       setWarehouses(data(warehousesRes).filter((w) => w.is_active !== false));
+      setVehicleTypes(data(vehicleTypesRes));
     }
     fetchDropdowns();
   }, [isAdmin]);
@@ -1002,7 +1005,16 @@ function Cars() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.vehicleType')}</label>
-                    <input type="text" className="form-control" name="vehicle_type" value={formData.vehicle_type} onChange={handleFormChange} />
+                    <select className="form-select" name="vehicle_type" value={formData.vehicle_type} onChange={handleFormChange}>
+                      <option value="">{t('common.selectOrSearch')}</option>
+                      {vehicleTypes.map((vt) => (
+                        <option key={vt.id} value={vt.name}>{vt.name}</option>
+                      ))}
+                      {/* keep an existing custom value selectable even if not in the admin list */}
+                      {formData.vehicle_type && !vehicleTypes.some((vt) => vt.name === formData.vehicle_type) && (
+                        <option value={formData.vehicle_type}>{formData.vehicle_type}</option>
+                      )}
+                    </select>
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.docType')}</label>
