@@ -41,6 +41,7 @@ const EMPTY_PORT_FORM = {
   name: '',
   code: '',
   country: '',
+  terminal: '',
   is_active: true,
 };
 
@@ -279,6 +280,7 @@ function Ports() {
         name: formData.name.trim(),
         code: formData.code || null,
         country: formData.country || null,
+        terminal: formData.terminal || null,
         is_active: formData.is_active,
       };
 
@@ -987,6 +989,16 @@ function Ports() {
                       onChange={handleFormChange}
                     />
                   </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">{t('portsPage.terminal')}</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="terminal"
+                    value={formData.terminal}
+                    onChange={handleFormChange}
+                  />
                 </div>
                 <div className="mb-3">
                   <div className="form-check">

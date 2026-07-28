@@ -124,13 +124,13 @@ async function getVehicles(req, res) {
     );
     const total = parseInt(countResult.rows[0].count);
 
-    // Calculate overdue_days on-the-fly: CURRENT_DATE - estimated_receive_date (only if positive and not arrived/delivered)
-    // Handle special sorting for calculated overdue_days column
+    // Overdue = days a debt has been outstanding since the car arrived
+    // (from receive_date, only while debt_amount > 0).
     const overdueDaysExpr = `CASE
-         WHEN v.estimated_receive_date IS NOT NULL
-              AND v.current_status NOT IN ('arrived', 'delivered')
-              AND CURRENT_DATE > v.estimated_receive_date::date
-         THEN (CURRENT_DATE - v.estimated_receive_date::date)
+         WHEN v.receive_date IS NOT NULL
+              AND COALESCE(v.debt_amount, 0) > 0
+              AND CURRENT_DATE > v.receive_date::date
+         THEN (CURRENT_DATE - v.receive_date::date)
          ELSE 0
        END`;
     const orderByExpr = sortBy === 'overdue_days' ? overdueDaysExpr : `v.${sortBy}`;
@@ -143,6 +143,7 @@ async function getVehicles(req, res) {
        v.receiver_identity_number AS receiver_personal_number,
        p.name AS destination_port_name,
        p.code AS destination_port_code,
+       p.terminal AS destination_port_terminal,
        c.id AS container_id,
        w.name AS warehouse_name,
        u.name AS dealer_first_name,
@@ -688,6 +689,7 @@ async function getVehicleById(req, res) {
               u.email AS dealer_email, u.phone AS dealer_phone,
               COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.name, u.surname)), ''), u.username) AS dealer_name,
               p.name AS destination_port_name, p.code AS destination_port_code,
+              p.terminal AS destination_port_terminal,
               c.id AS container_id,
               w.name AS warehouse_name,
               REPLACE(sl.tracking_url_template, '{container}', COALESCE(v.container_number, '')) AS container_tracking_url

@@ -115,7 +115,7 @@ async function getPortById(req, res) {
 
 async function createPort(req, res) {
   try {
-    const { name, code, country, is_active, active } = req.body;
+    const { name, code, country, is_active, active, terminal } = req.body;
     // Support both 'active' and 'is_active' field names
     const activeValue = active !== undefined ? active : (is_active !== false);
 
@@ -124,10 +124,10 @@ async function createPort(req, res) {
     }
 
     const result = await pool.query(
-      `INSERT INTO ports (name, code, country, is_active)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO ports (name, code, country, is_active, terminal)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *, is_active AS active`,
-      [name.trim(), code || null, country || null, activeValue]
+      [name.trim(), code || null, country || null, activeValue, terminal || null]
     );
 
     logAudit({
@@ -156,7 +156,7 @@ async function updatePort(req, res) {
       return res.status(404).json({ error: 1, success: false, message: 'Port not found' });
     }
 
-    const { name, code, country, is_active, active } = req.body;
+    const { name, code, country, is_active, active, terminal } = req.body;
     // Support both 'active' and 'is_active' field names
     const activeValue = active !== undefined ? active : is_active;
 
@@ -176,6 +176,7 @@ async function updatePort(req, res) {
     addField('code', code);
     addField('country', country);
     addField('is_active', activeValue);
+    addField('terminal', terminal);
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 1, success: false, message: 'No fields to update' });

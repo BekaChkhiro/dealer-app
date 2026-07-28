@@ -234,7 +234,12 @@ function Cars() {
       </div>
     )},
     { key: 'us_state', label: t('cars.state'), sortable: true },
-    { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '—' },
+    { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => (
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        <span>{row.destination_port_name || row.destination_port || '—'}</span>
+        {row.destination_port_terminal && <span style={{ fontSize: '0.8em', color: '#6c757d' }}>{row.destination_port_terminal}</span>}
+      </div>
+    )},
     { key: 'payed_amount', label: t('cars.paid'), sortable: true, align: 'right', render: (row) => formatPrice(row.payed_amount) },
     { key: 'total_price', label: t('cars.total'), sortable: true, align: 'right', render: (row) => formatPrice(row.total_price) },
     { key: 'debt_amount', label: t('cars.debt'), sortable: true, align: 'right', render: (row) => formatPrice(row.debt_amount) },
@@ -285,7 +290,12 @@ function Cars() {
       );
     }},
     { key: 'us_state', label: t('cars.state'), sortable: true },
-    { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => row.destination_port_name || row.destination_port || '—' },
+    { key: 'destination_port_name', label: t('cars.destinationPort'), render: (row) => (
+      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        <span>{row.destination_port_name || row.destination_port || '—'}</span>
+        {row.destination_port_terminal && <span style={{ fontSize: '0.8em', color: '#6c757d' }}>{row.destination_port_terminal}</span>}
+      </div>
+    )},
     { key: 'overdue_days', label: t('cars.overdueDays'), sortable: true, align: 'center', render: (row) => {
       const days = parseInt(row.overdue_days) || 0;
       if (days > 0) {
@@ -557,7 +567,8 @@ function Cars() {
         if (BOOLEAN_FIELDS.includes(key)) {
           populated[key] = !!row[key];
         } else if (DATE_FIELDS.includes(key)) {
-          populated[key] = row[key] ? row[key].slice(0, 10) : '';
+          // datetime-local wants "YYYY-MM-DDTHH:mm"
+          populated[key] = row[key] ? String(row[key]).slice(0, 16) : '';
         } else {
           populated[key] = row[key] != null ? String(row[key]) : '';
         }
@@ -1666,41 +1677,41 @@ function Cars() {
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.purchaseDate')}</label>
-                    <input type="date" className="form-control" name="purchase_date" value={formData.purchase_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="purchase_date" value={formData.purchase_date} onChange={handleFormChange} />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.vehiclePickupDate')}</label>
-                    <input type="date" className="form-control" name="vehicle_pickup_date" value={formData.vehicle_pickup_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="vehicle_pickup_date" value={formData.vehicle_pickup_date} onChange={handleFormChange} />
                   </div>
                 </div>
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.warehouseReceiveDate')}</label>
-                    <input type="date" className="form-control" name="warehouse_receive_date" value={formData.warehouse_receive_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="warehouse_receive_date" value={formData.warehouse_receive_date} onChange={handleFormChange} />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.containerLoadingDate')}</label>
-                    <input type="date" className="form-control" name="container_loading_date" value={formData.container_loading_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="container_loading_date" value={formData.container_loading_date} onChange={handleFormChange} />
                   </div>
                 </div>
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.estimatedReceiveDate')}</label>
-                    <input type="date" className="form-control" name="estimated_receive_date" value={formData.estimated_receive_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="estimated_receive_date" value={formData.estimated_receive_date} onChange={handleFormChange} />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.receiveDate')}</label>
-                    <input type="date" className="form-control" name="receive_date" value={formData.receive_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="receive_date" value={formData.receive_date} onChange={handleFormChange} />
                   </div>
                 </div>
                 <div className="row mb-3">
                   <div className="col-6">
                     <label className="form-label">{t('cars.containerOpenDate')}</label>
-                    <input type="date" className="form-control" name="container_open_date" value={formData.container_open_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="container_open_date" value={formData.container_open_date} onChange={handleFormChange} />
                   </div>
                   <div className="col-6">
                     <label className="form-label">{t('cars.containerReceiveDate')}</label>
-                    <input type="date" className="form-control" name="container_receive_date" value={formData.container_receive_date} onChange={handleFormChange} />
+                    <input type="datetime-local" className="form-control" name="container_receive_date" value={formData.container_receive_date} onChange={handleFormChange} />
                   </div>
                 </div>
                 </>)}
@@ -1740,7 +1751,7 @@ function Cars() {
                   <div className="row mb-3">
                     <div className="col-6">
                       <label className="form-label">{t('cars.receiverChangeDate')}</label>
-                      <input type="date" className="form-control" name="receiver_change_date" value={formData.receiver_change_date} onChange={handleFormChange} />
+                      <input type="datetime-local" className="form-control" name="receiver_change_date" value={formData.receiver_change_date} onChange={handleFormChange} />
                     </div>
                   </div>
                 )}

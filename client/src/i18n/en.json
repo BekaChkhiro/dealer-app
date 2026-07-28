@@ -332,7 +332,8 @@
     "daysOverdue": "days",
     "warehouse": "Warehouse",
     "copyShareLink": "Copy share link",
-    "trackContainer": "Track container on carrier site"
+    "trackContainer": "Track container on carrier site",
+    "terminal": "Terminal"
   },
   "booking": {
     "title": "Booking",
@@ -570,7 +571,8 @@
     "vehicleMake": "Make/Model",
     "vehicleLot": "Lot#",
     "vehicleDealer": "Dealer",
-    "vehicleStatus": "Status"
+    "vehicleStatus": "Status",
+    "terminal": "Terminal"
   },
   "geography": {
     "title": "Geography",

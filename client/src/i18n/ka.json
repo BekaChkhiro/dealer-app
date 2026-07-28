@@ -332,7 +332,8 @@
     "daysOverdue": "დღე",
     "warehouse": "საწყობი",
     "copyShareLink": "ბმულის კოპირება",
-    "trackContainer": "კონტეინერის თრექინგი გადამზიდავის საიტზე"
+    "trackContainer": "კონტეინერის თრექინგი გადამზიდავის საიტზე",
+    "terminal": "ტერმინალი"
   },
   "booking": {
     "title": "ბუქინგი",
@@ -570,7 +571,8 @@
     "vehicleMake": "მარკა/მოდელი",
     "vehicleLot": "Lot#",
     "vehicleDealer": "დილერი",
-    "vehicleStatus": "სტატუსი"
+    "vehicleStatus": "სტატუსი",
+    "terminal": "ტერმინალი"
   },
   "geography": {
     "title": "გეოგრაფია",

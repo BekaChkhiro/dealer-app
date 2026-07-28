@@ -24,7 +24,9 @@ function formatDate(value) {
   if (!value) return '—';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const _o = { year: 'numeric', month: 'short', day: 'numeric' };
+  if (d.getHours() || d.getMinutes()) return d.toLocaleString('en-US', { ..._o, hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString('en-US', _o);
 }
 
 function CarDetail() {
@@ -662,6 +664,7 @@ function CarDetail() {
             {vehicle.sublot_city && <InfoItem label={t('cars.sublotCity')} value={vehicle.sublot_city} />}
             <InfoItem label={t('cars.loadingPort')} value={vehicle.us_port} />
             <InfoItem label={t('cars.destinationPort')} value={vehicle.destination_port_name || vehicle.destination_port} />
+            {vehicle.destination_port_terminal && <InfoItem label={t('cars.terminal')} value={vehicle.destination_port_terminal} />}
           </div>
         </div>
       </div>
