@@ -25,6 +25,8 @@ export default function Settings() {
   const [error, setError] = useState('');
   const [totalUsers, setTotalUsers] = useState(null);
   const [totalUsersError, setTotalUsersError] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [newAnnouncement, setNewAnnouncement] = useState('');
 
   // Initialize form from user
   useEffect(() => {
@@ -48,8 +50,52 @@ export default function Settings() {
     }
   }, [isAdmin]);
 
+  // Fetch announcements for admin management
+  useEffect(() => {
+    if (isAdmin) {
+      api.get('/announcements')
+        .then(res => setAnnouncements(res.data.data || []))
+        .catch(() => setAnnouncements([]));
+    }
+  }, [isAdmin]);
+
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleAddAnnouncement = async () => {
+    if (!newAnnouncement.trim()) return;
+    try {
+      const res = await api.post('/announcements', { message: newAnnouncement.trim() });
+      if (res.data.success) {
+        setAnnouncements(prev => [res.data.data, ...prev]);
+        setNewAnnouncement('');
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleToggleAnnouncement = async (a) => {
+    try {
+      const res = await api.put(`/announcements/${a.id}`, { is_active: !a.is_active });
+      if (res.data.success) {
+        setAnnouncements(prev => prev.map(item => (item.id === a.id ? res.data.data : item)));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      const res = await api.delete(`/announcements/${id}`);
+      if (res.data.success) {
+        setAnnouncements(prev => prev.filter(item => item.id !== id));
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -191,6 +237,61 @@ export default function Settings() {
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Announcements (admin-managed) */}
+      {isAdmin && (
+        <div className="settings-card">
+          <div className="settings-card-title">{t('announcements.title')}</div>
+
+          <div className="mb-3">
+            <textarea
+              className="form-control mb-2"
+              rows="2"
+              value={newAnnouncement}
+              onChange={(e) => setNewAnnouncement(e.target.value)}
+              placeholder={t('announcements.addPlaceholder')}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleAddAnnouncement}
+              disabled={!newAnnouncement.trim()}
+            >
+              {t('announcements.add')}
+            </button>
+          </div>
+
+          {announcements.length === 0 ? (
+            <div className="text-muted">{t('announcements.empty')}</div>
+          ) : (
+            <ul className="list-group">
+              {announcements.map((a) => (
+                <li key={a.id} className="list-group-item d-flex justify-content-between align-items-center gap-2">
+                  <span className="flex-grow-1">{a.message}</span>
+                  <div className="form-check form-switch m-0">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      checked={!!a.is_active}
+                      onChange={() => handleToggleAnnouncement(a)}
+                      title={t('announcements.active')}
+                    />
+                    <label className="form-check-label small">{t('announcements.active')}</label>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => handleDeleteAnnouncement(a.id)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

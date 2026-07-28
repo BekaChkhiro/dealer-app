@@ -20,8 +20,19 @@ function Dashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const [analyticsError, setAnalyticsError] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
 
   const isDealer = user?.role !== 'admin';
+
+  useEffect(() => {
+    api.get('/announcements/active')
+      .then((res) => {
+        setAnnouncements(res.data.data || []);
+      })
+      .catch(() => {
+        setAnnouncements([]);
+      });
+  }, []);
 
   useEffect(() => {
     api.get('/dashboard/stats')
@@ -143,6 +154,16 @@ function Dashboard() {
 
   return (
     <div>
+      {announcements.length > 0 && (
+        <div className="alert alert-warning mb-4" role="alert">
+          <h5 className="alert-heading mb-2">{t('announcements.title')}</h5>
+          <ul className="mb-0 ps-3">
+            {announcements.map((a) => (
+              <li key={a.id}>{a.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <h2 className="mb-4">{t('dashboard.title')}</h2>
       <div className="row g-3">
         {cards.map((card) => (

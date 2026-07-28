@@ -368,4 +368,254 @@ async function getTransactionById(req, res) {
   }
 }
 
-module.exports = { getTransactions, getTransactionById, createTransaction, updateTransaction, deleteTransaction };
+async function generateTransactionInvoice(req, res) {
+  try {
+    const { id } = req.params;
+    const PDFDocument = require('pdfkit');
+    const fs = require('fs');
+    const path = require('path');
+
+    // Fetch transaction with payer info (payer stores the user's username)
+    const result = await pool.query(
+      `SELECT t.*,
+              u.id AS payer_user_id,
+              u.name AS payer_name,
+              u.surname AS payer_surname,
+              u.email AS payer_email,
+              u.phone AS payer_phone,
+              u.address AS payer_address
+       FROM transactions t
+       LEFT JOIN users u ON u.username = t.payer
+       WHERE t.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 1, success: false, message: 'Transaction not found' });
+    }
+
+    const transaction = result.rows[0];
+
+    // Non-admin users can only generate invoices for transactions tied to their own vehicles
+    if (req.session.user.role !== 'admin' && transaction.vin) {
+      const ownership = await pool.query(
+        'SELECT id FROM vehicles WHERE vin = $1 AND dealer_id = $2',
+        [transaction.vin, req.session.user.id]
+      );
+      if (ownership.rows.length === 0) {
+        return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+      }
+    } else if (req.session.user.role !== 'admin' && !transaction.vin) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
+    // Create PDF document
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+
+    // Generate filename
+    const invoiceDir = path.join(__dirname, '../../static/invoices/transactions');
+    if (!fs.existsSync(invoiceDir)) {
+      fs.mkdirSync(invoiceDir, { recursive: true });
+    }
+
+    const fileName = `transaction_invoice_${transaction.id}_${Date.now()}.pdf`;
+    const filePath = path.join(invoiceDir, fileName);
+    const writeStream = fs.createWriteStream(filePath);
+
+    doc.pipe(writeStream);
+
+    // Helper function for formatting currency
+    const formatCurrency = (value) => {
+      if (!value && value !== 0) return '$0.00';
+      return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Helper function for formatting date
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+
+    const PAYMENT_TYPE_LABELS = {
+      car_amount: 'Car Amount',
+      shipping: 'Shipping',
+      customs: 'Customs',
+      balance: 'Balance',
+    };
+
+    // Header
+    doc.fontSize(24).font('Helvetica-Bold').text('TRANSACTION INVOICE', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).font('Helvetica').text(`Invoice Date: ${formatDate(new Date())}`, { align: 'center' });
+    doc.fontSize(10).text(`Invoice #: TRX-${transaction.id}-${Date.now().toString().slice(-6)}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Company Info (Left) and Payer Info (Right)
+    const leftColumn = 50;
+    const rightColumn = 320;
+    let currentY = doc.y;
+
+    // Royal Motors Info
+    doc.fontSize(12).font('Helvetica-Bold').text('FROM:', leftColumn, currentY);
+    doc.fontSize(10).font('Helvetica');
+    doc.text('Royal Motors', leftColumn, doc.y + 5);
+    doc.text('Vehicle Import & Shipping', leftColumn, doc.y + 3);
+    doc.text('Address: [Company Address]', leftColumn, doc.y + 3);
+    doc.text('Phone: [Company Phone]', leftColumn, doc.y + 3);
+    doc.text('Email: [Company Email]', leftColumn, doc.y + 3);
+
+    // Payer Info (reset Y to same position)
+    doc.fontSize(12).font('Helvetica-Bold').text('BILL TO:', rightColumn, currentY);
+    doc.fontSize(10).font('Helvetica');
+    const payerName = [transaction.payer_name, transaction.payer_surname].filter(Boolean).join(' ') || transaction.payer || 'N/A';
+    doc.text(payerName.toUpperCase(), rightColumn, doc.y + 5);
+    if (transaction.payer_email) doc.text(`Email: ${transaction.payer_email}`, rightColumn, doc.y + 3);
+    if (transaction.payer_phone) doc.text(`Phone: ${transaction.payer_phone}`, rightColumn, doc.y + 3);
+    if (transaction.payer_address) doc.text(`Address: ${transaction.payer_address}`, rightColumn, doc.y + 3);
+
+    doc.moveDown(2);
+
+    // Transaction Information Section
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('TRANSACTION DETAILS', leftColumn);
+    doc.moveDown(0.5);
+
+    // Draw a line
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    doc.fontSize(10).font('Helvetica').fillColor('#000000');
+
+    // Transaction info in two columns
+    currentY = doc.y;
+
+    doc.font('Helvetica-Bold').text('Transaction #:', leftColumn, currentY);
+    doc.font('Helvetica').text(String(transaction.id), leftColumn + 110, currentY);
+
+    doc.font('Helvetica-Bold').text('Date:', rightColumn, currentY);
+    doc.font('Helvetica').text(formatDate(transaction.create_date), rightColumn + 110, currentY);
+
+    currentY += 20;
+    doc.font('Helvetica-Bold').text('Payment Type:', leftColumn, currentY);
+    doc.font('Helvetica').text(PAYMENT_TYPE_LABELS[transaction.payment_type] || transaction.payment_type || 'N/A', leftColumn + 110, currentY);
+
+    doc.font('Helvetica-Bold').text('Payer:', rightColumn, currentY);
+    doc.font('Helvetica').text(transaction.payer || 'N/A', rightColumn + 110, currentY);
+
+    currentY += 20;
+    if (transaction.buyer) {
+      doc.font('Helvetica-Bold').text('Buyer:', leftColumn, currentY);
+      doc.font('Helvetica').text(transaction.buyer, leftColumn + 110, currentY);
+    }
+    if (transaction.personal_number) {
+      doc.font('Helvetica-Bold').text('Personal No:', rightColumn, currentY);
+      doc.font('Helvetica').text(transaction.personal_number, rightColumn + 110, currentY);
+    }
+
+    doc.moveDown(2);
+
+    // Vehicle Information Section (if a VIN is linked)
+    if (transaction.vin || transaction.mark || transaction.model) {
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('VEHICLE INFORMATION', leftColumn);
+      doc.moveDown(0.5);
+      doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.5);
+
+      doc.fontSize(10).font('Helvetica').fillColor('#000000');
+      currentY = doc.y;
+
+      const vehicleName = [transaction.mark, transaction.model, transaction.year].filter(Boolean).join(' ') || 'N/A';
+      doc.font('Helvetica-Bold').text('Vehicle:', leftColumn, currentY);
+      doc.font('Helvetica').text(vehicleName, leftColumn + 110, currentY);
+
+      doc.font('Helvetica-Bold').text('VIN:', rightColumn, currentY);
+      doc.font('Helvetica').text(transaction.vin || 'N/A', rightColumn + 110, currentY);
+
+      doc.moveDown(2);
+    }
+
+    // Payment Breakdown Section
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#0D6EFD').text('PAYMENT SUMMARY', leftColumn);
+    doc.moveDown(0.5);
+    doc.strokeColor('#0D6EFD').lineWidth(2).moveTo(leftColumn, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    // Create summary table
+    const tableTop = doc.y;
+    const descCol = leftColumn;
+    const amountCol = 450;
+
+    // Table header
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#FFFFFF');
+    doc.rect(descCol, tableTop, 495, 25).fillAndStroke('#0D6EFD', '#0D6EFD');
+    doc.fillColor('#FFFFFF').text('DESCRIPTION', descCol + 10, tableTop + 8);
+    doc.text('AMOUNT', amountCol + 10, tableTop + 8);
+
+    // Paid amount row
+    let rowY = tableTop + 25;
+    doc.fontSize(10).font('Helvetica').fillColor('#000000');
+    doc.rect(descCol, rowY, 495, 25).stroke('#DEE2E6');
+    doc.text(`${PAYMENT_TYPE_LABELS[transaction.payment_type] || transaction.payment_type || 'Payment'} — Paid Amount`, descCol + 10, rowY + 8);
+    doc.text(formatCurrency(transaction.paid_amount), amountCol + 10, rowY + 8);
+
+    // Balance top-up row (if any)
+    if (transaction.payment_type === 'balance' && Number(transaction.addToBalanseAmount) > 0) {
+      rowY += 25;
+      doc.rect(descCol, rowY, 495, 25).stroke('#DEE2E6');
+      doc.text('Added to Balance', descCol + 10, rowY + 8);
+      doc.text(formatCurrency(transaction.addToBalanseAmount), amountCol + 10, rowY + 8);
+    }
+
+    // Total row
+    rowY += 25;
+    const totalAmount = (Number(transaction.paid_amount) || 0) +
+      (transaction.payment_type === 'balance' ? (Number(transaction.addToBalanseAmount) || 0) : 0);
+    doc.font('Helvetica-Bold').fillColor('#FFFFFF');
+    doc.rect(descCol, rowY, 495, 25).fillAndStroke('#0D6EFD', '#0D6EFD');
+    doc.fillColor('#FFFFFF').text('TOTAL', descCol + 10, rowY + 8);
+    doc.text(formatCurrency(totalAmount), amountCol + 10, rowY + 8);
+
+    doc.fillColor('#000000');
+
+    // Footer
+    doc.moveDown(3);
+    const footerY = doc.y;
+    if (footerY > 700) {
+      doc.addPage();
+    }
+
+    doc.fontSize(9).font('Helvetica-Oblique').fillColor('#6C757D');
+    doc.text('Thank you for your business!', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.text('This invoice was generated automatically by Royal Motors system.', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.text(`Generated on ${formatDate(new Date())}`, { align: 'center' });
+
+    // Finalize PDF
+    doc.end();
+
+    // Wait for PDF to be written
+    writeStream.on('finish', () => {
+      res.download(filePath, fileName, (err) => {
+        if (err) {
+          console.error('Error sending transaction invoice:', err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 1, success: false, message: 'Failed to download invoice' });
+          }
+        }
+      });
+    });
+
+    writeStream.on('error', (err) => {
+      console.error('Error writing PDF:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 1, success: false, message: 'Failed to generate invoice' });
+      }
+    });
+
+  } catch (err) {
+    console.error('generateTransactionInvoice error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+module.exports = { getTransactions, getTransactionById, createTransaction, updateTransaction, deleteTransaction, generateTransactionInvoice };

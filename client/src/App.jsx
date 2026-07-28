@@ -14,6 +14,7 @@ import Calculator from './pages/Calculator';
 import Ports from './pages/Ports';
 import Geography from './pages/Geography';
 import Warehouses from './pages/Warehouses';
+import Trash from './pages/Trash';
 import Cars from './pages/Cars';
 import Users from './pages/Users';
 import Booking from './pages/Booking';
@@ -147,6 +148,7 @@ function ProtectedLayout() {
           <Route path="/ports" element={<AdminRoute><Ports /></AdminRoute>} />
           <Route path="/geography" element={<AdminRoute><Geography /></AdminRoute>} />
           <Route path="/warehouses" element={<AdminRoute><Warehouses /></AdminRoute>} />
+          <Route path="/trash" element={<AdminRoute><Trash /></AdminRoute>} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/ticket" element={<Ticket />} />

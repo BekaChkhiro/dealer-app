@@ -86,6 +86,14 @@ router.post('/warehouses', requireAdmin, warehousesController.createWarehouse);
 router.put('/warehouses/:id', requireAdmin, warehousesController.updateWarehouse);
 router.delete('/warehouses/:id', requireAdmin, warehousesController.deleteWarehouse);
 
+// Announcements (admin-managed, shown to all dealers on their dashboard)
+const announcementsController = require('../controllers/announcementsController');
+router.get('/announcements/active', requireAuth, announcementsController.getActiveAnnouncements);
+router.get('/announcements', requireAdmin, announcementsController.getAnnouncements);
+router.post('/announcements', requireAdmin, announcementsController.createAnnouncement);
+router.put('/announcements/:id', requireAdmin, announcementsController.updateAnnouncement);
+router.delete('/announcements/:id', requireAdmin, announcementsController.deleteAnnouncement);
+
 // Frequent receivers (saved recipient records)
 const frequentReceiversController = require('../controllers/frequentReceiversController');
 router.get('/frequent-receivers', requireAuth, frequentReceiversController.getFrequentReceivers);

@@ -168,8 +168,29 @@ function Transactions() {
     setEditModal(true);
   }
 
+  async function handleDownloadInvoice(row) {
+    try {
+      const response = await api.get(`/transactions/${row.id}/invoice`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transaction_invoice_${row.id}_${Date.now()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading transaction invoice:', err);
+      alert(t('invoices.downloadError'));
+    }
+  }
+
   function handleAction(action, row) {
-    if (action === 'edit') {
+    if (action === 'invoice') {
+      handleDownloadInvoice(row);
+    } else if (action === 'edit') {
       setEditRow(row);
       setFormData({
         payer: row.payer || '',
@@ -233,12 +254,24 @@ function Transactions() {
     }
   }
 
-  const actions = isAdmin
-    ? [
-        { key: 'edit', label: t('common.edit') },
-        { key: 'delete', label: t('common.delete') },
-      ]
-    : [];
+  const invoiceIcon = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="16" y2="17" />
+    </svg>
+  );
+
+  const actions = [
+    { key: 'invoice', label: t('transactions.invoice'), icon: invoiceIcon },
+    ...(isAdmin
+      ? [
+          { key: 'edit', label: t('common.edit') },
+          { key: 'delete', label: t('common.delete') },
+        ]
+      : []),
+  ];
 
   return (
     <div>

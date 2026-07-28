@@ -14,7 +14,8 @@
     "messages": "Messages",
     "auditLog": "Audit Log",
     "changePassword": "Change Password",
-    "logOut": "Log Out"
+    "logOut": "Log Out",
+    "trash": "Trash"
   },
   "common": {
     "actions": "Actions",
@@ -463,7 +464,8 @@
     "deleteTransaction": "Delete Transaction",
     "confirmDeleteTransaction": "Are you sure you want to delete this transaction?",
     "noVin": "No VIN",
-    "payerRequired": "Payer is required."
+    "payerRequired": "Payer is required.",
+    "invoice": "Invoice"
   },
   "changePassword": {
     "title": "Change Password",
@@ -843,5 +845,22 @@
     "systemInfo": "System Info",
     "totalUsers": "Total Users",
     "role": "Your Role"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "addPlaceholder": "Write an announcement…",
+    "add": "Add",
+    "active": "Active",
+    "empty": "No announcements"
+  },
+  "trash": {
+    "title": "Trash",
+    "hint": "Deleted cars are kept for 30 days, then permanently removed.",
+    "deletedAt": "Deleted",
+    "daysLeft": "Days left",
+    "days": "days",
+    "restore": "Restore",
+    "deleteForever": "Delete forever",
+    "confirmForever": "This will permanently delete the car. This cannot be undone."
   }
 }
