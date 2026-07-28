@@ -276,7 +276,9 @@ function Cars() {
         { key: 'delete', label: t('common.delete') },
       ]
     : [
+        // Dealers can add and edit their own vehicles (delete stays admin-only).
         { key: 'view', label: t('carDetail.view') },
+        { key: 'edit', label: t('common.edit') },
       ];
 
   const fetchData = useCallback(async () => {
@@ -363,33 +365,32 @@ function Cars() {
   // Fetch dropdown data on mount
   useEffect(() => {
     async function fetchDropdowns() {
-      try {
-        const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes, warehousesRes] = await Promise.all([
-          api.get('/users', { params: { limit: 500 } }),
-          api.get('/cities'),
-          api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
-          api.get('/car-brands'),
-          api.get('/car-models'),
-          api.get('/frequent-receivers'),
-          api.get('/geo/cities'),
-          api.get('/geo/loading-ports'),
-          api.get('/warehouses'),
-        ]);
-        setDealers((usersRes.data.data || []).filter((u) => u.role !== 'admin'));
-        setCities(citiesRes.data.data || []);
-        setPorts(portsRes.data.data || []);
-        setCarBrands(brandsRes.data.data || []);
-        setCarModels(modelsRes.data.data || []);
-        setFrequentReceivers(receiversRes.data.data || []);
-        setGeoCities(geoCitiesRes.data.data || []);
-        setLoadingPorts((loadingPortsRes.data.data || []).filter((p) => p.is_active !== false));
-        setWarehouses((warehousesRes.data.data || []).filter((w) => w.is_active !== false));
-      } catch (err) {
-        console.error('Error fetching dropdown data:', err);
-      }
+      // Resilient: one failing endpoint (e.g. /users is admin-only) must not
+      // wipe out the rest of the dropdowns for dealers.
+      const data = (res) => (res.status === 'fulfilled' ? (res.value.data.data || []) : []);
+      const [usersRes, citiesRes, portsRes, brandsRes, modelsRes, receiversRes, geoCitiesRes, loadingPortsRes, warehousesRes] = await Promise.allSettled([
+        isAdmin ? api.get('/users', { params: { limit: 500 } }) : Promise.reject(new Error('skip')),
+        api.get('/cities'),
+        api.get('/ports', { params: { limit: 500, is_active: 'true' } }),
+        api.get('/car-brands'),
+        api.get('/car-models'),
+        api.get('/frequent-receivers'),
+        api.get('/geo/cities'),
+        api.get('/geo/loading-ports'),
+        api.get('/warehouses'),
+      ]);
+      setDealers(data(usersRes).filter((u) => u.role !== 'admin'));
+      setCities(data(citiesRes));
+      setPorts(data(portsRes));
+      setCarBrands(data(brandsRes));
+      setCarModels(data(modelsRes));
+      setFrequentReceivers(data(receiversRes));
+      setGeoCities(data(geoCitiesRes));
+      setLoadingPorts(data(loadingPortsRes).filter((p) => p.is_active !== false));
+      setWarehouses(data(warehousesRes).filter((w) => w.is_active !== false));
     }
     fetchDropdowns();
-  }, []);
+  }, [isAdmin]);
 
   function handleSearch(value) {
     setKeyword(value);
@@ -741,7 +742,7 @@ function Cars() {
       <ActionButtons
         showFilters={true}
         showExport={true}
-        showAddNew={isAdmin}
+        showAddNew={true}
         showSearch={true}
         searchValue={keyword}
         activeFilterCount={activeFilterCount}
@@ -1038,6 +1039,7 @@ function Cars() {
                 {activeTab === 'dealerReceiver' && (<>
                 {/* Section 3 — Dealer & Receiver */}
                 <h6 className="cars-section-heading">{t('cars.dealerReceiver')}</h6>
+                {isAdmin && (
                 <div className="row mb-3">
                   <div className="col-12">
                     <label className="form-label">{t('cars.dealer')}</label>
@@ -1098,6 +1100,7 @@ function Cars() {
                     />
                   </div>
                 </div>
+                )}
                 {/* Receiver Data Entry Mode Toggle */}
                 <div className="mb-3">
                   <label className="form-label d-block">{t('cars.receiverDataEntry')}</label>

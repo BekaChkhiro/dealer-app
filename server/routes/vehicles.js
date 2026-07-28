@@ -10,8 +10,10 @@ router.get('/', requireAuth, vehiclesController.getVehicles);
 router.get('/invoices/list', requireAuth, vehiclesController.getInvoicesList);
 router.post('/bulk-delete', requireAdmin, vehiclesController.bulkDeleteVehicles);
 router.get('/:id', requireAuth, vehiclesController.getVehicleById);
-router.post('/', requireAdmin, upload.single('profile_image'), vehiclesController.createVehicle);
-router.put('/:id', requireAdmin, upload.single('profile_image'), vehiclesController.updateVehicle);
+// Dealers may create and edit vehicles; ownership is enforced in the controller
+// (a dealer's new cars auto-assign to them, and they can only edit their own).
+router.post('/', requireAuth, upload.single('profile_image'), vehiclesController.createVehicle);
+router.put('/:id', requireAuth, upload.single('profile_image'), vehiclesController.updateVehicle);
 router.delete('/:id', requireAdmin, vehiclesController.deleteVehicle);
 
 // Receiver ID document upload

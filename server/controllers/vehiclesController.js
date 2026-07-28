@@ -191,6 +191,10 @@ async function createVehicle(req, res) {
     const driverLicenseValue = driver_license_number || driver_car_license_number;
     const receiverPersonalValue = receiver_personal_number || receiver_identity_number;
 
+    // Non-admins can only create vehicles owned by themselves.
+    const isAdminUser = req.session.user.role === 'admin';
+    const dealerIdValue = isAdminUser ? dealer_id : req.session.user.id;
+
     // VIN validation: must be 50 characters or less (database limit)
     if (vin && vin.length > 50) {
       return res.status(400).json({ error: 1, success: false, message: 'VIN must be 50 characters or less' });
@@ -256,7 +260,7 @@ async function createVehicle(req, res) {
         $60, $61, $62, $63, $64
       ) RETURNING *`,
       [
-        dealer_id, receiver_fullname, receiverPersonalValue,
+        dealerIdValue, receiver_fullname, receiverPersonalValue,
         mark, model, year, vin, lotValue, auction, receiver_phone,
         us_state, destination_port, destination_port_id, us_port, is_sublot, is_fully_paid,
         is_partially_paid, is_funded, is_insured, doc_type,
@@ -311,6 +315,12 @@ async function updateVehicle(req, res) {
     // Capture old state for audit
     const oldRecord = await pool.query('SELECT * FROM vehicles WHERE id = $1', [id]);
 
+    // Ownership: a non-admin may only edit their own vehicles.
+    const isAdminUser = req.session.user.role === 'admin';
+    if (!isAdminUser && (!oldRecord.rows.length || oldRecord.rows[0].dealer_id !== req.session.user.id)) {
+      return res.status(403).json({ error: 1, success: false, message: 'Forbidden' });
+    }
+
     // Handle image upload
     if (req.file) {
       if (oldRecord.rows[0]?.profile_image_url) {
@@ -354,7 +364,7 @@ async function updateVehicle(req, res) {
       paramIndex++;
     }
 
-    const {
+    let {
       dealer_id, receiver_fullname, receiver_identity_number,
       mark, model, year, vin, lot_number, auction, receiver_phone,
       us_state, destination_port, destination_port_id, us_port, is_sublot, is_fully_paid,
@@ -379,6 +389,9 @@ async function updateVehicle(req, res) {
     const driverFullnameValue = driver_full_name !== undefined ? driver_full_name : driver_fullname;
     const driverLicenseValue = driver_license_number !== undefined ? driver_license_number : driver_car_license_number;
     const receiverPersonalValue = receiver_personal_number !== undefined ? receiver_personal_number : receiver_identity_number;
+
+    // A non-admin cannot reassign a vehicle to another dealer.
+    if (!isAdminUser) dealer_id = req.session.user.id;
 
     // VIN validation: must be 50 characters or less (database limit)
     if (vin && vin.length > 50) {
