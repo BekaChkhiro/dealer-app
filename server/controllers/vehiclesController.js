@@ -841,7 +841,8 @@ async function getPublicTracking(req, res) {
       return res.status(400).json({ error: 1, success: false, message: 'VIN is required' });
     }
 
-    // Query vehicle with limited fields (no financial data)
+    // Query vehicle with limited fields (no financial data).
+    // Cars in the trash are not shown.
     const result = await pool.query(
       `SELECT
         v.id,
@@ -864,17 +865,23 @@ async function getPublicTracking(req, res) {
         v.container_receive_date,
         v.container_number,
         v.line,
+        v.city,
         v.us_state,
         v.us_port,
         v.destination_port,
         p.name as destination_port_name,
+        w.name AS warehouse_name,
+        REPLACE(sl.tracking_url_template, '{container}', v.container_number) AS container_tracking_url,
         v.receiver_fullname,
         v.vehicle_type,
         v.fuel_type,
         v.doc_type
        FROM vehicles v
        LEFT JOIN ports p ON v.destination_port_id = p.id
-       WHERE v.vin = $1
+       LEFT JOIN warehouses w ON v.warehouse_id = w.id
+       LEFT JOIN shipping_lines sl ON LOWER(sl.name) = LOWER(v.line)
+       WHERE UPPER(v.vin) = UPPER($1) AND v.deleted_at IS NULL
+       ORDER BY v.id DESC
        LIMIT 1`,
       [vin]
     );
