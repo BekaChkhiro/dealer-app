@@ -123,6 +123,15 @@ function Cars() {
   const [receiverIdSuccess, setReceiverIdSuccess] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  // Auction invoice (Copart / IAA PDF) used to prefill the add form
+  const [invoiceFile, setInvoiceFile] = useState(null);
+  const [invoiceInfo, setInvoiceInfo] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState('');
+  // Comment line written by the last invoice, so a replacement invoice swaps it
+  const invoiceNoteRef = useRef('');
+  // Fields the last invoice filled, so a replacement clears what it does not set
+  const invoiceKeysRef = useRef([]);
   const [dealers, setDealers] = useState([]);
   const [cities, setCities] = useState([]);
   const [ports, setPorts] = useState([]);
@@ -539,9 +548,18 @@ function Cars() {
     }
   }
 
+  function resetInvoice() {
+    setInvoiceFile(null);
+    setInvoiceInfo(null);
+    setInvoiceError('');
+    invoiceNoteRef.current = '';
+    invoiceKeysRef.current = [];
+  }
+
   function handleAddNew() {
     setEditRow(null);
     setFormData(EMPTY_FORM);
+    resetInvoice();
     setImageFile(null);
     setImagePreview(null);
     setFormError('');
@@ -574,6 +592,7 @@ function Cars() {
         }
       }
       setFormData(populated);
+      resetInvoice();
       setImageFile(null);
       setImagePreview(row.profile_image_url || null);
       setFormError('');
@@ -632,6 +651,77 @@ function Cars() {
     if (file) {
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
+    }
+  }
+
+  // Read a Copart / IAA invoice PDF and prefill the form with what it contains.
+  // Only fields the invoice actually has are touched; everything stays editable.
+  async function handleInvoiceChange(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setInvoiceError('');
+    setInvoiceInfo(null);
+    setInvoiceFile(null);
+    setInvoiceLoading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/vehicles/parse-invoice', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const inv = res.data.data;
+
+      const patch = {};
+      const put = (key, value) => { if (value != null && value !== '') patch[key] = String(value); };
+      put('mark', inv.mark);
+      put('model', inv.model);
+      put('year', inv.year);
+      put('vin', inv.vin);
+      put('lot_number', inv.lot_number);
+      put('auction', inv.auction);
+      put('vehicle_price', inv.total_amount);
+      if (inv.purchase_date) patch.purchase_date = `${inv.purchase_date}T00:00`;
+      if (typeof inv.has_key === 'boolean') patch.has_key = inv.has_key;
+
+      if (inv.city) {
+        const match = geoCities.find((c) =>
+          (c.name || '').toUpperCase() === inv.city &&
+          (!inv.state || [c.state_code, c.state_name].some((v) => (v || '').toUpperCase() === inv.state))
+        );
+        patch.city = inv.city;
+        patch.city_id = match ? String(match.id) : '';
+      }
+      put('us_state', inv.state);
+
+      // Color and mileage have no field of their own — keep them in the comment.
+      const extras = [];
+      if (inv.color) extras.push(`COLOR: ${inv.color}`);
+      if (inv.mileage != null) extras.push(`MILEAGE: ${Number(inv.mileage).toLocaleString('en-US')}`);
+
+      const note = extras.join(', ');
+      const previousNote = invoiceNoteRef.current;
+      invoiceNoteRef.current = note;
+      const stale = invoiceKeysRef.current.filter((key) => !(key in patch));
+      invoiceKeysRef.current = Object.keys(patch);
+      for (const key of stale) patch[key] = EMPTY_FORM[key];
+      setFormData((prev) => {
+        // Drop the line a previously chosen invoice added, keep what the user typed.
+        const kept = (prev.comment || '').split('\n').filter((line) => line.trim() && line.trim() !== previousNote && line.trim() !== note);
+        return { ...prev, ...patch, comment: [...kept, note].filter(Boolean).join('\n') };
+      });
+      setInvoiceFile(file);
+      setInvoiceInfo(inv);
+    } catch (err) {
+      const code = err.response?.data?.code;
+      const byCode = {
+        NOT_PDF: t('cars.invoice.errorNotPdf'),
+        UNREADABLE: t('cars.invoice.errorUnreadable'),
+        UNRECOGNIZED: t('cars.invoice.errorUnrecognized'),
+      };
+      setInvoiceError(byCode[code] || t('cars.invoice.errorGeneric'));
+    } finally {
+      setInvoiceLoading(false);
     }
   }
 
@@ -707,7 +797,15 @@ function Cars() {
       if (editRow) {
         await api.put(`/vehicles/${editRow.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
-        await api.post('/vehicles', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const created = await api.post('/vehicles', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        // Keep the invoice the car was created from with the car's documents.
+        const newId = created.data?.data?.id;
+        if (invoiceFile && newId) {
+          const invoiceFd = new FormData();
+          invoiceFd.append('file', invoiceFile);
+          await api.post(`/vehicles/${newId}/files`, invoiceFd, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .catch(err => console.error('Error attaching invoice to vehicle:', err));
+        }
       }
 
       setEditModal(false);
@@ -894,6 +992,54 @@ function Cars() {
                 )}
 
                 {activeTab === 'vehicle' && (<>
+                {/* Prefill from an auction invoice (new vehicles only) */}
+                {!editRow && (
+                  <div className="cars-invoice-import mb-3">
+                    <div className="cars-invoice-import-head">
+                      <div>
+                        <div className="cars-invoice-import-title">{t('cars.invoice.title')}</div>
+                        <div className="cars-invoice-import-hint">{t('cars.invoice.hint')}</div>
+                      </div>
+                      <label className={`btn btn-sm btn-outline-primary mb-0 ${invoiceLoading ? 'disabled' : ''}`}>
+                        {invoiceLoading ? t('cars.invoice.reading') : (invoiceInfo ? t('cars.invoice.replace') : t('cars.invoice.choose'))}
+                        <input type="file" hidden accept="application/pdf,.pdf" onChange={handleInvoiceChange} disabled={invoiceLoading} />
+                      </label>
+                    </div>
+                    {invoiceError && <div className="alert alert-danger py-2 mt-2 mb-0">{invoiceError}</div>}
+                    {invoiceInfo && (
+                      <div className="cars-invoice-import-result">
+                        <div className="cars-invoice-import-file">
+                          <strong>{invoiceInfo.auction}</strong> · {invoiceFile?.name}
+                        </div>
+                        <dl className="cars-invoice-import-grid">
+                          {[
+                            [t('cars.vehicleName'), [invoiceInfo.year, invoiceInfo.mark, invoiceInfo.model].filter(Boolean).join(' ')],
+                            [t('cars.vin'), invoiceInfo.vin],
+                            [t('cars.lotNumber'), invoiceInfo.lot_number],
+                            [t('cars.purchaseDate'), invoiceInfo.purchase_date && formatDate(`${invoiceInfo.purchase_date}T00:00`)],
+                            [t('cars.invoice.color'), invoiceInfo.color],
+                            [t('cars.invoice.mileage'), invoiceInfo.mileage != null && Number(invoiceInfo.mileage).toLocaleString('en-US')],
+                            [t('cars.invoice.location'), [invoiceInfo.city, invoiceInfo.state].filter(Boolean).join(', ')],
+                            [t('cars.invoice.salePrice'), invoiceInfo.sale_price != null && formatPrice(invoiceInfo.sale_price)],
+                            [t('cars.invoice.total'), invoiceInfo.total_amount != null && formatPrice(invoiceInfo.total_amount)],
+                            [t('cars.invoice.paid'), invoiceInfo.paid_amount != null && `${formatPrice(invoiceInfo.paid_amount)}${invoiceInfo.payment_date ? ` (${formatDate(`${invoiceInfo.payment_date}T00:00`)})` : ''}`],
+                            [t('cars.invoice.balance'), invoiceInfo.balance_due != null && formatPrice(invoiceInfo.balance_due)],
+                          ].filter(([, value]) => value).map(([label, value]) => (
+                            <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+                          ))}
+                        </dl>
+                        <div className="cars-invoice-import-note">{t('cars.invoice.filledNote')}</div>
+                        {invoiceInfo.existing_vehicle_id && (
+                          <div className="alert alert-warning py-2 mt-2 mb-0">
+                            {t('cars.invoice.duplicate')}{' '}
+                            <Link to={`/cars/${invoiceInfo.existing_vehicle_id}`}>#{invoiceInfo.existing_vehicle_id}</Link>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Section 1 — Vehicle Image */}
                 <h6 className="cars-section-heading">{t('cars.vehicleImage')}</h6>
                 <div className="mb-3">

@@ -333,7 +333,27 @@
     "warehouse": "Warehouse",
     "copyShareLink": "Copy share link",
     "trackContainer": "Track container on carrier site",
-    "terminal": "Terminal"
+    "terminal": "Terminal",
+    "invoice": {
+      "title": "Fill from auction invoice",
+      "hint": "Upload a Copart or IAA invoice (PDF) and the vehicle details are filled in automatically.",
+      "choose": "Choose PDF",
+      "replace": "Choose another",
+      "reading": "Reading…",
+      "color": "Color",
+      "mileage": "Mileage",
+      "location": "Location",
+      "salePrice": "Bid / sale price",
+      "total": "Invoice total",
+      "paid": "Paid at auction",
+      "balance": "Balance due",
+      "filledNote": "Fields were filled from the invoice — check them before saving. Vehicle price is the invoice total (with auction fees). The invoice will be saved to the vehicle's files.",
+      "duplicate": "A vehicle with this VIN already exists:",
+      "errorNotPdf": "Only PDF invoices can be read. Photos and screenshots are not supported.",
+      "errorUnreadable": "This PDF could not be read.",
+      "errorUnrecognized": "This does not look like a Copart or IAA invoice.",
+      "errorGeneric": "Could not read the invoice. Try again."
+    }
   },
   "booking": {
     "title": "Booking",

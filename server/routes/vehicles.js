@@ -10,6 +10,9 @@ router.get('/', requireAuth, vehiclesController.getVehicles);
 router.get('/invoices/list', requireAuth, vehiclesController.getInvoicesList);
 router.post('/bulk-delete', requireAdmin, vehiclesController.bulkDeleteVehicles);
 
+// Read a Copart / IAA invoice PDF and return fields for the add-car form.
+router.post('/parse-invoice', requireAuth, uploadDocument.single('file'), vehiclesController.parseVehicleInvoice);
+
 // Trash (soft-deleted vehicles) — must come before the /:id routes below.
 router.get('/trash', requireAdmin, vehiclesController.getTrashedVehicles);
 router.post('/:id/restore', requireAdmin, vehiclesController.restoreVehicle);

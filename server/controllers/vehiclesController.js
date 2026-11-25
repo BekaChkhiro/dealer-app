@@ -5,6 +5,7 @@ const { applyWatermark, applyLogoWatermark } = require('../helpers/watermark');
 const { upsertBrandAndModel } = require('./carBrandsController');
 const path = require('path');
 const AdmZip = require('adm-zip');
+const { extractInvoiceText, parseInvoiceText } = require('../helpers/invoiceParser');
 
 const ALLOWED_SORT_COLUMNS = [
   'id', 'mark', 'model', 'year', 'vin', 'lot_number', 'auction',
@@ -300,6 +301,73 @@ async function createVehicle(req, res) {
     res.status(201).json({ error: 0, success: true, data: vehicle });
   } catch (err) {
     console.error('createVehicle error:', err);
+    res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
+  }
+}
+
+// Auction paperwork prints model and trim together ("K5 LXS"). When the model
+// list already knows a model of this brand that the text starts with, use it.
+async function narrowModelToKnown(mark, model) {
+  if (!mark || !model) return model;
+  const known = await pool.query(
+    `SELECT m.name FROM car_models m
+       JOIN car_brands b ON b.id = m.brand_id
+      WHERE UPPER(b.name) = UPPER($1)`,
+    [mark]
+  );
+  const upper = model.toUpperCase();
+  let best = null;
+  for (const { name } of known.rows) {
+    const candidate = String(name || '').trim().toUpperCase();
+    if (!candidate) continue;
+    if ((upper === candidate || upper.startsWith(`${candidate} `)) && (!best || candidate.length > best.length)) {
+      best = candidate;
+    }
+  }
+  return best || model;
+}
+
+// Read a Copart / IAA purchase invoice (PDF) and return the vehicle fields
+// found in it, for prefilling the add-car form. Nothing is saved here.
+async function parseVehicleInvoice(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 1, success: false, code: 'NO_FILE', message: 'No file uploaded' });
+    }
+    const isPdf = req.file.mimetype === 'application/pdf' || req.file.buffer.subarray(0, 5).toString() === '%PDF-';
+    if (!isPdf) {
+      return res.status(400).json({ error: 1, success: false, code: 'NOT_PDF', message: 'Only PDF invoices can be read' });
+    }
+
+    let text;
+    try {
+      text = await extractInvoiceText(req.file.buffer);
+    } catch (err) {
+      console.error('parseVehicleInvoice: unreadable PDF:', err.message);
+      return res.status(422).json({ error: 1, success: false, code: 'UNREADABLE', message: 'Could not read this PDF' });
+    }
+
+    const parsed = parseInvoiceText(text);
+    if (!parsed) {
+      return res.status(422).json({ error: 1, success: false, code: 'UNRECOGNIZED', message: 'This does not look like a Copart or IAA invoice' });
+    }
+
+    parsed.model = await narrowModelToKnown(parsed.mark, parsed.model);
+
+    // Flag a VIN that is already in the system (dealers only see their own cars).
+    const isAdminUser = req.session.user.role === 'admin';
+    const dup = await pool.query(
+      `SELECT id FROM vehicles
+        WHERE UPPER(vin) = UPPER($1) AND deleted_at IS NULL
+          ${isAdminUser ? '' : 'AND dealer_id = $2'}
+        LIMIT 1`,
+      isAdminUser ? [parsed.vin] : [parsed.vin, req.session.user.id]
+    );
+    parsed.existing_vehicle_id = dup.rows[0]?.id || null;
+
+    res.json({ error: 0, success: true, data: parsed });
+  } catch (err) {
+    console.error('parseVehicleInvoice error:', err);
     res.status(500).json({ error: 1, success: false, message: 'Internal server error' });
   }
 }
@@ -1993,4 +2061,4 @@ async function updateVehicleFileCategory(req, res) {
   }
 }
 
-module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle, bulkDeleteVehicles, getTrashedVehicles, restoreVehicle, permanentDeleteVehicle, purgeOldTrashedVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile, uploadVehicleFilesZip, setMainPhoto, updateVehicleFileCategory };
+module.exports = { getVehicles, getVehicleById, createVehicle, parseVehicleInvoice, updateVehicle, deleteVehicle, bulkDeleteVehicles, getTrashedVehicles, restoreVehicle, permanentDeleteVehicle, purgeOldTrashedVehicles, getCities, searchVehicles, getPublicTracking, uploadReceiverIdDocument, generateVehicleInvoice, generateTransportInvoice, getInvoicesList, getVehicleFiles, uploadVehicleFile, deleteVehicleFile, uploadVehicleFilesZip, setMainPhoto, updateVehicleFileCategory };
