@@ -185,7 +185,7 @@ async function createVehicle(req, res) {
       estimated_receive_date, receive_date, dealer_fee,
       status_color, has_key, has_auction_image,
       has_transportation_image, has_port_image, has_poti_image,
-      is_hybrid, vehicle_type, fuel_type, container_open_date, container_receive_date,
+      is_hybrid, vehicle_type, fuel_type, color, mileage, container_open_date, container_receive_date,
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
@@ -258,7 +258,8 @@ async function createVehicle(req, res) {
         container_receive_date, receiver_changed, receiver_change_date,
         driver_fullname, driver_phone, driver_car_license_number, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
-        city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number
+        city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number,
+        color, mileage
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -266,7 +267,8 @@ async function createVehicle(req, res) {
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
         $51, $52, $53, $54, $55, $56, $57, $58, $59,
-        $60, $61, $62, $63, $64, $65
+        $60, $61, $62, $63, $64, $65,
+        $66, $67
       ) RETURNING *`,
       [
         dealerIdValue, receiver_fullname, receiverPersonalValue,
@@ -284,6 +286,7 @@ async function createVehicle(req, res) {
         driverFullnameValue, driver_phone, driverLicenseValue, driver_id_number,
         purchase_date, driver_company, late_car_payment, comment, insurance_type, container_id,
         city_id, city, loading_port_id, sublot_city, warehouse_id, booking_number,
+        color, mileage,
       ].map(emptyToNull)
     );
 
@@ -451,7 +454,7 @@ async function updateVehicle(req, res) {
       estimated_receive_date, receive_date, dealer_fee,
       status_color, has_key, has_auction_image,
       has_transportation_image, has_port_image, has_poti_image,
-      is_hybrid, vehicle_type, fuel_type, container_open_date, container_receive_date,
+      is_hybrid, vehicle_type, fuel_type, color, mileage, container_open_date, container_receive_date,
       receiver_changed, receiver_change_date, driver_fullname,
       driver_phone, driver_car_license_number, driver_id_number, purchase_date,
       driver_company, late_car_payment, comment, insurance_type, container_id,
@@ -518,6 +521,8 @@ async function updateVehicle(req, res) {
     addField('is_hybrid', is_hybrid);
     addField('vehicle_type', vehicle_type);
     addField('fuel_type', fuel_type);
+    addField('color', color);
+    addField('mileage', mileage);
     addField('container_open_date', container_open_date);
     addField('container_receive_date', container_receive_date);
     addField('receiver_changed', receiver_changed);
@@ -875,6 +880,8 @@ async function getPublicTracking(req, res) {
         v.receiver_fullname,
         v.vehicle_type,
         v.fuel_type,
+        v.color,
+        v.mileage,
         v.doc_type
        FROM vehicles v
        LEFT JOIN ports p ON v.destination_port_id = p.id

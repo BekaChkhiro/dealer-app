@@ -353,7 +353,9 @@
       "errorUnreadable": "This PDF could not be read.",
       "errorUnrecognized": "This does not look like a Copart or IAA invoice.",
       "errorGeneric": "Could not read the invoice. Try again."
-    }
+    },
+    "color": "Color",
+    "mileage": "Mileage (mi)"
   },
   "booking": {
     "title": "Booking",

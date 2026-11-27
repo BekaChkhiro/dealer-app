@@ -591,6 +591,8 @@ function PublicTracking() {
               <Row label={t('cars.lotNumber')} mono>{vehicle.lot_number}</Row>
               <Row label={t('publicTracking.type')}>{vehicle.vehicle_type}</Row>
               <Row label={t('publicTracking.fuel')}>{vehicle.fuel_type ? <span className="capitalize">{vehicle.fuel_type.replace(/_/g, ' ')}</span> : null}</Row>
+              <Row label={t('cars.color')}>{vehicle.color}</Row>
+              <Row label={t('cars.mileage')} mono>{vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('en-US') : null}</Row>
               <Row label={t('publicTracking.document')}>{vehicle.doc_type?.trim()}</Row>
             </dl>
           </section>

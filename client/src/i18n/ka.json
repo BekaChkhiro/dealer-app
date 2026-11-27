@@ -353,7 +353,9 @@
       "errorUnreadable": "ამ PDF-ის წაკითხვა ვერ მოხერხდა.",
       "errorUnrecognized": "ეს ფაილი Copart-ის ან IAA-ს ინვოისს არ ჰგავს.",
       "errorGeneric": "ინვოისის წაკითხვა ვერ მოხერხდა. სცადე თავიდან."
-    }
+    },
+    "color": "ფერი",
+    "mileage": "გარბენი (მილი)"
   },
   "booking": {
     "title": "ბუქინგი",

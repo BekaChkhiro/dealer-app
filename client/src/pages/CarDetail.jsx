@@ -571,6 +571,8 @@ function CarDetail() {
             <InfoItem label={t('cars.auction')} value={vehicle.auction} />
             <InfoItem label={t('cars.vehicleType')} value={vehicle.vehicle_type} />
             <InfoItem label={t('cars.fuelType')} value={vehicle.fuel_type ? vehicle.fuel_type.replace('_', ' ') : null} />
+            <InfoItem label={t('cars.color')} value={vehicle.color} />
+            <InfoItem label={t('cars.mileage')} value={vehicle.mileage != null ? Number(vehicle.mileage).toLocaleString('en-US') : null} />
             <InfoItem label={t('cars.docType')} value={vehicle.doc_type} />
             <div className="car-detail-info-item">
               <span className="car-detail-info-label">{t('cars.status')}</span>

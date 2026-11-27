@@ -20,7 +20,7 @@ import './Cars.css';
 
 const EMPTY_FORM = {
   // Vehicle info
-  mark: '', model: '', year: '', vin: '', lot_number: '', auction: '', vehicle_type: '', doc_type: '', fuel_type: '', is_hybrid: false, is_sublot: false,
+  mark: '', model: '', year: '', vin: '', lot_number: '', auction: '', vehicle_type: '', doc_type: '', fuel_type: '', color: '', mileage: '', is_hybrid: false, is_sublot: false,
   // Dealer / Receiver
   dealer_id: '', receiver_fullname: '', receiver_identity_number: '', receiver_phone: '',
   // Location (city_id/loading_port_id reference admin-managed geography;
@@ -56,7 +56,7 @@ const DATE_FIELDS = [
 
 // Text fields that should be stored/shown uppercase.
 const UPPERCASE_FIELDS = [
-  'mark', 'model', 'doc_type', 'lot_number', 'container_number',
+  'mark', 'model', 'doc_type', 'color', 'lot_number', 'container_number',
   'us_state', 'us_port', 'city', 'sublot_city', 'receiver_fullname', 'receiver_identity_number',
   'driver_fullname', 'driver_id_number', 'driver_car_license_number', 'driver_company',
 ];
@@ -128,8 +128,6 @@ function Cars() {
   const [invoiceInfo, setInvoiceInfo] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState('');
-  // Comment line written by the last invoice, so a replacement invoice swaps it
-  const invoiceNoteRef = useRef('');
   // Fields the last invoice filled, so a replacement clears what it does not set
   const invoiceKeysRef = useRef([]);
   const [dealers, setDealers] = useState([]);
@@ -552,7 +550,6 @@ function Cars() {
     setInvoiceFile(null);
     setInvoiceInfo(null);
     setInvoiceError('');
-    invoiceNoteRef.current = '';
     invoiceKeysRef.current = [];
   }
 
@@ -694,22 +691,13 @@ function Cars() {
       }
       put('us_state', inv.state);
 
-      // Color and mileage have no field of their own — keep them in the comment.
-      const extras = [];
-      if (inv.color) extras.push(`COLOR: ${inv.color}`);
-      if (inv.mileage != null) extras.push(`MILEAGE: ${Number(inv.mileage).toLocaleString('en-US')}`);
+      put('color', inv.color);
+      put('mileage', inv.mileage);
 
-      const note = extras.join(', ');
-      const previousNote = invoiceNoteRef.current;
-      invoiceNoteRef.current = note;
       const stale = invoiceKeysRef.current.filter((key) => !(key in patch));
       invoiceKeysRef.current = Object.keys(patch);
       for (const key of stale) patch[key] = EMPTY_FORM[key];
-      setFormData((prev) => {
-        // Drop the line a previously chosen invoice added, keep what the user typed.
-        const kept = (prev.comment || '').split('\n').filter((line) => line.trim() && line.trim() !== previousNote && line.trim() !== note);
-        return { ...prev, ...patch, comment: [...kept, note].filter(Boolean).join('\n') };
-      });
+      setFormData((prev) => ({ ...prev, ...patch }));
       setInvoiceFile(file);
       setInvoiceInfo(inv);
     } catch (err) {
@@ -1231,6 +1219,14 @@ function Cars() {
                       <option value="electric">{t('cars.fuelTypeElectric')}</option>
                       <option value="plug_in_hybrid">{t('cars.fuelTypePlugInHybrid')}</option>
                     </select>
+                  </div>
+                  <div className="col-3">
+                    <label className="form-label">{t('cars.color')}</label>
+                    <input type="text" className="form-control" name="color" value={formData.color} onChange={handleFormChange} maxLength={40} />
+                  </div>
+                  <div className="col-3">
+                    <label className="form-label">{t('cars.mileage')}</label>
+                    <input type="number" className="form-control" name="mileage" value={formData.mileage} onChange={handleFormChange} min="0" step="1" />
                   </div>
                 </div>
                 <div className="row mb-3">
